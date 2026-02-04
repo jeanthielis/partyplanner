@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PartyPlanner Cloud - Corrigido</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#8b5cf6', secondary: '#ec4899', success: '#10b981', 
+                        danger: '#ef4444', warning: '#f59e0b', darkbg: '#0f172a', 
+                        darkcard: '#1e293b', darkinput: '#374151'
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+        [v-cloak] { display: none; } /* Esconde o app até carregar */
+        body { transition: background-color 0.3s; }
+        .input-base {
+            width: 100%; padding: 0.75rem; border-radius: 0.75rem; outline: none; border: 1px solid #e5e7eb;
+            background-color: #f9fafb; color: #1f2937; transition: all 0.3s;
+        }
+        .dark .input-base {
+            background-color: #374151; border-color: #4b5563; color: #f3f4f6;
+        }
+        .card-base {
+            background-color: white; padding: 1rem; border-radius: 1rem; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+        .dark .card-base {
+            background-color: #1e293b; border-color: #374151; color: white;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 dark:bg-darkbg dark:text-gray-100 font-sans antialiased pb-24">
+
+    <div id="root" v-cloak>
+
+        <div v-if="loading" class="fixed inset-0 z-50 bg-white dark:bg-darkbg flex items-center justify-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+
+        <div v-else-if="!user" class="fixed inset-0 z-40 bg-gradient-to-br from-primary to-secondary flex items-center justify-center p-6">
+            <div class="bg-white dark:bg-darkcard p-8 rounded-3xl shadow-2xl w-full max-w-sm">
+                <div class="text-center mb-8">
+                    <div class="bg-gray-100 dark:bg-gray-700 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-primary text-2xl">
+                        <i class="fa-solid fa-champagne-glasses"></i>
+                    </div>
+                    <h1 class="text-2xl font-bold text-gray-800 dark:text-white">PartyPlanner</h1>
+                    <p class="text-xs text-gray-500 uppercase font-bold mt-1">Gestão Cloud</p>
+                </div>
+                <form @submit.prevent="handleLogin" class="space-y-4">
+                    <input v-model="email" type="email" placeholder="E-mail" class="input-base" required>
+                    <input v-model="password" type="password" placeholder="Senha" class="input-base" required>
+                    <button type="submit" class="w-full bg-primary text-white py-3 rounded-xl font-bold shadow-lg hover:brightness-110 transition">
+                        {{ isRegistering ? 'Cadastrar Conta' : 'Entrar' }}
+                    </button>
+                </form>
+                <button @click="isRegistering = !isRegistering" class="w-full text-center mt-4 text-sm text-gray-500 hover:text-primary underline">
+                    {{ isRegistering ? 'Já tenho conta? Entrar' : 'Criar conta nova' }}
+                </button>
+            </div>
+        </div>
+
+        <div v-else>
+            <header class="bg-white dark:bg-darkcard shadow-sm sticky top-0 z-20 px-4 py-3 flex justify-between items-center border-b dark:border-gray-700">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-cloud text-primary text-xl"></i>
+                    <h1 class="font-bold text-lg">PartyPlanner</h1>
+                </div>
+                <div class="flex gap-2">
+                    <button @click="toggleDarkMode" class="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-600 dark:text-yellow-400">
+                        <i :class="isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon'"></i>
+                    </button>
+                    <button @click="logout" class="w-9 h-9 rounded-full bg-red-100 text-red-500 flex items-center justify-center">
+                        <i class="fa-solid fa-power-off"></i>
+                    </button>
+                </div>
+            </header>
+
+            <main class="p-4 max-w-md mx-auto">
+                <div v-if="view === 'dashboard'">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="font-bold text-xl">Dashboard</h2>
+                        <div class="bg-white dark:bg-darkcard rounded-lg p-1 flex shadow-sm">
+                            <button @click="dashboardFilter='month'" :class="dashboardFilter==='month'?'bg-primary text-white':'text-gray-400'" class="px-3 py-1 rounded text-xs font-bold transition">Mês</button>
+                            <button @click="dashboardFilter='year'" :class="dashboardFilter==='year'?'bg-primary text-white':'text-gray-400'" class="px-3 py-1 rounded text-xs font-bold transition">Ano</button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <div class="card-base border-l-4 border-primary">
+                            <span class="text-[10px] text-gray-400 font-bold uppercase">Faturamento</span>
+                            <p class="text-lg font-bold">{{ formatCurrency(kpiRevenue) }}</p>
+                        </div>
+                        <div class="card-base border-l-4 border-danger">
+                            <span class="text-[10px] text-gray-400 font-bold uppercase">Despesas</span>
+                            <p class="text-lg font-bold text-danger">{{ formatCurrency(kpiTotalExpenses) }}</p>
+                        </div>
+                        <div class="card-base border-l-4 border-success">
+                            <span class="text-[10px] text-gray-400 font-bold uppercase">Lucro</span>
+                            <p class="text-lg font-bold text-success">{{ formatCurrency(kpiProfit) }}</p>
+                        </div>
+                        <div class="card-base border-l-4 border-warning">
+                            <span class="text-[10px] text-gray-400 font-bold uppercase">A Receber</span>
+                            <p class="text-lg font-bold text-warning">{{ formatCurrency(kpiReceivables) }}</p>
+                        </div>
+                    </div>
+                    <button @click="view='calendar'" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold shadow mb-6 flex items-center justify-center gap-2"><i class="fa-solid fa-calendar-days"></i> Calendário</button>
+                    <h3 class="font-bold text-sm uppercase text-gray-500 mb-2">Próximos 7 Dias</h3>
+                    <div v-if="next7DaysApps.length===0" class="text-center text-gray-400 py-4 text-sm">Nada agendado.</div>
+                    <div class="space-y-2">
+                        <div v-for="app in next7DaysApps" :key="app.id" class="card-base flex items-center gap-3 py-2 cursor-pointer" @click="view='appointments_list'">
+                            <div class="bg-gray-100 dark:bg-gray-700 p-2 rounded text-center min-w-[50px]"><span class="block text-[9px] font-bold">{{getMonth(app.date)}}</span><span class="block text-lg font-bold text-primary leading-none">{{getDay(app.date)}}</span></div>
+                            <div><p class="font-bold text-sm">{{getClientName(app.clientId)}}</p><p class="text-xs text-gray-500">{{app.time}} - {{app.location.bairro}}</p></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="view === 'appointments_list'">
+                    <h2 class="font-bold text-xl mb-4">Agenda</h2>
+                    <div class="card-base mb-4 flex gap-2"><input v-model="filterDate" type="date" class="input-base text-sm"><button @click="filterDate=''" class="bg-gray-200 dark:bg-gray-600 px-4 rounded-xl"><i class="fa-solid fa-xmark"></i></button></div>
+                    <div class="space-y-4 pb-20">
+                        <div v-for="app in sortedAppointments" :key="app.id" class="card-base relative overflow-hidden">
+                            <div class="absolute top-0 right-0 px-3 py-1 text-[10px] font-bold rounded-bl-xl" :class="statusClass(app.status)">{{statusText(app.status)}}</div>
+                            <h3 class="font-bold text-lg pr-16">{{getClientName(app.clientId)}}</h3>
+                            <p class="text-xs text-gray-500 mb-2"><i class="fa-regular fa-clock"></i> {{formatDate(app.date)}} - {{app.time}}</p>
+                            <div class="flex flex-wrap gap-1 mb-2"><span v-for="s in app.selectedServices" class="text-[10px] bg-gray-100 dark:bg-gray-700 px-2 rounded">{{s.description}}</span></div>
+                            <div class="flex justify-between border-t dark:border-gray-700 pt-2 items-center">
+                                <span class="font-bold text-primary">{{formatCurrency(app.finalBalance)}}</span>
+                                <div class="flex gap-2">
+                                    <button @click="changeStatus(app,'concluded')" class="text-green-500"><i class="fa-solid fa-check-circle text-xl"></i></button>
+                                    <button @click="showReceipt(app)" class="text-gray-500"><i class="fa-solid fa-file-invoice text-xl"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="view === 'schedule'">
+                    <h2 class="font-bold text-xl mb-4">{{isEditing?'Editar':'Novo'}} Agendamento</h2>
+                    <form @submit.prevent="saveAppointment" class="pb-24 space-y-4">
+                        <div class="card-base space-y-3">
+                            <label class="text-xs font-bold text-gray-400 uppercase">Cliente</label>
+                            <select v-model="tempApp.clientId" class="input-base" required><option value="" disabled>Selecione...</option><option v-for="c in clients" :value="c.id">{{c.name}}</option></select>
+                            <div class="grid grid-cols-2 gap-2"><input v-model="tempApp.date" type="date" class="input-base" required><input v-model="tempApp.time" type="time" class="input-base" required></div>
+                            <input v-model="tempApp.location.bairro" placeholder="Bairro" class="input-base" required>
+                            <div class="grid grid-cols-3 gap-2"><input v-model="tempApp.location.cidade" placeholder="Cidade" class="col-span-2 input-base"><input v-model="tempApp.location.numero" placeholder="Nº" class="input-base"></div>
+                        </div>
+                        <div class="card-base space-y-3">
+                            <label class="text-xs font-bold text-gray-400 uppercase">Serviços & Staff</label>
+                            <div class="flex gap-2"><select v-model="tempServiceSelect" class="input-base text-sm"><option value="" disabled>Add Serviço...</option><option v-for="s in services" :value="s">{{s.description}}</option></select><button type="button" @click="addServiceToApp" class="bg-primary text-white px-4 rounded-xl">+</button></div>
+                            <div class="space-y-1"><div v-for="(s,i) in tempApp.selectedServices" class="flex justify-between text-xs bg-gray-100 dark:bg-gray-700 p-2 rounded"><span>{{s.description}}</span><div class="flex gap-2"><span>{{formatCurrency(s.price)}}</span><i @click="removeServiceFromApp(i)" class="fa-solid fa-times text-red-400 cursor-pointer"></i></div></div></div>
+                            <div class="flex gap-2 mt-2"><select v-model="tempStaffSelect" class="input-base text-sm"><option value="" disabled>Add Staff...</option><option v-for="st in staff" :value="st">{{st.name}}</option></select><button type="button" @click="addStaffToApp" class="bg-indigo-500 text-white px-4 rounded-xl">+</button></div>
+                            <div class="space-y-1"><div v-for="(st,i) in tempApp.selectedStaff" class="flex justify-between text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 p-2 rounded"><span>{{st.name}}</span><span>{{formatCurrency(st.dailyRate)}}</span></div></div>
+                            
+                            <div class="bg-gray-100 dark:bg-gray-800 p-3 rounded-lg text-xs space-y-1 mt-2">
+                                <div class="flex justify-between"><span>Serviços (+)</span><span>{{formatCurrency(calcTotalServices)}}</span></div>
+                                <div class="flex justify-between text-red-500"><span>Staff (-)</span><span>{{formatCurrency(calcTotalStaffCost)}}</span></div>
+                                <div class="flex justify-between items-center pt-2 border-t border-gray-300 dark:border-gray-600"><span class="font-bold">Entrada Recebida</span><input v-model.number="tempApp.details.entryFee" type="number" class="w-24 text-right p-1 rounded bg-white dark:bg-gray-700 input-base !py-1"></div>
+                                <div class="flex justify-between font-bold text-lg text-primary pt-2"><span>Restante:</span><span>{{formatCurrency(calcFinalBalance)}}</span></div>
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full bg-primary text-white py-4 rounded-xl font-bold shadow-lg">Salvar</button>
+                    </form>
+                </div>
+
+                <div v-if="view === 'catalog_hub'" class="grid grid-cols-2 gap-3">
+                    <div @click="view='company_settings'" class="card-base border-t-4 border-primary cursor-pointer"><i class="fa-solid fa-building text-2xl text-primary mb-2"></i><p class="font-bold text-sm">Empresa</p></div>
+                    <div @click="view='clients_list'" class="card-base border-t-4 border-blue-500 cursor-pointer"><i class="fa-solid fa-users text-2xl text-blue-500 mb-2"></i><p class="font-bold text-sm">Clientes</p></div>
+                    <div @click="view='services_list'" class="card-base border-t-4 border-pink-500 cursor-pointer"><i class="fa-solid fa-wand-magic-sparkles text-2xl text-pink-500 mb-2"></i><p class="font-bold text-sm">Serviços</p></div>
+                    <div @click="view='staff_list'" class="card-base border-t-4 border-indigo-500 cursor-pointer"><i class="fa-solid fa-user-group text-2xl text-indigo-500 mb-2"></i><p class="font-bold text-sm">Equipe</p></div>
+                    <div @click="view='expenses'" class="card-base border-t-4 border-red-500 cursor-pointer col-span-2"><i class="fa-solid fa-money-bill-transfer text-2xl text-red-500 mb-2"></i><p class="font-bold text-sm">Despesas</p></div>
+                </div>
+
+                <div v-if="view === 'clients_list'">
+                    <div class="flex items-center gap-3 mb-4"><button @click="view='catalog_hub'"><i class="fa-solid fa-arrow-left"></i></button><h2 class="font-bold text-xl">Clientes</h2></div>
+                    <button @click="openClientModal()" class="w-full bg-blue-500 text-white py-3 rounded-xl font-bold mb-4 shadow">Novo</button>
+                    <div class="space-y-2"><div v-for="c in clients" class="card-base flex justify-between items-center"><div><p class="font-bold">{{c.name}}</p><p class="text-xs text-gray-500">{{c.phone}}</p></div><button @click="deleteClient(c.id)" class="text-red-400"><i class="fa-solid fa-trash"></i></button></div></div>
+                </div>
+                <div v-if="view === 'staff_list'">
+                    <div class="flex items-center gap-3 mb-4"><button @click="view='catalog_hub'"><i class="fa-solid fa-arrow-left"></i></button><h2 class="font-bold text-xl">Equipe</h2></div>
+                    <button @click="openStaffModal()" class="w-full bg-indigo-500 text-white py-3 rounded-xl font-bold mb-4 shadow">Novo</button>
+                    <div class="space-y-2"><div v-for="s in staff" class="card-base flex justify-between items-center"><div><p class="font-bold">{{s.name}}</p><p class="text-xs text-gray-500">{{s.role}}</p></div><div class="text-right"><p class="font-bold text-indigo-500">{{formatCurrency(s.dailyRate)}}</p><button @click="deleteStaff(s.id)" class="text-red-400 text-xs"><i class="fa-solid fa-trash"></i></button></div></div></div>
+                </div>
+                <div v-if="view === 'expenses'">
+                    <div class="flex items-center gap-3 mb-4"><button @click="view='catalog_hub'"><i class="fa-solid fa-arrow-left"></i></button><h2 class="font-bold text-xl">Despesas</h2></div>
+                    <div class="card-base mb-4 space-y-2"><input v-model="newExpense.description" placeholder="Desc" class="input-base"><div class="flex gap-2"><input v-model.number="newExpense.value" type="number" placeholder="$$" class="input-base"><input v-model="newExpense.date" type="date" class="input-base"></div><button @click="addExpense" class="w-full bg-red-500 text-white py-2 rounded-lg font-bold">Salvar</button></div>
+                    <div class="space-y-2"><div v-for="e in expenses" class="card-base border-l-4 border-red-500 flex justify-between"><div><p class="font-bold">{{e.description}}</p><p class="text-xs text-gray-500">{{formatDate(e.date)}}</p></div><span class="font-bold text-red-500">- {{formatCurrency(e.value)}}</span></div></div>
+                </div>
+                <div v-if="view === 'services_list'">
+                    <div class="flex items-center gap-3 mb-4"><button @click="view='catalog_hub'"><i class="fa-solid fa-arrow-left"></i></button><h2 class="font-bold text-xl">Serviços</h2></div>
+                    <button @click="openServiceModal()" class="w-full bg-pink-500 text-white py-3 rounded-xl font-bold mb-4 shadow">Novo</button>
+                    <div class="space-y-2"><div v-for="s in services" class="card-base flex justify-between"><span>{{s.description}}</span><span class="font-bold text-pink-500">{{formatCurrency(s.price)}}</span></div></div>
+                </div>
+                <div v-if="view === 'company_settings'">
+                    <button @click="view='catalog_hub'" class="mb-4"><i class="fa-solid fa-arrow-left"></i> Voltar</button>
+                    <div class="card-base space-y-3"><h2 class="font-bold mb-2">Dados</h2><input v-model="company.fantasia" placeholder="Nome Fantasia" class="input-base"><button @click="saveCompany" class="w-full bg-primary text-white py-3 rounded-xl font-bold">Salvar</button></div>
+                </div>
+
+                <div v-if="view === 'calendar'">
+                    <div class="flex items-center gap-3 mb-4"><button @click="view='dashboard'"><i class="fa-solid fa-arrow-left"></i></button><h2 class="font-bold text-xl">Calendário</h2></div>
+                    <div class="card-base">
+                        <div class="flex justify-between items-center mb-4"><button @click="changeMonth(-1)"><i class="fa-solid fa-chevron-left"></i></button><h3 class="font-bold">{{ monthNames[currentMonth] }} {{ currentYear }}</h3><button @click="changeMonth(1)"><i class="fa-solid fa-chevron-right"></i></button></div>
+                        <div class="grid grid-cols-7 gap-1 text-center text-xs font-bold text-gray-400 mb-2"><div>D</div><div>S</div><div>T</div><div>Q</div><div>Q</div><div>S</div><div>S</div></div>
+                        <div class="grid grid-cols-7 gap-1"><div v-for="b in firstDayOfMonth" :key="'b'+b"></div><div v-for="d in daysInMonth" :key="d" class="h-14 border dark:border-gray-700 rounded-lg flex flex-col items-center justify-center cursor-pointer transition" :class="{'bg-purple-100 dark:bg-purple-900 border-primary':hasEvent(d)}" @click="selectDateFromCalendar(d)"><span class="text-xs font-bold">{{d}}</span><div v-if="hasEvent(d)" class="w-1.5 h-1.5 bg-primary rounded-full mt-1"></div></div></div>
+                    </div>
+                </div>
+
+            </main>
+
+            <nav class="fixed bottom-0 w-full bg-white dark:bg-darkcard border-t dark:border-gray-700 flex justify-around py-2 z-30 shadow-lg">
+                <button @click="view='dashboard'" :class="view==='dashboard'?'text-primary':'text-gray-400'" class="flex flex-col items-center p-2"><i class="fa-solid fa-chart-pie text-xl mb-1"></i><span class="text-[10px] font-bold">Dash</span></button>
+                <button @click="view='appointments_list'" :class="view==='appointments_list'?'text-primary':'text-gray-400'" class="flex flex-col items-center p-2"><i class="fa-solid fa-calendar-check text-xl mb-1"></i><span class="text-[10px] font-bold">Agenda</span></button>
+                <div class="relative -top-6"><button @click="startNewSchedule" class="bg-primary text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg border-4 border-gray-50 dark:border-darkbg"><i class="fa-solid fa-plus text-2xl"></i></button></div>
+                <button @click="view='expenses'" :class="view==='expenses'?'text-primary':'text-gray-400'" class="flex flex-col items-center p-2"><i class="fa-solid fa-money-bill-transfer text-xl mb-1"></i><span class="text-[10px] font-bold">Saídas</span></button>
+                <button @click="view='catalog_hub'" :class="view.includes('catalog')||view.includes('_list')?'text-primary':'text-gray-400'" class="flex flex-col items-center p-2"><i class="fa-solid fa-folder-open text-xl mb-1"></i><span class="text-[10px] font-bold">Cadastros</span></button>
+            </nav>
+        </div>
+    </div>
+
+    <script type="module">
+        import { createApp, ref, computed, reactive, watch, onMounted } from 'https://unpkg.com/vue@3/dist/vue.esm-browser.js';
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // --- 🔴 COLE AQUI SUAS CHAVES DO FIREBASE ---
+        const firebaseConfig = {
+  apiKey: "AIzaSyAhHRcZwrzD36oEFaeQzD1Fd-685YRAxBA",
+  authDomain: "partyplanner-3f352.firebaseapp.com",
+  projectId: "partyplanner-3f352",
+  storageBucket: "partyplanner-3f352.firebasestorage.app",
+  messagingSenderId: "748641483081",
+  appId: "1:748641483081:web:dec19c31c9e58d9040c298",
+  measurementId: "G-YVYD6MEXC1"
+};
+        // --------------------------------------------
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        createApp({
+            setup() {
+                const loading = ref(true);
+                const user = ref(null);
+                const email = ref('');
+                const password = ref('');
+                const isRegistering = ref(false);
+                const view = ref('dashboard');
+                const isDark = ref(false);
+                const dashboardFilter = ref('month');
+                const filterDate = ref('');
+                const isEditing = ref(false);
+                const editingId = ref(null);
+                const currentReceipt = ref(null);
+
+                const clients = ref([]);
+                const services = ref([]);
+                const staff = ref([]);
+                const expenses = ref([]);
+                const appointments = ref([]);
+                const company = reactive({ fantasia: '', logo: '' });
+
+                const tempApp = reactive({ clientId: '', date: '', time: '', location: { bairro: '', cidade: '', numero: '' }, details: { entryFee: 0 }, selectedServices: [], selectedStaff: [] });
+                const tempServiceSelect = ref('');
+                const tempStaffSelect = ref('');
+                const newExpense = reactive({ description: '', value: '', date: new Date().toISOString().split('T')[0] });
+
+                const today = new Date();
+                const currentMonth = ref(today.getMonth());
+                const currentYear = ref(today.getFullYear());
+                const monthNames = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+                onMounted(() => {
+                    onAuthStateChanged(auth, (u) => {
+                        user.value = u;
+                        loading.value = false;
+                        if(u) loadData();
+                    });
+                    if(localStorage.getItem('pp_theme') === 'dark') { isDark.value = true; document.documentElement.classList.add('dark'); }
+                });
+
+                const handleLogin = async () => {
+                    try {
+                        loading.value = true;
+                        if (isRegistering.value) await createUserWithEmailAndPassword(auth, email.value, password.value);
+                        else await signInWithEmailAndPassword(auth, email.value, password.value);
+                    } catch (e) { Swal.fire('Erro', 'Verifique dados de acesso', 'error'); loading.value = false; }
+                };
+                const logout = () => signOut(auth);
+
+                const loadData = () => {
+                    const uid = user.value.uid;
+                    onSnapshot(collection(db, `users/${uid}/clients`), (s) => clients.value = s.docs.map(d=>({id:d.id,...d.data()})));
+                    onSnapshot(collection(db, `users/${uid}/services`), (s) => services.value = s.docs.map(d=>({id:d.id,...d.data()})));
+                    onSnapshot(collection(db, `users/${uid}/staff`), (s) => staff.value = s.docs.map(d=>({id:d.id,...d.data()})));
+                    onSnapshot(collection(db, `users/${uid}/expenses`), (s) => expenses.value = s.docs.map(d=>({id:d.id,...d.data()})));
+                    onSnapshot(collection(db, `users/${uid}/appointments`), (s) => appointments.value = s.docs.map(d=>({id:d.id,...d.data()})));
+                };
+
+                // CRUD Helpers
+                const addDocToDb = (coll, data) => addDoc(collection(db, `users/${user.value.uid}/${coll}`), data);
+                const deleteDocFromDb = (coll, id) => deleteDoc(doc(db, `users/${user.value.uid}/${coll}`, id));
+                const updateDocInDb = (coll, id, data) => updateDoc(doc(db, `users/${user.value.uid}/${coll}`, id), data);
+
+                // Modais
+                const openClientModal = async () => {
+                    const {value:v} = await Swal.fire({title:'Novo Cliente',html:'<input id="n" class="swal2-input" placeholder="Nome"><input id="p" class="swal2-input" placeholder="Tel">',preConfirm:()=>[document.getElementById('n').value,document.getElementById('p').value]});
+                    if(v) addDocToDb('clients',{name:v[0],phone:v[1]});
+                };
+                const openServiceModal = async () => {
+                    const {value:v} = await Swal.fire({title:'Novo Serviço',html:'<input id="d" class="swal2-input" placeholder="Desc"><input id="p" type="number" class="swal2-input" placeholder="Valor">',preConfirm:()=>[document.getElementById('d').value,document.getElementById('p').value]});
+                    if(v) addDocToDb('services',{description:v[0],price:Number(v[1])});
+                };
+                const openStaffModal = async () => {
+                    const {value:v} = await Swal.fire({title:'Novo Staff',html:'<input id="n" class="swal2-input" placeholder="Nome"><input id="r" class="swal2-input" placeholder="Função"><input id="v" type="number" class="swal2-input" placeholder="Diária">',preConfirm:()=>[document.getElementById('n').value,document.getElementById('r').value,document.getElementById('v').value]});
+                    if(v) addDocToDb('staff',{name:v[0],role:v[1],dailyRate:Number(v[2])});
+                };
+                const deleteClient = (id) => deleteDocFromDb('clients', id);
+                const deleteStaff = (id) => deleteDocFromDb('staff', id);
+                const addExpense = () => { if(newExpense.description && newExpense.value){ addDocToDb('expenses',{...newExpense}); newExpense.description='';newExpense.value=''; Swal.fire({icon:'success',toast:true,title:'Salvo',position:'top',timer:1500,showConfirmButton:false}); }};
+
+                // Agendamento
+                const startNewSchedule = () => { Object.assign(tempApp,{clientId:'',date:'',time:'',location:{bairro:'',cidade:'',numero:''},details:{entryFee:0},selectedServices:[],selectedStaff:[]}); isEditing.value=false; view.value='schedule'; };
+                const addServiceToApp = () => { if(tempServiceSelect.value) tempApp.selectedServices.push({...tempServiceSelect.value}); };
+                const removeServiceFromApp = (i) => tempApp.selectedServices.splice(i,1);
+                const addStaffToApp = () => { if(tempStaffSelect.value) tempApp.selectedStaff.push({...tempStaffSelect.value}); };
+
+                const calcTotalServices = computed(()=>tempApp.selectedServices.reduce((s,i)=>s+i.price,0));
+                const calcTotalStaffCost = computed(()=>tempApp.selectedStaff.reduce((s,i)=>s+i.dailyRate,0));
+                const calcFinalBalance = computed(()=>calcTotalServices.value-(tempApp.details.entryFee||0));
+
+                const saveAppointment = () => {
+                    const appData = { ...JSON.parse(JSON.stringify(tempApp)), totalServices:calcTotalServices.value, totalStaffCost:calcTotalStaffCost.value, finalBalance:calcFinalBalance.value, status:'pending' };
+                    addDocToDb('appointments',appData);
+                    Swal.fire({icon:'success',title:'Agendado',timer:1500,showConfirmButton:false});
+                    view.value='appointments_list';
+                };
+                
+                const changeStatus = (app,s) => updateDocInDb('appointments',app.id,{status:s});
+                const showReceipt = (app) => { currentReceipt.value=app; view.value='receipt'; };
+
+                // KPIs
+                const kpiRevenue = computed(()=>appointments.value.filter(a=>a.status!=='cancelled').reduce((s,a)=>s+(a.totalServices||0),0));
+                const kpiTotalExpenses = computed(()=>appointments.value.reduce((s,a)=>s+(a.totalStaffCost||0),0)+expenses.value.reduce((s,e)=>s+(e.value||0),0));
+                const kpiProfit = computed(()=>kpiRevenue.value-kpiTotalExpenses.value);
+                const kpiReceivables = computed(()=>appointments.value.filter(a=>a.status==='pending').reduce((s,a)=>s+(a.finalBalance||0),0));
+
+                const next7DaysApps = computed(()=>{ const t=new Date();t.setHours(0,0,0,0); const w=new Date(t);w.setDate(t.getDate()+7); return appointments.value.filter(a=>{ const d=new Date(a.date.split('-')[0],a.date.split('-')[1]-1,a.date.split('-')[2]); return d>=t&&d<=w&&a.status==='pending'; }).sort((a,b)=>new Date(a.date)-new Date(b.date)); });
+                const sortedAppointments = computed(()=>{ let l=appointments.value; if(filterDate.value)l=l.filter(a=>a.date===filterDate.value); return l.sort((a,b)=>new Date(b.date)-new Date(a.date)); });
+
+                // Calendar
+                const firstDayOfMonth = computed(()=>new Date(currentYear.value,currentMonth.value,1).getDay());
+                const daysInMonth = computed(()=>new Date(currentYear.value,currentMonth.value+1,0).getDate());
+                const changeMonth = (d) => { currentMonth.value+=d; if(currentMonth.value>11){currentMonth.value=0;currentYear.value++}else if(currentMonth.value<0){currentMonth.value=11;currentYear.value--} };
+                const hasEvent = (d) => { const c=`${currentYear.value}-${String(currentMonth.value+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; return appointments.value.some(a=>a.date===c && a.status!=='cancelled'); };
+                const selectDateFromCalendar = (d) => { filterDate.value=`${currentYear.value}-${String(currentMonth.value+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; view.value='appointments_list'; };
+
+                // Utils
+                const toggleDarkMode = () => { isDark.value=!isDark.value; if(isDark.value){document.documentElement.classList.add('dark'); localStorage.setItem('pp_theme','dark');} else {document.documentElement.classList.remove('dark'); localStorage.setItem('pp_theme','light');} };
+                const formatCurrency = (v) => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v||0);
+                const formatDate = (d) => d?d.split('-').reverse().join('/'):'';
+                const getMonth = (d) => monthNames[parseInt(d.split('-')[1])-1];
+                const getDay = (d) => d.split('-')[2];
+                const getClientName = (id) => clients.value.find(c=>c.id===id)?.name||'...';
+                const statusClass = (s) => s==='concluded'?'bg-green-100 text-green-600':(s==='pending'?'bg-yellow-100 text-yellow-600':'bg-red-100 text-red-600');
+                const statusText = (s) => s==='concluded'?'Concluída':(s==='pending'?'Pendente':'Cancelada');
+                const saveCompany = () => Swal.fire('Salvo','','success');
+                const downloadReceiptImage = () => { html2canvas(document.getElementById('receipt-capture-area'),{scale:2}).then(c=>{const l=document.createElement('a');l.download=`Recibo.png`;l.href=c.toDataURL();l.click();})};
+
+                return {
+                    loading, user, email, password, isRegistering, handleLogin, logout,
+                    view, isDark, dashboardFilter, filterDate, isEditing, currentReceipt,
+                    clients, services, staff, expenses, company, tempApp, tempServiceSelect, tempStaffSelect, newExpense,
+                    currentMonth, currentYear, monthNames, firstDayOfMonth, daysInMonth, changeMonth, hasEvent, selectDateFromCalendar,
+                    kpiRevenue, kpiTotalExpenses, kpiProfit, kpiReceivables, next7DaysApps, sortedAppointments,
+                    addExpense, openClientModal, openServiceModal, openStaffModal, deleteClient, deleteStaff,
+                    startNewSchedule, addServiceToApp, removeServiceFromApp, addStaffToApp, saveAppointment, changeStatus, showReceipt,
+                    calcTotalServices, calcTotalStaffCost, calcFinalBalance,
+                    toggleDarkMode, formatCurrency, formatDate, getMonth, getDay, getClientName, statusClass, statusText, saveCompany, downloadReceiptImage
+                };
+            }
+        }).mount('#root');
+    </script>
+</body>
+</html>
