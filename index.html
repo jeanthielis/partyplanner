@@ -1110,15 +1110,33 @@
                     }).format(value || 0);
                 };
 
-                const formatDate = (dateString) => {
-                    if (!dateString) return '';
-                    const parts = dateString.split('-');
-                    if(parts.length === 3) {
-                         const date = new Date(parts[0], parts[1] - 1, parts[2]);
-                         return date.toLocaleDateString('pt-BR');
+               const formatDate = (value) => {
+                if (!value) return '';
+                
+                // Correção: Se já for um objeto Date, formata direto
+                if (value instanceof Date) {
+                    return value.toLocaleDateString('pt-BR');
+                }
+                
+                // Se for texto (String), tenta converter
+                if (typeof value === 'string') {
+                    // Se for formato ISO YYYY-MM-DD
+                    if (value.includes('-')) {
+                        const parts = value.split('-');
+                        if(parts.length === 3) {
+                             const date = new Date(parts[0], parts[1] - 1, parts[2]);
+                             return date.toLocaleDateString('pt-BR');
+                        }
                     }
-                    return dateString;
-                };
+                    // Tenta converter string genérica para data
+                    const date = new Date(value);
+                    if (!isNaN(date.getTime())) {
+                        return date.toLocaleDateString('pt-BR');
+                    }
+                }
+                
+                return value;
+            };
 
                 const getMonth = (dateString) => {
                     const month = parseInt(dateString.split('-')[1]) - 1;
