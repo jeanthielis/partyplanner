@@ -1,1040 +1,1619 @@
 <!DOCTYPE html>
-<html lang="pt-BR" class="light">
+<html lang="pt-BR" data-bs-theme="light">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PartyPlanner Next-Gen v18</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PartyPlanner Pro | Gestão de Eventos</title>
     
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#4f46e5', // Indigo vibrante
-                        secondary: '#ec4899', 
-                        darkbg: '#0f172a', 
-                        surface: '#1e293b',
-                        accent: '#818cf8',
-                        inputbg: '#f8fafc',
-                        inputborder: '#e2e8f0'
-                    },
-                    fontFamily: { sans: ['Inter', 'sans-serif'] },
-                    boxShadow: {
-                        'glow': '0 0 20px rgba(79, 70, 229, 0.3)',
-                        'float': '0 10px 30px -10px rgba(0,0,0,0.1)',
-                        'input': '0 2px 10px -3px rgba(0, 0, 0, 0.05)',
-                        'input-focus': '0 4px 20px -4px rgba(79, 70, 229, 0.15)'
-                    },
-                    animation: {
-                        'input-focus': 'inputFocus 0.2s ease-out',
-                        'float-label': 'floatLabel 0.2s ease-out'
-                    },
-                    keyframes: {
-                        inputFocus: {
-                            '0%': { transform: 'scale(1)', boxShadow: '0 2px 10px -3px rgba(0, 0, 0, 0.05)' },
-                            '100%': { transform: 'scale(1.002)', boxShadow: '0 4px 20px -4px rgba(79, 70, 229, 0.15)' }
-                        },
-                        floatLabel: {
-                            '0%': { transform: 'translateY(0) scale(1)', opacity: '0.5' },
-                            '100%': { transform: 'translateY(-24px) scale(0.85)', opacity: '1' }
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
-    <style>
-        body { 
-            font-family: 'Inter', sans-serif; 
-            -webkit-tap-highlight-color: transparent; 
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-        }
-        [v-cloak] { display: none; }
-        
-        /* Transições de View */
-        .fade-enter-active, .fade-leave-active { transition: opacity 0.15s ease; }
-        .fade-enter-from, .fade-leave-to { opacity: 0; }
-
-        /* Inputs Modernos Redesign */
-        .input-modern {
-            @apply w-full p-4 rounded-2xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-all duration-200;
-            @apply border-2 border-gray-200 dark:border-gray-700 placeholder-gray-400 dark:placeholder-gray-500;
-            @apply font-medium text-base;
-            @apply focus:border-primary focus:ring-4 focus:ring-primary/10 focus:bg-white dark:focus:bg-gray-800;
-            @apply hover:border-gray-300 dark:hover:border-gray-600;
-            box-shadow: 0 2px 10px -3px rgba(0, 0, 0, 0.05);
-        }
-
-        .input-modern:focus {
-            animation: inputFocus 0.2s ease-out;
-            box-shadow: 0 4px 20px -4px rgba(79, 70, 229, 0.15);
-            transform: scale(1.002);
-        }
-
-        /* Inputs com label flutuante */
-        .input-group {
-            @apply relative mb-6;
-        }
-
-        .input-group input,
-        .input-group select {
-            @apply pt-6 pb-3 px-4;
-        }
-
-        .input-group label {
-            @apply absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400;
-            @apply transition-all duration-200 pointer-events-none text-sm font-medium;
-        }
-
-        .input-group input:focus + label,
-        .input-group input:not(:placeholder-shown) + label,
-        .input-group select:focus + label,
-        .input-group select:not(:placeholder-shown) + label {
-            @apply text-primary dark:text-accent;
-            transform: translateY(-24px) scale(0.85);
-            animation: floatLabel 0.2s ease-out;
-        }
-
-        /* Select Moderno */
-        .select-modern {
-            @apply w-full p-4 rounded-2xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-all duration-200;
-            @apply border-2 border-gray-200 dark:border-gray-700 font-medium text-base;
-            @apply focus:border-primary focus:ring-4 focus:ring-primary/10;
-            @apply appearance-none cursor-pointer;
-            @apply hover:border-gray-300 dark:hover:border-gray-600;
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-            background-position: right 1rem center;
-            background-repeat: no-repeat;
-            background-size: 1.5em;
-            box-shadow: 0 2px 10px -3px rgba(0, 0, 0, 0.05);
-        }
-
-        .dark .select-modern {
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-        }
-
-        .select-modern:focus {
-            animation: inputFocus 0.2s ease-out;
-            box-shadow: 0 4px 20px -4px rgba(79, 70, 229, 0.15);
-            transform: scale(1.002);
-        }
-
-        /* Inputs para números (valores monetários) */
-        .input-currency {
-            @apply text-right font-bold;
-            background-position: left 1rem center;
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cline x1='12' y1='1' x2='12' y2='23'%3e%3c/line%3e%3cpath d='M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6'%3e%3c/path%3e%3c/svg%3e");
-            background-repeat: no-repeat;
-            background-size: 1.2em;
-            padding-left: 3rem !important;
-        }
-
-        .dark .input-currency {
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cline x1='12' y1='1' x2='12' y2='23'%3e%3c/line%3e%3cpath d='M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6'%3e%3c/path%3e%3c/svg%3e");
-        }
-
-        /* Input para datas */
-        .input-date {
-            background-position: right 1rem center;
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3crect x='3' y='4' width='18' height='18' rx='2' ry='2'%3e%3c/rect%3e%3cline x1='16' y1='2' x2='16' y2='6'%3e%3c/line%3e%3cline x1='8' y1='2' x2='8' y2='6'%3e%3c/line%3e%3cline x1='3' y1='10' x2='21' y2='10'%3e%3c/line%3e%3c/svg%3e");
-            background-repeat: no-repeat;
-            background-size: 1.2em;
-            padding-right: 3rem !important;
-        }
-
-        .dark .input-date {
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3crect x='3' y='4' width='18' height='18' rx='2' ry='2'%3e%3c/rect%3e%3cline x1='16' y1='2' x2='16' y2='6'%3e%3c/line%3e%3cline x1='8' y1='2' x2='8' y2='6'%3e%3c/line%3e%3cline x1='3' y1='10' x2='21' y2='10'%3e%3c/line%3e%3c/svg%3e");
-        }
-
-        /* Input para horário */
-        .input-time {
-            background-position: right 1rem center;
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3ccircle cx='12' cy='12' r='10'%3e%3c/circle%3e%3cpolyline points='12 6 12 12 16 14'%3e%3c/polyline%3e%3c/svg%3e");
-            background-repeat: no-repeat;
-            background-size: 1.2em;
-            padding-right: 3rem !important;
-        }
-
-        .dark .input-time {
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3ccircle cx='12' cy='12' r='10'%3e%3c/circle%3e%3cpolyline points='12 6 12 12 16 14'%3e%3c/polyline%3e%3c/svg%3e");
-        }
-
-        /* Estilo para inputs desabilitados */
-        .input-modern:disabled,
-        .select-modern:disabled {
-            @apply bg-gray-100 dark:bg-gray-900 border-gray-300 dark:border-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed;
-        }
-
-        /* Estilo para inputs inválidos */
-        .input-modern:invalid,
-        .select-modern:invalid {
-            @apply border-red-300 dark:border-red-800;
-        }
-
-        .input-modern:invalid:focus {
-            @apply ring-4 ring-red-500/10 border-red-500;
-        }
-
-        /* Menu Flutuante (Island) */
-        .nav-island {
-            @apply fixed bottom-6 left-4 right-4 bg-white/90 dark:bg-surface/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 z-50 flex justify-between px-6 py-4;
-        }
-
-        /* Botão Principal com Gradiente */
-        .btn-gradient {
-            @apply bg-gradient-to-r from-primary to-purple-600 text-white font-bold shadow-lg shadow-primary/30 active:scale-95 transition-transform;
-        }
-
-        /* Ajustes SweetAlert */
-        div:where(.swal2-container) div:where(.swal2-popup) {
-            border-radius: 24px !important; padding: 1.5rem !important; width: 90% !important; max-width: 360px !important;
-        }
-        .swal2-input, .swal2-select { 
-            border-radius: 16px !important; 
-            background: #f8fafc !important; 
-            border: 2px solid #e2e8f0 !important;
-            font-family: 'Inter', sans-serif !important;
-            padding: 12px 16px !important;
-        }
-        .dark .swal2-popup { 
-            background: #1e293b !important; 
-            color: white !important; 
-        }
-        .dark .swal2-input, .dark .swal2-select { 
-            background: #334155 !important; 
-            color: white !important; 
-            border-color: #475569 !important;
-        }
-
-        /* Scrollbar personalizada */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-
-        ::-webkit-scrollbar-track {
-            @apply bg-gray-100 dark:bg-gray-800 rounded-full;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            @apply bg-gray-300 dark:bg-gray-600 rounded-full;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            @apply bg-gray-400 dark:bg-gray-500;
-        }
-    </style>
-</head>
-<body class="bg-gray-50 text-gray-900 dark:bg-darkbg dark:text-gray-100 antialiased pb-32">
-
-    <div id="root" v-cloak>
-
-        <div v-if="!user" class="fixed inset-0 z-50 bg-white dark:bg-darkbg flex flex-col justify-center px-8">
-            <div class="mb-12">
-                <div class="w-16 h-16 rounded-2xl bg-primary text-white flex items-center justify-center text-3xl mb-4 shadow-glow">
-                    <i class="fa-solid fa-bolt"></i>
-                </div>
-                <h1 class="text-4xl font-extrabold tracking-tight mb-2">Bem-vindo</h1>
-                <p class="text-gray-500 text-lg">Gerencie seus eventos como um pro.</p>
-            </div>
-            <form @submit.prevent="handleLogin" class="space-y-6">
-                <div class="input-group">
-                    <input v-model="email" type="email" class="input-modern" placeholder=" " required>
-                    <label for="email">E-mail</label>
-                </div>
-                <div class="input-group">
-                    <input v-model="password" type="password" class="input-modern" placeholder=" " required>
-                    <label for="password">Senha</label>
-                </div>
-                <button type="submit" class="w-full py-4 rounded-2xl btn-gradient text-lg">
-                    {{ isRegistering ? 'Cadastrar' : 'Entrar' }}
-                </button>
-            </form>
-            <button @click="isRegistering = !isRegistering" class="mt-8 text-sm text-center text-gray-500 w-full font-medium">
-                {{ isRegistering ? 'Já tenho conta' : 'Criar conta nova' }}
-            </button>
-        </div>
-
-        <div v-else>
-            
-            <div class="px-6 pt-8 pb-4 flex justify-between items-center bg-transparent">
-                <div>
-                    <p class="text-xs font-bold text-gray-400 uppercase tracking-widest">{{ getGreeting() }}</p>
-                    <h2 class="text-2xl font-bold dark:text-white">PartyPlanner</h2>
-                </div>
-                <div class="flex gap-2">
-                    <button @click="toggleDarkMode" class="w-10 h-10 rounded-full bg-gray-200 dark:bg-surface flex items-center justify-center text-gray-600 dark:text-yellow-400 transition-colors">
-                        <i :class="isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon'"></i>
-                    </button>
-                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600 flex items-center justify-center cursor-pointer transition-all hover:scale-105" @click="logout">
-                        <i class="fa-solid fa-user text-gray-500 dark:text-gray-300"></i>
-                    </div>
-                </div>
-            </div>
-
-            <main class="px-6">
-
-                <div v-if="view === 'dashboard'" class="animate-fade">
-                    
-                    <div class="relative w-full p-6 rounded-3xl bg-gradient-to-br from-gray-900 to-gray-800 text-white shadow-xl mb-8 overflow-hidden">
-                        <div class="absolute top-0 right-0 w-40 h-40 bg-primary/20 rounded-full blur-3xl -mr-10 -mt-10"></div>
-                        <div class="relative z-10">
-                            <div class="flex justify-between items-start mb-4">
-                                <span class="text-sm font-medium text-gray-400">Lucro Líquido (Mês)</span>
-                                <i class="fa-brands fa-cc-visa text-2xl opacity-50"></i>
-                            </div>
-                            <h1 class="text-4xl font-bold mb-6 tracking-tight">{{ formatCurrency(kpiProfit) }}</h1>
-                            <div class="flex gap-6">
-                                <div>
-                                    <p class="text-[10px] text-gray-400 uppercase mb-1">Entradas</p>
-                                    <p class="font-semibold text-green-400 flex items-center gap-1"><i class="fa-solid fa-arrow-up text-xs"></i> {{ formatCurrency(kpiRevenue) }}</p>
-                                </div>
-                                <div>
-                                    <p class="text-[10px] text-gray-400 uppercase mb-1">Saídas</p>
-                                    <p class="font-semibold text-red-400 flex items-center gap-1"><i class="fa-solid fa-arrow-down text-xs"></i> {{ formatCurrency(kpiTotalExpenses) }}</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="flex gap-4 overflow-x-auto pb-4 mb-2 no-scrollbar">
-                        <button @click="startNewSchedule" class="flex flex-col items-center gap-2 min-w-[80px]">
-                            <div class="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center text-xl"><i class="fa-solid fa-plus"></i></div>
-                            <span class="text-xs font-bold text-gray-600 dark:text-gray-400">Festa</span>
-                        </button>
-                        <button @click="openExpenseModal" class="flex flex-col items-center gap-2 min-w-[80px]">
-                            <div class="w-14 h-14 rounded-2xl bg-red-100 text-red-500 flex items-center justify-center text-xl"><i class="fa-solid fa-money-bill-transfer"></i></div>
-                            <span class="text-xs font-bold text-gray-600 dark:text-gray-400">Despesa</span>
-                        </button>
-                        <button @click="openClientModal" class="flex flex-col items-center gap-2 min-w-[80px]">
-                            <div class="w-14 h-14 rounded-2xl bg-blue-100 text-blue-500 flex items-center justify-center text-xl"><i class="fa-solid fa-user-plus"></i></div>
-                            <span class="text-xs font-bold text-gray-600 dark:text-gray-400">Cliente</span>
-                        </button>
-                        <button @click="view='reports'" class="flex flex-col items-center gap-2 min-w-[80px]">
-                            <div class="w-14 h-14 rounded-2xl bg-purple-100 text-purple-500 flex items-center justify-center text-xl"><i class="fa-solid fa-chart-pie"></i></div>
-                            <span class="text-xs font-bold text-gray-600 dark:text-gray-400">Relatório</span>
-                        </button>
-                    </div>
-
-                    <div class="flex justify-between items-center mb-4 mt-4">
-                        <h3 class="text-lg font-bold dark:text-white">Próximos Eventos</h3>
-                        <button @click="view='appointments_list'" class="text-sm text-primary font-bold hover:underline">Ver todos</button>
-                    </div>
-
-                    <div v-if="next7DaysApps.length === 0" class="p-8 rounded-3xl bg-gray-100 dark:bg-surface text-center text-gray-400">
-                        <i class="fa-regular fa-calendar text-2xl mb-2"></i>
-                        <p class="text-sm">Livre nos próximos 7 dias</p>
-                    </div>
-
-                    <div class="space-y-3 pb-24">
-                        <div v-for="app in next7DaysApps" :key="app.id" @click="view='appointments_list'" class="bg-white dark:bg-surface p-4 rounded-3xl flex items-center gap-4 shadow-sm border border-gray-100 dark:border-gray-800 hover:shadow-md transition-shadow cursor-pointer">
-                            <div class="w-12 h-12 rounded-2xl bg-gray-100 dark:bg-gray-800 flex flex-col items-center justify-center text-center flex-shrink-0">
-                                <span class="text-[10px] font-bold text-gray-400 uppercase">{{ getMonth(app.date) }}</span>
-                                <span class="text-lg font-bold text-gray-800 dark:text-white leading-none">{{ getDay(app.date) }}</span>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <h4 class="font-bold text-gray-900 dark:text-white truncate">{{ getClientName(app.clientId) }}</h4>
-                                <p class="text-xs text-gray-500">{{ app.time }} • {{ app.location.bairro }}</p>
-                            </div>
-                            <div :class="{'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400': app.status==='pending', 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400': app.status==='concluded'}" class="px-2 py-1 rounded-lg text-[10px] font-bold uppercase">
-                                {{ app.status === 'pending' ? 'Pendente' : 'OK' }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div v-if="view === 'appointments_list'" class="animate-fade">
-                    <h2 class="text-2xl font-bold mb-6 dark:text-white">Agenda Completa</h2>
-                    <div class="flex gap-2 mb-6">
-                        <div class="input-group flex-1">
-                            <input v-model="filterDate" type="date" class="input-modern input-date">
-                            <label v-if="!filterDate">Filtrar por data</label>
-                        </div>
-                        <button @click="filterDate=''" class="w-14 rounded-2xl bg-gray-200 dark:bg-surface flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors">
-                            <i class="fa-solid fa-times"></i>
-                        </button>
-                    </div>
-                    
-                    <div class="space-y-4 pb-24">
-                        <div v-for="app in sortedAppointments" :key="app.id" class="bg-white dark:bg-surface p-5 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 hover:shadow-md transition-shadow">
-                            <div class="flex justify-between items-start mb-3">
-                                <div>
-                                    <p class="text-xs font-bold text-primary mb-1">{{ formatDate(app.date) }} às {{ app.time }}</p>
-                                    <h3 class="text-lg font-bold dark:text-white">{{ getClientName(app.clientId) }}</h3>
-                                    <p class="text-sm text-gray-500">{{ app.location.bairro }}</p>
-                                </div>
-                                <span class="w-3 h-3 rounded-full" :class="app.status==='pending'?'bg-yellow-400':'bg-green-500'"></span>
-                            </div>
-                            <div v-if="app.details.colors" class="mb-4 bg-gray-50 dark:bg-darkbg p-2 rounded-xl text-xs text-gray-600 dark:text-gray-300">
-                                <i class="fa-solid fa-palette mr-1"></i> {{ app.details.colors }}
-                            </div>
-                            <div class="flex justify-between items-center pt-4 border-t border-gray-100 dark:border-gray-700">
-                                <div>
-                                    <p class="text-[10px] text-gray-400 uppercase">Falta Receber</p>
-                                    <p class="text-base font-bold text-gray-900 dark:text-white">{{ formatCurrency(app.finalBalance) }}</p>
-                                </div>
-                                <div class="flex gap-2">
-                                    <button @click="showReceipt(app)" class="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-white flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
-                                        <i class="fa-solid fa-file-invoice"></i>
-                                    </button>
-                                    <button v-if="app.status==='pending'" @click="changeStatus(app,'concluded')" class="w-10 h-10 rounded-xl bg-green-500 text-white flex items-center justify-center shadow-lg shadow-green-500/30 hover:bg-green-600 transition-colors">
-                                        <i class="fa-solid fa-check"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div v-if="view === 'schedule'" class="animate-fade">
-                    <div class="flex items-center justify-between mb-6">
-                        <button @click="view='dashboard'" class="w-10 h-10 rounded-full bg-gray-100 dark:bg-surface flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-                            <i class="fa-solid fa-arrow-left"></i>
-                        </button>
-                        <h2 class="text-xl font-bold dark:text-white">{{ isEditing ? 'Editar' : 'Nova Festa' }}</h2>
-                        <div class="w-10"></div>
-                    </div>
-
-                    <form @submit.prevent="saveAppointment" class="space-y-6 pb-32">
-                        <div class="bg-white dark:bg-surface p-5 rounded-3xl space-y-4 shadow-sm">
-                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest">Quem & Quando</h3>
-                            <div class="input-group">
-                                <select v-model="tempApp.clientId" class="select-modern" required>
-                                    <option value="" disabled selected>Selecione o Cliente</option>
-                                    <option v-for="c in clients" :value="c.id">{{ c.name }}</option>
-                                </select>
-                                <label>Cliente</label>
-                            </div>
-                            <div class="grid grid-cols-2 gap-3">
-                                <div class="input-group">
-                                    <input v-model="tempApp.date" type="date" class="input-modern input-date" required>
-                                    <label>Data</label>
-                                </div>
-                                <div class="input-group">
-                                    <input v-model="tempApp.time" type="time" class="input-modern input-time" required>
-                                    <label>Horário</label>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="bg-white dark:bg-surface p-5 rounded-3xl space-y-4 shadow-sm">
-                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest">Onde & Como</h3>
-                            <div class="input-group">
-                                <input v-model="tempApp.location.bairro" class="input-modern" required placeholder=" ">
-                                <label>Bairro</label>
-                            </div>
-                            <div class="grid grid-cols-2 gap-3">
-                                <div class="input-group">
-                                    <input v-model="tempApp.location.cidade" class="input-modern" placeholder=" ">
-                                    <label>Cidade</label>
-                                </div>
-                                <div class="input-group">
-                                    <input v-model="tempApp.location.numero" class="input-modern" placeholder=" ">
-                                    <label>Número</label>
-                                </div>
-                            </div>
-                            <div class="input-group">
-                                <input v-model="tempApp.details.colors" class="input-modern border-l-4 border-primary" placeholder=" ">
-                                <label>Tema / Cores dos Balões</label>
-                            </div>
-                        </div>
-
-                        <div class="bg-white dark:bg-surface p-5 rounded-3xl space-y-4 shadow-sm">
-                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest">Composição</h3>
-                            <div class="flex gap-2">
-                                <div class="input-group flex-1">
-                                    <select v-model="tempServiceSelect" class="select-modern text-sm py-3">
-                                        <option value="" disabled selected>Add Serviço...</option>
-                                        <option v-for="s in services" :value="s">{{s.description}}</option>
-                                    </select>
-                                    <label>Serviço</label>
-                                </div>
-                                <button type="button" @click="addServiceToApp" class="bg-gray-900 dark:bg-white text-white dark:text-gray-900 w-12 rounded-xl text-xl hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors">+</button>
-                            </div>
-                            <div class="space-y-2">
-                                <div v-for="(s,i) in tempApp.selectedServices" class="flex justify-between items-center text-sm bg-gray-50 dark:bg-darkbg p-3 rounded-xl">
-                                    <span class="font-medium">{{s.description}}</span>
-                                    <div class="flex items-center gap-3">
-                                        <span class="font-bold">{{formatCurrency(s.price)}}</span>
-                                        <i @click="removeServiceFromApp(i)" class="fa-solid fa-times text-red-400 hover:text-red-600 cursor-pointer transition-colors"></i>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="flex gap-2 mt-2">
-                                <div class="input-group flex-1">
-                                    <select v-model="tempStaffSelect" class="select-modern text-sm py-3">
-                                        <option value="" disabled selected>Add Equipe...</option>
-                                        <option v-for="st in staff" :value="st">{{st.name}}</option>
-                                    </select>
-                                    <label>Equipe</label>
-                                </div>
-                                <button type="button" @click="addStaffToApp" class="bg-indigo-500 text-white w-12 rounded-xl text-xl hover:bg-indigo-600 transition-colors">+</button>
-                            </div>
-                            <div class="space-y-2">
-                                <div v-for="(st,i) in tempApp.selectedStaff" class="flex justify-between items-center text-sm bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-300 p-3 rounded-xl">
-                                    <span>{{st.name}}</span><span class="font-bold">{{formatCurrency(st.dailyRate)}}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="bg-gray-900 dark:bg-white text-white dark:text-gray-900 p-6 rounded-3xl shadow-xl relative overflow-hidden">
-                            <div class="flex justify-between text-sm opacity-80 mb-2"><span>Total</span><span>{{formatCurrency(calcTotalServices)}}</span></div>
-                            <div class="flex justify-between text-sm text-red-300 dark:text-red-500 mb-4"><span>Custo Equipe</span><span>- {{formatCurrency(calcTotalStaffCost)}}</span></div>
-                            <div class="flex justify-between items-center mb-6 pt-4 border-t border-white/10 dark:border-gray-200">
-                                <span class="font-bold text-sm">ENTRADA PAGA</span>
-                                <div class="input-group w-32">
-                                    <input v-model.number="tempApp.details.entryFee" type="number" class="input-modern input-currency text-right bg-white/10 dark:bg-gray-100 border-none text-white dark:text-gray-900">
-                                    <label>Valor</label>
-                                </div>
-                            </div>
-                            <div class="flex justify-between items-end">
-                                <span class="text-xs opacity-50 uppercase tracking-widest">A Receber</span>
-                                <span class="text-4xl font-bold tracking-tight">{{formatCurrency(calcFinalBalance)}}</span>
-                            </div>
-                        </div>
-
-                        <button type="submit" class="w-full py-4 rounded-2xl btn-gradient text-lg shadow-xl hover:shadow-primary/40 transition-all">Confirmar</button>
-                    </form>
-                </div>
-
-                <div v-if="view === 'expenses'" class="animate-fade">
-                    <div class="flex items-center justify-between mb-6">
-                        <h2 class="text-2xl font-bold dark:text-white">Finanças</h2>
-                        <div class="input-group w-40">
-                            <input type="month" v-model="expenseFilterMonth" class="input-modern">
-                            <label>Mês</label>
-                        </div>
-                    </div>
-                    
-                    <button @click="openExpenseModal" class="w-full py-4 bg-red-500 text-white rounded-2xl font-bold shadow-lg shadow-red-500/30 mb-6 flex items-center justify-center gap-2 hover:bg-red-600 transition-colors">
-                        <i class="fa-solid fa-circle-minus"></i> Lançar Saída
-                    </button>
-
-                    <div v-if="filteredExpenses.length === 0" class="text-center text-gray-400 py-10">Sem lançamentos no mês.</div>
-                    
-                    <div class="space-y-3 pb-24">
-                        <div v-for="exp in filteredExpenses" :key="exp.id" class="bg-white dark:bg-surface p-4 rounded-2xl flex justify-between items-center shadow-sm hover:shadow-md transition-shadow">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-full bg-red-50 dark:bg-red-900/20 text-red-500 flex items-center justify-center">
-                                    <i class="fa-solid fa-arrow-up"></i>
-                                </div>
-                                <div>
-                                    <p class="font-bold text-sm">{{ exp.description }}</p>
-                                    <p class="text-xs text-gray-500">{{ formatDate(exp.date) }}</p>
-                                </div>
-                            </div>
-                            <span class="font-bold text-red-500">- {{ formatCurrency(exp.value) }}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div v-if="view === 'receipt' && currentReceipt" class="animate-fade pb-24">
-                    <div class="flex justify-center mb-6">
-                        <div id="receipt-capture-area" class="bg-white p-8 w-[350px] shadow-2xl relative text-gray-800 font-mono text-sm leading-relaxed border-b-8 border-primary rounded-t-lg">
-                            <div class="text-center border-b-2 border-dashed border-gray-200 pb-6 mb-6">
-                                <img v-if="company.logo" :src="company.logo" class="h-16 mx-auto mb-3 object-contain">
-                                <h2 class="text-xl font-bold uppercase tracking-wider text-black">{{ company.fantasia || 'PartyPlanner' }}</h2>
-                                <p class="text-[10px] text-gray-500 font-bold">{{ company.razao }}</p>
-                                <p class="text-[10px] text-gray-500">CNPJ: {{ company.cnpj }}</p>
-                            </div>
-                            <div class="mb-6 space-y-2">
-                                <div class="flex justify-between"><span class="text-gray-400">CLIENTE</span><span class="font-bold">{{ getClientName(currentReceipt.clientId) }}</span></div>
-                                <div class="flex justify-between"><span class="text-gray-400">DATA</span><span class="font-bold">{{ formatDate(currentReceipt.date) }}</span></div>
-                                <div class="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
-                                    <p class="text-gray-400 text-[10px] mb-1">LOCAL</p>
-                                    <p class="font-bold">{{ currentReceipt.location.bairro }}</p>
-                                    <p>{{ currentReceipt.location.cidade }}</p>
-                                </div>
-                                <div v-if="currentReceipt.details.colors" class="p-3 bg-purple-50 rounded-lg border border-purple-100 text-purple-800">
-                                    <p class="text-[10px] font-bold uppercase opacity-70">Decoração</p>
-                                    <p class="font-bold">{{ currentReceipt.details.colors }}</p>
-                                </div>
-                            </div>
-                            <div class="border-t-2 border-dashed border-gray-200 pt-4 space-y-2">
-                                <div class="flex justify-between text-xs text-gray-500"><span>TOTAL SERVIÇOS</span><span>{{ formatCurrency(currentReceipt.totalServices) }}</span></div>
-                                <div class="flex justify-between text-xs text-green-600"><span>ENTRADA</span><span>- {{ formatCurrency(currentReceipt.entryFee) }}</span></div>
-                                <div class="flex justify-between text-xl font-bold mt-2 pt-2 border-t border-gray-100"><span>A PAGAR</span><span>{{ formatCurrency(currentReceipt.finalBalance) }}</span></div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="flex gap-3 justify-center">
-                        <button @click="downloadReceiptImage" class="bg-gray-900 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-black transition-colors">
-                            <i class="fa-solid fa-download mr-2"></i> Baixar
-                        </button>
-                        <button @click="view='appointments_list'" class="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-6 py-3 rounded-xl font-bold hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
-                            Voltar
-                        </button>
-                    </div>
-                </div>
-
-                <div v-if="view === 'company_settings'">
-                    <button @click="view='catalog_hub'" class="mb-4 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
-                        <i class="fa-solid fa-arrow-left"></i> Voltar
-                    </button>
-                    <div class="bg-white dark:bg-surface p-6 rounded-3xl shadow-sm space-y-4">
-                        <h2 class="text-xl font-bold dark:text-white">Empresa</h2>
-                        <div class="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-2xl bg-gray-50 dark:bg-darkbg relative cursor-pointer hover:border-primary/50 transition-colors">
-                            <div v-if="company.logo" class="w-32 h-32 mb-2 relative">
-                                <img :src="company.logo" class="w-full h-full object-contain">
-                                <button @click="company.logo = ''" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors">
-                                    <i class="fa-solid fa-times"></i>
-                                </button>
-                            </div>
-                            <div v-else class="text-center text-gray-400">
-                                <i class="fa-solid fa-cloud-arrow-up text-3xl mb-2"></i>
-                                <p class="text-xs">Logo da Empresa</p>
-                            </div>
-                            <input type="file" @change="handleLogoUpload" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" accept="image/*">
-                        </div>
-                        
-                        <div class="space-y-4">
-                            <div class="input-group">
-                                <input v-model="company.fantasia" class="input-modern" placeholder=" ">
-                                <label>Nome Fantasia</label>
-                            </div>
-                            <div class="input-group">
-                                <input v-model="company.razao" class="input-modern" placeholder=" ">
-                                <label>Razão Social</label>
-                            </div>
-                            <div class="input-group">
-                                <input v-model="company.cnpj" class="input-modern" placeholder=" ">
-                                <label>CNPJ</label>
-                            </div>
-                            <div class="input-group">
-                                <input v-model="company.endereco" class="input-modern" placeholder=" ">
-                                <label>Endereço</label>
-                            </div>
-                            <div class="grid grid-cols-2 gap-3">
-                                <div class="input-group">
-                                    <input v-model="company.cidade" class="input-modern" placeholder=" ">
-                                    <label>Cidade</label>
-                                </div>
-                                <div class="input-group">
-                                    <input v-model="company.contato" class="input-modern" placeholder=" ">
-                                    <label>Telefone</label>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <button @click="saveCompany" class="w-full py-4 rounded-2xl btn-gradient text-lg hover:shadow-primary/40 transition-all">
-                            Salvar
-                        </button>
-                    </div>
-                </div>
-
-                <div v-if="view === 'catalog_hub'" class="animate-fade">
-                    <h2 class="text-2xl font-bold mb-6 dark:text-white">Cadastros</h2>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div @click="view='company_settings'" class="bg-white dark:bg-surface p-6 rounded-3xl flex flex-col items-center justify-center gap-3 shadow-sm hover:scale-[1.02] transition-all cursor-pointer border border-transparent hover:border-primary/20">
-                            <div class="w-12 h-12 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-xl">
-                                <i class="fa-solid fa-building"></i>
-                            </div>
-                            <span class="font-bold text-sm">Empresa</span>
-                        </div>
-                        <div @click="view='clients_list'" class="bg-white dark:bg-surface p-6 rounded-3xl flex flex-col items-center justify-center gap-3 shadow-sm hover:scale-[1.02] transition-all cursor-pointer border border-transparent hover:border-blue-500/20">
-                            <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xl">
-                                <i class="fa-solid fa-users"></i>
-                            </div>
-                            <span class="font-bold text-sm">Clientes</span>
-                        </div>
-                        <div @click="view='services_list'" class="bg-white dark:bg-surface p-6 rounded-3xl flex flex-col items-center justify-center gap-3 shadow-sm hover:scale-[1.02] transition-all cursor-pointer border border-transparent hover:border-pink-500/20">
-                            <div class="w-12 h-12 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center text-xl">
-                                <i class="fa-solid fa-wand-magic-sparkles"></i>
-                            </div>
-                            <span class="font-bold text-sm">Serviços</span>
-                        </div>
-                        <div @click="view='staff_list'" class="bg-white dark:bg-surface p-6 rounded-3xl flex flex-col items-center justify-center gap-3 shadow-sm hover:scale-[1.02] transition-all cursor-pointer border border-transparent hover:border-indigo-500/20">
-                            <div class="w-12 h-12 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xl">
-                                <i class="fa-solid fa-id-card"></i>
-                            </div>
-                            <span class="font-bold text-sm">Equipe</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Seções de listagem mantidas com inputs atualizados -->
-                <div v-if="view === 'clients_list'">
-                    <div class="flex items-center gap-3 mb-4">
-                        <button @click="view='catalog_hub'" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
-                            <i class="fa-solid fa-arrow-left"></i>
-                        </button>
-                        <h2 class="text-xl font-bold dark:text-white">Clientes</h2>
-                    </div>
-                    <button @click="openClientModal" class="w-full py-4 bg-blue-500 text-white rounded-2xl mb-6 font-bold hover:bg-blue-600 transition-colors">
-                        Novo Cliente
-                    </button>
-                    <div class="space-y-3 pb-24">
-                        <div v-for="c in clients" class="bg-white dark:bg-surface p-4 rounded-2xl flex justify-between items-center shadow-sm hover:shadow-md transition-shadow">
-                            <div>
-                                <p class="font-bold">{{c.name}}</p>
-                                <p class="text-sm text-gray-500">{{c.phone}}</p>
-                                <p class="text-xs text-gray-400">{{c.email}}</p>
-                            </div>
-                            <button @click="deleteClient(c.id)" class="text-red-400 hover:text-red-600 transition-colors">
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div v-if="view === 'services_list'">
-                    <div class="flex items-center gap-3 mb-4">
-                        <button @click="view='catalog_hub'" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
-                            <i class="fa-solid fa-arrow-left"></i>
-                        </button>
-                        <h2 class="text-xl font-bold dark:text-white">Serviços</h2>
-                    </div>
-                    <button @click="openServiceModal" class="w-full py-4 bg-pink-500 text-white rounded-2xl mb-6 font-bold hover:bg-pink-600 transition-colors">
-                        Novo Serviço
-                    </button>
-                    <div class="space-y-3 pb-24">
-                        <div v-for="s in services" class="bg-white dark:bg-surface p-4 rounded-2xl flex justify-between items-center shadow-sm hover:shadow-md transition-shadow">
-                            <span class="font-medium">{{s.description}}</span>
-                            <span class="font-bold text-pink-500">{{formatCurrency(s.price)}}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div v-if="view === 'staff_list'">
-                    <div class="flex items-center gap-3 mb-4">
-                        <button @click="view='catalog_hub'" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
-                            <i class="fa-solid fa-arrow-left"></i>
-                        </button>
-                        <h2 class="text-xl font-bold dark:text-white">Equipe</h2>
-                    </div>
-                    <button @click="openStaffModal" class="w-full py-4 bg-indigo-500 text-white rounded-2xl mb-6 font-bold hover:bg-indigo-600 transition-colors">
-                        Novo Membro
-                    </button>
-                    <div class="space-y-3 pb-24">
-                        <div v-for="s in staff" class="bg-white dark:bg-surface p-4 rounded-2xl flex justify-between items-center shadow-sm hover:shadow-md transition-shadow">
-                            <div>
-                                <span class="font-medium">{{s.name}}</span>
-                                <p class="text-xs text-gray-500">{{s.role}}</p>
-                            </div>
-                            <div class="flex gap-3 items-center">
-                                <span class="font-bold text-indigo-500">{{formatCurrency(s.dailyRate)}}</span>
-                                <button @click="deleteStaff(s.id)" class="text-red-400 hover:text-red-600 transition-colors">
-                                    <i class="fa-solid fa-trash"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-            </main>
-
-            <nav class="nav-island">
-                <button @click="view='dashboard'" :class="view==='dashboard'?'text-primary scale-110':'text-gray-400'" class="flex flex-col items-center transition-all duration-200">
-                    <i class="fa-solid fa-house text-xl mb-1"></i>
-                    <span class="text-[10px] font-bold">Início</span>
-                </button>
-                <button @click="view='appointments_list'" :class="view==='appointments_list'?'text-primary scale-110':'text-gray-400'" class="flex flex-col items-center transition-all duration-200">
-                    <i class="fa-solid fa-calendar-days text-xl mb-1"></i>
-                    <span class="text-[10px] font-bold">Agenda</span>
-                </button>
-                <button @click="view='expenses'" :class="view==='expenses'?'text-primary scale-110':'text-gray-400'" class="flex flex-col items-center transition-all duration-200">
-                    <i class="fa-solid fa-chart-pie text-xl mb-1"></i>
-                    <span class="text-[10px] font-bold">Finanças</span>
-                </button>
-                <button @click="view='catalog_hub'" :class="view.includes('catalog')||view.includes('_list')?'text-primary scale-110':'text-gray-400'" class="flex flex-col items-center transition-all duration-200">
-                    <i class="fa-solid fa-layer-group text-xl mb-1"></i>
-                    <span class="text-[10px] font-bold">Cadastros</span>
-                </button>
-            </nav>
-
-        </div>
-    </div>
-
+    <!-- Firebase -->
     <script type="module">
-        // O restante do código JavaScript permanece exatamente o mesmo
-        import { createApp, ref, computed, reactive, watch, onMounted, nextTick } from 'https://unpkg.com/vue@3/dist/vue.esm-browser.js';
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, getDocs, doc, setDoc, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // --- 🔴 COLE SUAS CHAVES DO FIREBASE AQUI ---
         const firebaseConfig = {
-          apiKey: "AIzaSyAhHRcZwrzD36oEFaeQzD1Fd-685YRAxBA",
-          authDomain: "partyplanner-3f352.firebaseapp.com",
-          projectId: "partyplanner-3f352",
-          storageBucket: "partyplanner-3f352.firebasestorage.app",
-          messagingSenderId: "748641483081",
-          appId: "1:748641483081:web:dec19c31c9e58d9040c298",
-          measurementId: "G-YVYD6MEXC1"
+            apiKey: "AIzaSyAhHRcZwrzD36oEFaeQzD1Fd-685YRAxBA",
+            authDomain: "partyplanner-3f352.firebaseapp.com",
+            projectId: "partyplanner-3f352",
+            storageBucket: "partyplanner-3f352.firebasestorage.app",
+            messagingSenderId: "748641483081",
+            appId: "1:748641483081:web:dec19c31c9e58d9040c298",
+            measurementId: "G-YVYD6MEXC1"
         };
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+        window.firebaseApp = initializeApp(firebaseConfig);
+        window.firebaseAuth = getAuth(window.firebaseApp);
+        window.firebaseDb = getFirestore(window.firebaseApp);
+        window.firebaseModules = { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, getFirestore, collection, addDoc, getDocs, doc, setDoc, updateDoc, deleteDoc, onSnapshot };
+    </script>
+
+    <style>
+        :root {
+            --primary: #6d28d9;
+            --primary-light: #8b5cf6;
+            --primary-dark: #5b21b6;
+            --secondary: #f97316;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --info: #3b82f6;
+            --dark: #1f2937;
+            --light: #f9fafb;
+            --gray: #6b7280;
+            --border: #e5e7eb;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        [data-bs-theme="dark"] {
+            --primary: #8b5cf6;
+            --primary-light: #a78bfa;
+            --primary-dark: #7c3aed;
+            --dark: #111827;
+            --light: #1f2937;
+            --gray: #9ca3af;
+            --border: #374151;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--light);
+            color: var(--dark);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        [data-bs-theme="dark"] body {
+            color: #e5e7eb;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: var(--shadow);
+        }
+
+        [data-bs-theme="dark"] .glass-card {
+            background: rgba(31, 41, 55, 0.95);
+            border: 1px solid rgba(55, 65, 81, 0.3);
+        }
+
+        .gradient-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+        }
+
+        .gradient-secondary {
+            background: linear-gradient(135deg, var(--secondary) 0%, #fb923c 100%);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            border: none;
+            padding: 0.75rem 1.5rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .nav-tabs .nav-link {
+            border: none;
+            padding: 1rem 1.5rem;
+            font-weight: 500;
+            color: var(--gray);
+            border-bottom: 3px solid transparent;
+        }
+
+        .nav-tabs .nav-link.active {
+            color: var(--primary);
+            border-bottom: 3px solid var(--primary);
+            background: transparent;
+        }
+
+        .stat-card {
+            border-radius: 1rem;
+            padding: 1.5rem;
+            transition: transform 0.3s ease;
+            border: 1px solid var(--border);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .stat-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .event-card {
+            border: 1px solid var(--border);
+            border-radius: 1rem;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .event-card:hover {
+            border-color: var(--primary);
+            box-shadow: var(--shadow);
+        }
+
+        .event-date {
+            width: 70px;
+            height: 70px;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: var(--primary);
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .event-date .day {
+            font-size: 1.5rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .event-date .month {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            opacity: 0.9;
+        }
+
+        .floating-action-btn {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            box-shadow: var(--shadow-lg);
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+
+        .floating-action-btn:hover {
+            transform: scale(1.1) rotate(90deg);
+            background: var(--primary-dark);
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            height: 100vh;
+            width: 250px;
+            background: white;
+            border-right: 1px solid var(--border);
+            z-index: 100;
+            padding: 1.5rem;
+            transition: transform 0.3s ease;
+        }
+
+        [data-bs-theme="dark"] .sidebar {
+            background: var(--dark);
+        }
+
+        .main-content {
+            margin-left: 250px;
+            padding: 2rem;
+            min-height: 100vh;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            .main-content {
+                margin-left: 0;
+            }
+        }
+
+        .form-control, .form-select {
+            border: 2px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 0.75rem 1rem;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 0.25rem rgba(109, 40, 217, 0.15);
+        }
+
+        .modal-content {
+            border-radius: 1rem;
+            border: none;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .badge-custom {
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            font-weight: 500;
+            font-size: 0.85rem;
+        }
+
+        .custom-table {
+            background: white;
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+        }
+
+        [data-bs-theme="dark"] .custom-table {
+            background: var(--dark);
+        }
+
+        .custom-table th {
+            background: var(--light);
+            border-bottom: 2px solid var(--border);
+            padding: 1rem;
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        [data-bs-theme="dark"] .custom-table th {
+            background: #374151;
+            color: white;
+        }
+
+        .custom-table td {
+            padding: 1rem;
+            vertical-align: middle;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .custom-table tbody tr:hover {
+            background: rgba(109, 40, 217, 0.05);
+        }
+
+        [data-bs-theme="dark"] .custom-table tbody tr:hover {
+            background: rgba(139, 92, 246, 0.1);
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid var(--border);
+            border-radius: 50%;
+            border-top-color: var(--primary);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .fade-enter-active {
+            animation: fadeIn 0.3s ease;
+        }
+
+        .fade-leave-active {
+            animation: fadeOut 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeOut {
+            from { opacity: 1; transform: translateY(0); }
+            to { opacity: 0; transform: translateY(10px); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="login-screen" class="d-flex align-items-center justify-content-center min-vh-100 bg-light" v-if="!user">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-md-8 col-lg-6">
+                    <div class="glass-card rounded-4 p-5">
+                        <div class="text-center mb-5">
+                            <div class="gradient-primary rounded-circle d-inline-flex align-items-center justify-content-center mb-4" style="width: 80px; height: 80px;">
+                                <i class="bi bi-balloon-heart-fill text-white fs-2"></i>
+                            </div>
+                            <h1 class="fw-bold mb-2">PartyPlanner Pro</h1>
+                            <p class="text-muted">Gestão profissional de eventos e festas</p>
+                        </div>
+
+                        <form @submit.prevent="handleLogin">
+                            <div class="mb-4">
+                                <label class="form-label fw-medium">E-mail</label>
+                                <input type="email" v-model="email" class="form-control form-control-lg" placeholder="seu@email.com" required>
+                            </div>
+                            <div class="mb-4">
+                                <label class="form-label fw-medium">Senha</label>
+                                <input type="password" v-model="password" class="form-control form-control-lg" placeholder="••••••••" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-lg w-100 mb-3">
+                                {{ isRegistering ? 'Criar Conta' : 'Entrar' }}
+                            </button>
+                            <button type="button" @click="isRegistering = !isRegistering" class="btn btn-link w-100">
+                                {{ isRegistering ? 'Já tenho uma conta' : 'Criar nova conta' }}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="app" v-else>
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <div class="d-flex align-items-center mb-4">
+                <div class="gradient-primary rounded-circle d-inline-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                    <i class="bi bi-balloon-heart-fill text-white"></i>
+                </div>
+                <h5 class="fw-bold mb-0">PartyPlanner</h5>
+            </div>
+
+            <div class="nav flex-column">
+                <button @click="view = 'dashboard'" class="nav-link text-start mb-2" :class="{ active: view === 'dashboard' }">
+                    <i class="bi bi-speedometer2 me-3"></i> Dashboard
+                </button>
+                <button @click="view = 'calendar'" class="nav-link text-start mb-2" :class="{ active: view === 'calendar' }">
+                    <i class="bi bi-calendar3 me-3"></i> Calendário
+                </button>
+                <button @click="view = 'clients'" class="nav-link text-start mb-2" :class="{ active: view === 'clients' }">
+                    <i class="bi bi-people me-3"></i> Clientes
+                </button>
+                <button @click="view = 'services'" class="nav-link text-start mb-2" :class="{ active: view === 'services' }">
+                    <i class="bi bi-magic me-3"></i> Serviços
+                </button>
+                <button @click="view = 'finances'" class="nav-link text-start mb-2" :class="{ active: view === 'finances' }">
+                    <i class="bi bi-cash-coin me-3"></i> Finanças
+                </button>
+                <button @click="view = 'reports'" class="nav-link text-start mb-2" :class="{ active: view === 'reports' }">
+                    <i class="bi bi-graph-up me-3"></i> Relatórios
+                </button>
+                <button @click="view = 'settings'" class="nav-link text-start mb-2" :class="{ active: view === 'settings' }">
+                    <i class="bi bi-gear me-3"></i> Configurações
+                </button>
+            </div>
+
+            <div class="mt-auto">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="rounded-circle bg-light border d-inline-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                        <i class="bi bi-person"></i>
+                    </div>
+                    <div>
+                        <div class="fw-medium">{{ user?.email?.split('@')[0] }}</div>
+                        <small class="text-muted">Administrador</small>
+                    </div>
+                </div>
+                <button @click="toggleTheme" class="btn btn-outline-secondary btn-sm w-100 mb-2">
+                    <i class="bi" :class="isDark ? 'bi-sun' : 'bi-moon'"></i> Tema
+                </button>
+                <button @click="logout" class="btn btn-danger btn-sm w-100">
+                    <i class="bi bi-box-arrow-right"></i> Sair
+                </button>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h3 class="fw-bold mb-1">{{ getGreeting() }}</h3>
+                    <p class="text-muted mb-0">{{ formatDate(new Date()) }}</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button @click="toggleSidebar" class="btn btn-outline-secondary d-md-none">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <button @click="openQuickEventModal" class="btn btn-primary">
+                        <i class="bi bi-plus-lg me-2"></i> Novo Evento
+                    </button>
+                </div>
+            </header>
+
+            <!-- Dashboard -->
+            <section v-if="view === 'dashboard'" class="fade-enter-active">
+                <div class="row g-4 mb-4">
+                    <div class="col-md-3">
+                        <div class="stat-card bg-white">
+                            <div class="stat-icon bg-primary bg-opacity-10 text-primary">
+                                <i class="bi bi-cash-stack"></i>
+                            </div>
+                            <h4 class="fw-bold">{{ formatCurrency(kpiRevenue) }}</h4>
+                            <p class="text-muted mb-0">Receita Mensal</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card bg-white">
+                            <div class="stat-icon bg-success bg-opacity-10 text-success">
+                                <i class="bi bi-graph-up-arrow"></i>
+                            </div>
+                            <h4 class="fw-bold">{{ formatCurrency(kpiProfit) }}</h4>
+                            <p class="text-muted mb-0">Lucro Líquido</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card bg-white">
+                            <div class="stat-icon bg-warning bg-opacity-10 text-warning">
+                                <i class="bi bi-calendar-check"></i>
+                            </div>
+                            <h4 class="fw-bold">{{ appointments.filter(a => a.status === 'pending').length }}</h4>
+                            <p class="text-muted mb-0">Eventos Pendentes</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card bg-white">
+                            <div class="stat-icon bg-info bg-opacity-10 text-info">
+                                <i class="bi bi-people"></i>
+                            </div>
+                            <h4 class="fw-bold">{{ clients.length }}</h4>
+                            <p class="text-muted mb-0">Clientes Ativos</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-4">
+                    <div class="col-lg-8">
+                        <div class="glass-card p-4">
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h5 class="fw-bold mb-0">Próximos Eventos</h5>
+                                <button @click="view = 'calendar'" class="btn btn-sm btn-outline-primary">
+                                    Ver Calendário
+                                </button>
+                            </div>
+                            <div v-if="next7DaysApps.length > 0">
+                                <div v-for="app in next7DaysApps" :key="app.id" class="event-card" @click="openEventDetails(app)">
+                                    <div class="d-flex align-items-center">
+                                        <div class="event-date me-3">
+                                            <div class="day">{{ getDay(app.date) }}</div>
+                                            <div class="month">{{ getMonth(app.date) }}</div>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <h6 class="fw-bold mb-1">{{ getClientName(app.clientId) }}</h6>
+                                            <p class="text-muted mb-1">
+                                                <i class="bi bi-clock me-1"></i>{{ app.time }} • 
+                                                <i class="bi bi-geo-alt me-1 ms-2"></i>{{ app.location.bairro }}
+                                            </p>
+                                            <div class="d-flex align-items-center">
+                                                <span class="badge-custom" :class="{
+                                                    'bg-warning bg-opacity-10 text-warning': app.status === 'pending',
+                                                    'bg-success bg-opacity-10 text-success': app.status === 'concluded'
+                                                }">
+                                                    {{ app.status === 'pending' ? 'Pendente' : 'Concluído' }}
+                                                </span>
+                                                <span class="ms-auto fw-bold">{{ formatCurrency(app.finalBalance) }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div v-else class="text-center py-5">
+                                <i class="bi bi-calendar-x text-muted fs-1 mb-3"></i>
+                                <h6 class="text-muted">Nenhum evento agendado</h6>
+                                <button @click="openQuickEventModal" class="btn btn-primary mt-2">
+                                    Agendar Evento
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="glass-card p-4">
+                            <h5 class="fw-bold mb-4">Resumo Financeiro</h5>
+                            <canvas id="financeChart" height="250"></canvas>
+                            <div class="mt-4">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Receitas</span>
+                                    <span class="fw-bold text-success">{{ formatCurrency(kpiRevenue) }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Despesas</span>
+                                    <span class="fw-bold text-danger">- {{ formatCurrency(kpiTotalExpenses) }}</span>
+                                </div>
+                                <hr>
+                                <div class="d-flex justify-content-between">
+                                    <span class="fw-bold">Lucro Líquido</span>
+                                    <span class="fw-bold" :class="kpiProfit >= 0 ? 'text-success' : 'text-danger'">
+                                        {{ formatCurrency(kpiProfit) }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Calendário -->
+            <section v-if="view === 'calendar'" class="fade-enter-active">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4 class="fw-bold mb-0">Calendário de Eventos</h4>
+                    <div class="d-flex gap-2">
+                        <input type="month" v-model="calendarMonth" class="form-control" style="width: 200px;">
+                        <button @click="openQuickEventModal" class="btn btn-primary">
+                            <i class="bi bi-plus-lg"></i> Novo
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="glass-card p-4">
+                    <div class="table-responsive">
+                        <table class="table custom-table">
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Cliente</th>
+                                    <th>Local</th>
+                                    <th>Horário</th>
+                                    <th>Status</th>
+                                    <th>Valor</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="app in sortedAppointments" :key="app.id">
+                                    <td class="fw-medium">{{ formatDate(app.date) }}</td>
+                                    <td>{{ getClientName(app.clientId) }}</td>
+                                    <td>{{ app.location.bairro }}</td>
+                                    <td>{{ app.time }}</td>
+                                    <td>
+                                        <span class="badge-custom" :class="{
+                                            'bg-warning bg-opacity-10 text-warning': app.status === 'pending',
+                                            'bg-success bg-opacity-10 text-success': app.status === 'concluded'
+                                        }">
+                                            {{ app.status === 'pending' ? 'Pendente' : 'Concluído' }}
+                                        </span>
+                                    </td>
+                                    <td class="fw-bold">{{ formatCurrency(app.finalBalance) }}</td>
+                                    <td>
+                                        <button @click="openEventDetails(app)" class="btn btn-sm btn-outline-primary me-2">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                        <button @click="editEvent(app)" class="btn btn-sm btn-outline-secondary">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Clientes -->
+            <section v-if="view === 'clients'" class="fade-enter-active">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4 class="fw-bold mb-0">Gestão de Clientes</h4>
+                    <button @click="openClientModal" class="btn btn-primary">
+                        <i class="bi bi-person-plus me-2"></i> Novo Cliente
+                    </button>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="glass-card p-4">
+                            <div class="table-responsive">
+                                <table class="table custom-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Nome</th>
+                                            <th>Telefone</th>
+                                            <th>E-mail</th>
+                                            <th>Eventos</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="client in clients" :key="client.id">
+                                            <td class="fw-medium">{{ client.name }}</td>
+                                            <td>{{ client.phone }}</td>
+                                            <td>{{ client.email }}</td>
+                                            <td>
+                                                <span class="badge bg-primary">
+                                                    {{ appointments.filter(a => a.clientId === client.id).length }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <button @click="editClient(client)" class="btn btn-sm btn-outline-secondary me-2">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                <button @click="deleteClient(client.id)" class="btn btn-sm btn-outline-danger">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Serviços -->
+            <section v-if="view === 'services'" class="fade-enter-active">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4 class="fw-bold mb-0">Catálogo de Serviços</h4>
+                    <div class="d-flex gap-2">
+                        <button @click="openServiceModal" class="btn btn-primary">
+                            <i class="bi bi-plus-lg me-2"></i> Novo Serviço
+                        </button>
+                        <button @click="openStaffModal" class="btn btn-outline-primary">
+                            <i class="bi bi-people me-2"></i> Equipe
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="row g-4">
+                    <div class="col-lg-8">
+                        <div class="glass-card p-4">
+                            <h5 class="fw-bold mb-4">Serviços Disponíveis</h5>
+                            <div class="row g-3">
+                                <div v-for="service in services" :key="service.id" class="col-md-6">
+                                    <div class="border rounded-3 p-3">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <h6 class="fw-bold mb-1">{{ service.description }}</h6>
+                                                <p class="text-primary fw-bold mb-0">{{ formatCurrency(service.price) }}</p>
+                                            </div>
+                                            <button @click="editService(service)" class="btn btn-sm btn-outline-secondary">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="glass-card p-4">
+                            <h5 class="fw-bold mb-4">Equipe</h5>
+                            <div v-for="member in staff" :key="member.id" class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
+                                <div>
+                                    <h6 class="fw-bold mb-1">{{ member.name }}</h6>
+                                    <small class="text-muted">{{ member.role }}</small>
+                                </div>
+                                <div class="text-end">
+                                    <div class="fw-bold text-primary">{{ formatCurrency(member.dailyRate) }}</div>
+                                    <small class="text-muted">diária</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Finanças -->
+            <section v-if="view === 'finances'" class="fade-enter-active">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4 class="fw-bold mb-0">Controle Financeiro</h4>
+                    <div class="d-flex gap-2">
+                        <input type="month" v-model="expenseFilterMonth" class="form-control" style="width: 200px;">
+                        <button @click="openExpenseModal" class="btn btn-danger">
+                            <i class="bi bi-dash-circle me-2"></i> Nova Despesa
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="row g-4">
+                    <div class="col-lg-8">
+                        <div class="glass-card p-4">
+                            <h5 class="fw-bold mb-4">Movimentações</h5>
+                            <div v-if="filteredExpenses.length > 0">
+                                <div v-for="exp in filteredExpenses" :key="exp.id" class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
+                                    <div class="d-flex align-items-center">
+                                        <div class="rounded-circle bg-danger bg-opacity-10 text-danger d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                                            <i class="bi bi-arrow-up-right"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="fw-bold mb-1">{{ exp.description }}</h6>
+                                            <small class="text-muted">{{ formatDate(exp.date) }}</small>
+                                        </div>
+                                    </div>
+                                    <div class="text-danger fw-bold">- {{ formatCurrency(exp.value) }}</div>
+                                </div>
+                            </div>
+                            <div v-else class="text-center py-5">
+                                <i class="bi bi-receipt text-muted fs-1 mb-3"></i>
+                                <h6 class="text-muted">Nenhuma despesa registrada</h6>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="glass-card p-4">
+                            <h5 class="fw-bold mb-4">Resumo do Mês</h5>
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Receitas de Eventos</span>
+                                    <span class="fw-bold text-success">{{ formatCurrency(kpiRevenue) }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Custos com Equipe</span>
+                                    <span class="fw-bold text-danger">- {{ formatCurrency(calcTotalStaffCostMonth) }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Outras Despesas</span>
+                                    <span class="fw-bold text-danger">- {{ formatCurrency(expensesMonthTotal) }}</span>
+                                </div>
+                                <hr>
+                                <div class="d-flex justify-content-between fw-bold">
+                                    <span>Resultado</span>
+                                    <span :class="monthProfit >= 0 ? 'text-success' : 'text-danger'">
+                                        {{ formatCurrency(monthProfit) }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Configurações -->
+            <section v-if="view === 'settings'" class="fade-enter-active">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4 class="fw-bold mb-0">Configurações</h4>
+                </div>
+                
+                <div class="row g-4">
+                    <div class="col-lg-6">
+                        <div class="glass-card p-4">
+                            <h5 class="fw-bold mb-4">Dados da Empresa</h5>
+                            <div class="mb-4 text-center">
+                                <div class="mb-3">
+                                    <img v-if="company.logo" :src="company.logo" class="rounded-circle border" style="width: 100px; height: 100px; object-fit: cover;">
+                                    <div v-else class="rounded-circle border d-inline-flex align-items-center justify-content-center" style="width: 100px; height: 100px;">
+                                        <i class="bi bi-building text-muted fs-1"></i>
+                                    </div>
+                                </div>
+                                <input type="file" @change="handleLogoUpload" accept="image/*" class="form-control">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Nome Fantasia</label>
+                                <input v-model="company.fantasia" class="form-control" placeholder="Sua Empresa">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Razão Social</label>
+                                <input v-model="company.razao" class="form-control" placeholder="Razão Social LTDA">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">CNPJ</label>
+                                <input v-model="company.cnpj" class="form-control" placeholder="00.000.000/0000-00">
+                            </div>
+                            <button @click="saveCompany" class="btn btn-primary w-100">
+                                Salvar Alterações
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="glass-card p-4">
+                            <h5 class="fw-bold mb-4">Preferências</h5>
+                            <div class="mb-4">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" v-model="isDark" @change="toggleTheme">
+                                    <label class="form-check-label">Modo Escuro</label>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" v-model="notificationsEnabled">
+                                    <label class="form-check-label">Notificações por E-mail</label>
+                                </div>
+                            </div>
+                            <h6 class="fw-bold mb-3">Exportar Dados</h6>
+                            <div class="d-grid gap-2">
+                                <button @click="exportData('clients')" class="btn btn-outline-primary">
+                                    <i class="bi bi-download me-2"></i> Exportar Clientes
+                                </button>
+                                <button @click="exportData('events')" class="btn btn-outline-primary">
+                                    <i class="bi bi-download me-2"></i> Exportar Eventos
+                                </button>
+                                <button @click="exportData('finances')" class="btn btn-outline-primary">
+                                    <i class="bi bi-download me-2"></i> Exportar Finanças
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Floating Action Button -->
+        <button class="floating-action-btn" @click="openQuickEventModal">
+            <i class="bi bi-plus-lg"></i>
+        </button>
+    </div>
+
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Vue.js -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+
+    <script>
+        const { createApp, ref, computed, reactive, onMounted } = Vue;
 
         createApp({
             setup() {
+                // Auth state
                 const user = ref(null);
                 const email = ref('');
                 const password = ref('');
                 const isRegistering = ref(false);
+                
+                // App state
                 const view = ref('dashboard');
                 const isDark = ref(false);
-                const dashboardFilter = ref('month');
-                const filterDate = ref('');
-                const isEditing = ref(false);
-                const editingId = ref(null);
-                const currentReceipt = ref(null);
-                const expenseFilterMonth = ref(new Date().toISOString().slice(0, 7));
-
+                const sidebarOpen = ref(false);
+                const notificationsEnabled = ref(true);
+                
+                // Data
                 const clients = ref([]);
                 const services = ref([]);
                 const staff = ref([]);
                 const expenses = ref([]);
                 const appointments = ref([]);
-                const company = reactive({ fantasia: '', razao: '', cnpj: '', endereco: '', cidade: '', contato: '', logo: '' });
-
-                const tempApp = reactive({ clientId: '', date: '', time: '', location: { bairro: '', cidade: '', numero: '' }, details: { entryFee: 0, colors: '' }, selectedServices: [], selectedStaff: [] });
-                const tempServiceSelect = ref('');
-                const tempStaffSelect = ref('');
-                const newExpense = reactive({ description: '', value: '', date: new Date().toISOString().split('T')[0] });
-
-                const monthNames = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+                const company = reactive({
+                    fantasia: 'PartyPlanner Pro',
+                    razao: '',
+                    cnpj: '',
+                    logo: ''
+                });
+                
+                // Filters
+                const calendarMonth = ref(new Date().toISOString().slice(0, 7));
+                const expenseFilterMonth = ref(new Date().toISOString().slice(0, 7));
+                
+                // Temp data
+                const tempApp = reactive({
+                    clientId: '',
+                    date: new Date().toISOString().slice(0, 10),
+                    time: '18:00',
+                    location: { bairro: '', cidade: '', numero: '' },
+                    details: { entryFee: 0, colors: '' },
+                    selectedServices: [],
+                    selectedStaff: []
+                });
+                
+                const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
                 const today = new Date();
-                const currentMonth = ref(today.getMonth());
-                const currentYear = ref(today.getFullYear());
 
-                onMounted(() => { 
-                    onAuthStateChanged(auth, (u) => { 
-                        user.value = u; 
-                        if(u) loadData(); 
+                // Initialize
+                onMounted(() => {
+                    // Check auth state
+                    const auth = window.firebaseAuth;
+                    const { onAuthStateChanged } = window.firebaseModules;
+                    
+                    onAuthStateChanged(auth, (u) => {
+                        user.value = u;
+                        if (u) {
+                            loadData();
+                            initCharts();
+                        }
                     });
-                    // Verificar tema salvo
-                    const savedTheme = localStorage.getItem('darkMode');
-                    if (savedTheme === 'true') {
+                    
+                    // Check theme
+                    const savedTheme = localStorage.getItem('theme');
+                    if (savedTheme === 'dark') {
                         isDark.value = true;
-                        document.documentElement.classList.add('dark');
+                        document.documentElement.setAttribute('data-bs-theme', 'dark');
                     }
                 });
 
-                const handleLogin = async () => { 
-                    try { 
+                // Auth methods
+                const handleLogin = async () => {
+                    const auth = window.firebaseAuth;
+                    const { signInWithEmailAndPassword, createUserWithEmailAndPassword } = window.firebaseModules;
+                    
+                    try {
                         if (isRegistering.value) {
                             await createUserWithEmailAndPassword(auth, email.value, password.value);
                         } else {
                             await signInWithEmailAndPassword(auth, email.value, password.value);
                         }
-                    } catch (e) { 
-                        Swal.fire('Erro', 'Verifique seus dados', 'error'); 
-                    } 
+                    } catch (error) {
+                        Swal.fire('Erro', error.message, 'error');
+                    }
                 };
-                
-                const logout = () => signOut(auth);
 
-                const loadData = () => {
+                const logout = async () => {
+                    const auth = window.firebaseAuth;
+                    const { signOut } = window.firebaseModules;
+                    await signOut(auth);
+                };
+
+                // Data methods
+                const loadData = async () => {
+                    const db = window.firebaseDb;
+                    const { collection, onSnapshot, doc } = window.firebaseModules;
                     const uid = user.value.uid;
-                    onSnapshot(collection(db, `users/${uid}/clients`), (s) => clients.value = s.docs.map(d=>({id:d.id,...d.data()})));
-                    onSnapshot(collection(db, `users/${uid}/services`), (s) => services.value = s.docs.map(d=>({id:d.id,...d.data()})));
-                    onSnapshot(collection(db, `users/${uid}/staff`), (s) => staff.value = s.docs.map(d=>({id:d.id,...d.data()})));
-                    onSnapshot(collection(db, `users/${uid}/expenses`), (s) => expenses.value = s.docs.map(d=>({id:d.id,...d.data()})));
-                    onSnapshot(collection(db, `users/${uid}/appointments`), (s) => { appointments.value = s.docs.map(d=>({id:d.id,...d.data()})); });
-                    onSnapshot(doc(db, `users/${uid}/settings`, 'company'), (doc) => { if (doc.exists()) Object.assign(company, doc.data()); });
-                };
-
-                const addDocToDb = (coll, data) => addDoc(collection(db, `users/${user.value.uid}/${coll}`), data);
-                const deleteDocFromDb = (coll, id) => deleteDoc(doc(db, `users/${user.value.uid}/${coll}`, id));
-                const updateDocInDb = (coll, id, data) => updateDoc(doc(db, `users/${user.value.uid}/${coll}`, id), data);
-
-                const handleLogoUpload = (e) => { 
-                    const file = e.target.files[0]; 
-                    if (file) { 
-                        if(file.size > 800000) { 
-                            Swal.fire('Erro', 'Arquivo muito grande (máx. 800kb)', 'error'); 
-                            return; 
-                        } 
-                        const reader = new FileReader(); 
-                        reader.onload = (ev) => company.logo = ev.target.result; 
-                        reader.readAsDataURL(file); 
-                    } 
-                };
-                
-                const saveCompany = async () => { 
-                    await setDoc(doc(db, `users/${user.value.uid}/settings`, 'company'), { ...company }); 
-                    Swal.fire({
-                        icon:'success',
-                        title:'Salvo',
-                        toast:true,
-                        position:'top',
-                        timer:1500,
-                        showConfirmButton:false,
-                        background: isDark.value ? '#1e293b' : '#fff',
-                        color: isDark.value ? '#fff' : '#000'
-                    }); 
-                };
-
-                // Modais
-                const openClientModal = async () => { 
-                    const {value:v}=await Swal.fire({
-                        title:'Novo Cliente',
-                        html:'<input id="n" class="swal2-input" placeholder="Nome"><input id="p" class="swal2-input" placeholder="Telefone"><input id="e" class="swal2-input" placeholder="Email">',
-                        preConfirm:()=>[document.getElementById('n').value,document.getElementById('p').value,document.getElementById('e').value]
-                    }); 
-                    if(v&&v[0]) addDocToDb('clients',{name:v[0],phone:v[1],email:v[2]}); 
-                };
-                
-                const openServiceModal = async () => { 
-                    const {value:v}=await Swal.fire({
-                        title:'Novo Serviço',
-                        html:'<input id="d" class="swal2-input" placeholder="Descrição"><input id="p" type="number" class="swal2-input" placeholder="Valor">',
-                        preConfirm:()=>[document.getElementById('d').value,document.getElementById('p').value]
-                    }); 
-                    if(v&&v[0]) addDocToDb('services',{description:v[0],price:Number(v[1])}); 
-                };
-                
-                const openStaffModal = async () => { 
-                    const {value:v}=await Swal.fire({
-                        title:'Novo Staff',
-                        html:'<input id="n" class="swal2-input" placeholder="Nome"><input id="r" class="swal2-input" placeholder="Função"><input id="d" type="number" class="swal2-input" placeholder="Diária">',
-                        preConfirm:()=>[document.getElementById('n').value,document.getElementById('r').value,document.getElementById('d').value]
-                    }); 
-                    if(v&&v[0]) addDocToDb('staff',{name:v[0],role:v[1],dailyRate:Number(v[2])}); 
-                };
-                
-                const openExpenseModal = async () => { 
-                    const {value:v}=await Swal.fire({
-                        title:'Nova Despesa',
-                        html:'<input id="d" class="swal2-input" placeholder="Descrição"><input id="v" type="number" class="swal2-input" placeholder="Valor"><input id="t" type="date" class="swal2-input">',
-                        preConfirm:()=>[document.getElementById('d').value,document.getElementById('v').value,document.getElementById('t').value]
-                    }); 
-                    if(v&&v[0]) addDocToDb('expenses',{description:v[0],value:Number(v[1]),date:v[2]}); 
-                };
-
-                const deleteClient=(id)=>deleteDocFromDb('clients',id); 
-                const deleteStaff=(id)=>deleteDocFromDb('staff',id);
-                
-                const filteredExpenses = computed(() => expenses.value.filter(e => e.date.startsWith(expenseFilterMonth.value)).sort((a,b)=>new Date(b.date)-new Date(a.date)));
-
-                const startNewSchedule = () => { 
-                    Object.assign(tempApp,{
-                        clientId:'',
-                        date:'',
-                        time:'',
-                        location:{bairro:'',cidade:'',numero:''},
-                        details:{entryFee:0,colors:''},
-                        selectedServices:[],
-                        selectedStaff:[]
-                    }); 
-                    isEditing.value=false; 
-                    view.value='schedule'; 
-                };
-                
-                const addServiceToApp = () => { 
-                    if(tempServiceSelect.value) tempApp.selectedServices.push({...tempServiceSelect.value}); 
-                };
-                
-                const removeServiceFromApp = (i) => tempApp.selectedServices.splice(i,1);
-                const addStaffToApp = () => { if(tempStaffSelect.value) tempApp.selectedStaff.push({...tempStaffSelect.value}); };
-
-                const calcTotalServices = computed(()=>tempApp.selectedServices.reduce((s,i)=>s+i.price,0));
-                const calcTotalStaffCost = computed(()=>tempApp.selectedStaff.reduce((s,i)=>s+i.dailyRate,0));
-                const calcFinalBalance = computed(()=>calcTotalServices.value-(tempApp.details.entryFee||0));
-
-                const saveAppointment = () => {
-                    const appData = { 
-                        ...JSON.parse(JSON.stringify(tempApp)), 
-                        entryFee: tempApp.details.entryFee, 
-                        totalServices:calcTotalServices.value, 
-                        totalStaffCost:calcTotalStaffCost.value, 
-                        finalBalance:calcFinalBalance.value, 
-                        status:'pending' 
-                    };
-                    if(isEditing.value && editingId.value) {
-                        updateDocInDb('appointments', editingId.value, appData);
-                    } else {
-                        addDocToDb('appointments',appData);
-                    }
-                    Swal.fire({
-                        icon:'success',
-                        title:'Agendado!',
-                        timer:1500,
-                        showConfirmButton:false,
-                        background: isDark.value ? '#1e293b' : '#fff',
-                        color: isDark.value ? '#fff' : '#000'
+                    
+                    // Load clients
+                    onSnapshot(collection(db, `users/${uid}/clients`), (snapshot) => {
+                        clients.value = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     });
-                    view.value='appointments_list';
-                };
-                
-                const changeStatus = (app,s) => updateDocInDb('appointments',app.id,{status:s});
-                const showReceipt = (app) => { currentReceipt.value=app; view.value='receipt'; };
-                
-                const downloadReceiptImage = () => { 
-                    html2canvas(document.getElementById('receipt-capture-area'),{scale:2}).then(c=>{
-                        const l=document.createElement('a');
-                        l.download=`Recibo_${currentReceipt.value.date}.png`;
-                        l.href=c.toDataURL();
-                        l.click();
+                    
+                    // Load services
+                    onSnapshot(collection(db, `users/${uid}/services`), (snapshot) => {
+                        services.value = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    });
+                    
+                    // Load staff
+                    onSnapshot(collection(db, `users/${uid}/staff`), (snapshot) => {
+                        staff.value = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    });
+                    
+                    // Load expenses
+                    onSnapshot(collection(db, `users/${uid}/expenses`), (snapshot) => {
+                        expenses.value = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    });
+                    
+                    // Load appointments
+                    onSnapshot(collection(db, `users/${uid}/appointments`), (snapshot) => {
+                        appointments.value = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    });
+                    
+                    // Load company settings
+                    onSnapshot(doc(db, `users/${uid}/settings`, 'company'), (docSnap) => {
+                        if (docSnap.exists()) {
+                            Object.assign(company, docSnap.data());
+                        }
                     });
                 };
 
-                const toggleDarkMode=()=>{
-                    isDark.value=!isDark.value; 
-                    if(isDark.value) {
-                        document.documentElement.classList.add('dark');
-                        localStorage.setItem('darkMode', 'true');
-                    } else {
-                        document.documentElement.classList.remove('dark');
-                        localStorage.setItem('darkMode', 'false');
-                    }
-                };
-                
-                const formatCurrency=(v)=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v||0);
-                const formatDate=(d)=>d?d.split('-').reverse().join('/'):'';
-                const getMonth=(d)=>monthNames[parseInt(d.split('-')[1])-1]; 
-                const getDay=(d)=>d.split('-')[2];
-                const getClientName=(id)=>clients.value.find(c=>c.id===id)?.name||'...';
-                const getGreeting=()=>{ 
-                    const h=new Date().getHours(); 
-                    return h<12?'Bom dia':(h<18?'Boa tarde':'Boa noite'); 
+                // UI methods
+                const toggleTheme = () => {
+                    isDark.value = !isDark.value;
+                    const theme = isDark.value ? 'dark' : 'light';
+                    document.documentElement.setAttribute('data-bs-theme', theme);
+                    localStorage.setItem('theme', theme);
                 };
 
-                const kpiRevenue = computed(()=>appointments.value.filter(a=>a.status!=='cancelled').reduce((s,a)=>s+(a.totalServices||0),0));
-                const kpiTotalExpenses = computed(()=>appointments.value.reduce((s,a)=>s+(a.totalStaffCost||0),0)+expenses.value.reduce((s,e)=>s+(e.value||0),0));
-                const kpiProfit = computed(()=>kpiRevenue.value-kpiTotalExpenses.value);
-                const kpiReceivables = computed(()=>appointments.value.filter(a=>a.status==='pending').reduce((s,a)=>s+(a.finalBalance||0),0));
-                
-                const next7DaysApps = computed(()=>{ 
-                    const t=new Date();t.setHours(0,0,0,0); 
-                    const w=new Date(t);w.setDate(t.getDate()+7); 
-                    return appointments.value.filter(a=>{ 
-                        const d=new Date(a.date.split('-')[0],a.date.split('-')[1]-1,a.date.split('-')[2]); 
-                        return d>=t&&d<=w&&a.status==='pending'; 
-                    }).sort((a,b)=>new Date(a.date)-new Date(b.date)); 
+                const toggleSidebar = () => {
+                    sidebarOpen.value = !sidebarOpen.value;
+                    const sidebar = document.querySelector('.sidebar');
+                    sidebar.classList.toggle('show');
+                };
+
+                const formatCurrency = (value) => {
+                    return new Intl.NumberFormat('pt-BR', {
+                        style: 'currency',
+                        currency: 'BRL'
+                    }).format(value || 0);
+                };
+
+                const formatDate = (dateString) => {
+                    if (!dateString) return '';
+                    const date = new Date(dateString);
+                    return date.toLocaleDateString('pt-BR');
+                };
+
+                const getMonth = (dateString) => {
+                    const month = parseInt(dateString.split('-')[1]) - 1;
+                    return monthNames[month];
+                };
+
+                const getDay = (dateString) => {
+                    return dateString.split('-')[2];
+                };
+
+                const getClientName = (clientId) => {
+                    const client = clients.value.find(c => c.id === clientId);
+                    return client ? client.name : 'Cliente não encontrado';
+                };
+
+                const getGreeting = () => {
+                    const hour = new Date().getHours();
+                    if (hour < 12) return 'Bom dia!';
+                    if (hour < 18) return 'Boa tarde!';
+                    return 'Boa noite!';
+                };
+
+                // Computed properties
+                const kpiRevenue = computed(() => {
+                    const now = new Date();
+                    const currentMonth = now.getMonth();
+                    const currentYear = now.getFullYear();
+                    
+                    return appointments.value
+                        .filter(app => {
+                            const appDate = new Date(app.date);
+                            return appDate.getMonth() === currentMonth && 
+                                   appDate.getFullYear() === currentYear &&
+                                   app.status !== 'cancelled';
+                        })
+                        .reduce((sum, app) => sum + (app.totalServices || 0), 0);
                 });
-                
-                const sortedAppointments = computed(()=>{ 
-                    let l=appointments.value; 
-                    if(filterDate.value) l=l.filter(a=>a.date===filterDate.value); 
-                    return l.sort((a,b)=>new Date(b.date)-new Date(a.date)); 
+
+                const kpiTotalExpenses = computed(() => {
+                    const now = new Date();
+                    const currentMonth = now.getMonth();
+                    const currentYear = now.getFullYear();
+                    
+                    const staffCost = appointments.value
+                        .filter(app => {
+                            const appDate = new Date(app.date);
+                            return appDate.getMonth() === currentMonth && 
+                                   appDate.getFullYear() === currentYear;
+                        })
+                        .reduce((sum, app) => sum + (app.totalStaffCost || 0), 0);
+                    
+                    const otherExpenses = expenses.value
+                        .filter(exp => {
+                            const expDate = new Date(exp.date);
+                            return expDate.getMonth() === currentMonth && 
+                                   expDate.getFullYear() === currentYear;
+                        })
+                        .reduce((sum, exp) => sum + (exp.value || 0), 0);
+                    
+                    return staffCost + otherExpenses;
                 });
+
+                const kpiProfit = computed(() => kpiRevenue.value - kpiTotalExpenses.value);
+
+                const next7DaysApps = computed(() => {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    
+                    const nextWeek = new Date(today);
+                    nextWeek.setDate(today.getDate() + 7);
+                    
+                    return appointments.value
+                        .filter(app => {
+                            const appDate = new Date(app.date);
+                            return appDate >= today && 
+                                   appDate <= nextWeek && 
+                                   app.status === 'pending';
+                        })
+                        .sort((a, b) => new Date(a.date) - new Date(b.date))
+                        .slice(0, 5);
+                });
+
+                const sortedAppointments = computed(() => {
+                    return [...appointments.value]
+                        .sort((a, b) => new Date(b.date) - new Date(a.date));
+                });
+
+                const filteredExpenses = computed(() => {
+                    return expenses.value
+                        .filter(exp => exp.date.startsWith(expenseFilterMonth.value))
+                        .sort((a, b) => new Date(b.date) - new Date(a.date));
+                });
+
+                const expensesMonthTotal = computed(() => {
+                    return filteredExpenses.value
+                        .reduce((sum, exp) => sum + (exp.value || 0), 0);
+                });
+
+                const calcTotalStaffCostMonth = computed(() => {
+                    return appointments.value
+                        .filter(app => app.date.startsWith(expenseFilterMonth.value))
+                        .reduce((sum, app) => sum + (app.totalStaffCost || 0), 0);
+                });
+
+                const monthProfit = computed(() => {
+                    const monthRevenue = appointments.value
+                        .filter(app => app.date.startsWith(expenseFilterMonth.value) && app.status !== 'cancelled')
+                        .reduce((sum, app) => sum + (app.totalServices || 0), 0);
+                    
+                    return monthRevenue - (calcTotalStaffCostMonth.value + expensesMonthTotal.value);
+                });
+
+                // Modal methods
+                const openQuickEventModal = () => {
+                    Swal.fire({
+                        title: 'Novo Evento',
+                        html: `
+                            <div class="mb-3">
+                                <label class="form-label">Cliente</label>
+                                <select id="clientSelect" class="form-select">
+                                    <option value="">Selecione um cliente</option>
+                                    ${clients.value.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-6">
+                                    <label class="form-label">Data</label>
+                                    <input type="date" id="eventDate" class="form-control" value="${new Date().toISOString().slice(0, 10)}">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label">Horário</label>
+                                    <input type="time" id="eventTime" class="form-control" value="18:00">
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Local (Bairro)</label>
+                                <input type="text" id="eventLocation" class="form-control" placeholder="Digite o bairro">
+                            </div>
+                        `,
+                        showCancelButton: true,
+                        confirmButtonText: 'Salvar',
+                        cancelButtonText: 'Cancelar',
+                        preConfirm: () => {
+                            const clientId = document.getElementById('clientSelect').value;
+                            const date = document.getElementById('eventDate').value;
+                            const time = document.getElementById('eventTime').value;
+                            const location = document.getElementById('eventLocation').value;
+                            
+                            if (!clientId || !date || !location) {
+                                Swal.showValidationMessage('Preencha todos os campos obrigatórios');
+                                return false;
+                            }
+                            
+                            return { clientId, date, time, location };
+                        }
+                    }).then(async (result) => {
+                        if (result.isConfirmed) {
+                            const { clientId, date, time, location } = result.value;
+                            
+                            const db = window.firebaseDb;
+                            const { addDoc, collection } = window.firebaseModules;
+                            
+                            await addDoc(collection(db, `users/${user.value.uid}/appointments`), {
+                                clientId,
+                                date,
+                                time,
+                                location: { bairro: location, cidade: '', numero: '' },
+                                details: { entryFee: 0, colors: '' },
+                                selectedServices: [],
+                                selectedStaff: [],
+                                totalServices: 0,
+                                totalStaffCost: 0,
+                                finalBalance: 0,
+                                status: 'pending'
+                            });
+                            
+                            Swal.fire('Sucesso!', 'Evento criado com sucesso', 'success');
+                        }
+                    });
+                };
+
+                const openClientModal = (client = null) => {
+                    Swal.fire({
+                        title: client ? 'Editar Cliente' : 'Novo Cliente',
+                        html: `
+                            <div class="mb-3">
+                                <label class="form-label">Nome</label>
+                                <input type="text" id="clientName" class="form-control" value="${client?.name || ''}" placeholder="Nome completo">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Telefone</label>
+                                <input type="tel" id="clientPhone" class="form-control" value="${client?.phone || ''}" placeholder="(11) 99999-9999">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">E-mail</label>
+                                <input type="email" id="clientEmail" class="form-control" value="${client?.email || ''}" placeholder="cliente@email.com">
+                            </div>
+                        `,
+                        showCancelButton: true,
+                        confirmButtonText: 'Salvar',
+                        cancelButtonText: 'Cancelar',
+                        preConfirm: () => {
+                            const name = document.getElementById('clientName').value;
+                            const phone = document.getElementById('clientPhone').value;
+                            const email = document.getElementById('clientEmail').value;
+                            
+                            if (!name) {
+                                Swal.showValidationMessage('O nome é obrigatório');
+                                return false;
+                            }
+                            
+                            return { name, phone, email };
+                        }
+                    }).then(async (result) => {
+                        if (result.isConfirmed) {
+                            const { name, phone, email } = result.value;
+                            const db = window.firebaseDb;
+                            const { addDoc, collection, updateDoc, doc } = window.firebaseModules;
+                            
+                            if (client) {
+                                await updateDoc(doc(db, `users/${user.value.uid}/clients`, client.id), { name, phone, email });
+                            } else {
+                                await addDoc(collection(db, `users/${user.value.uid}/clients`), { name, phone, email });
+                            }
+                            
+                            Swal.fire('Sucesso!', 'Cliente salvo com sucesso', 'success');
+                        }
+                    });
+                };
+
+                const openServiceModal = (service = null) => {
+                    Swal.fire({
+                        title: service ? 'Editar Serviço' : 'Novo Serviço',
+                        html: `
+                            <div class="mb-3">
+                                <label class="form-label">Descrição</label>
+                                <input type="text" id="serviceDesc" class="form-control" value="${service?.description || ''}" placeholder="Ex: Kit balões decorativos">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Preço</label>
+                                <input type="number" id="servicePrice" class="form-control" value="${service?.price || ''}" placeholder="R$ 0,00" step="0.01">
+                            </div>
+                        `,
+                        showCancelButton: true,
+                        confirmButtonText: 'Salvar',
+                        cancelButtonText: 'Cancelar',
+                        preConfirm: () => {
+                            const description = document.getElementById('serviceDesc').value;
+                            const price = parseFloat(document.getElementById('servicePrice').value);
+                            
+                            if (!description || !price) {
+                                Swal.showValidationMessage('Preencha todos os campos');
+                                return false;
+                            }
+                            
+                            return { description, price };
+                        }
+                    }).then(async (result) => {
+                        if (result.isConfirmed) {
+                            const { description, price } = result.value;
+                            const db = window.firebaseDb;
+                            const { addDoc, collection, updateDoc, doc } = window.firebaseModules;
+                            
+                            if (service) {
+                                await updateDoc(doc(db, `users/${user.value.uid}/services`, service.id), { description, price });
+                            } else {
+                                await addDoc(collection(db, `users/${user.value.uid}/services`), { description, price });
+                            }
+                            
+                            Swal.fire('Sucesso!', 'Serviço salvo com sucesso', 'success');
+                        }
+                    });
+                };
+
+                const openStaffModal = (member = null) => {
+                    Swal.fire({
+                        title: member ? 'Editar Membro' : 'Novo Membro',
+                        html: `
+                            <div class="mb-3">
+                                <label class="form-label">Nome</label>
+                                <input type="text" id="staffName" class="form-control" value="${member?.name || ''}" placeholder="Nome completo">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Função</label>
+                                <input type="text" id="staffRole" class="form-control" value="${member?.role || ''}" placeholder="Ex: Decorador">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Diária</label>
+                                <input type="number" id="staffRate" class="form-control" value="${member?.dailyRate || ''}" placeholder="R$ 0,00" step="0.01">
+                            </div>
+                        `,
+                        showCancelButton: true,
+                        confirmButtonText: 'Salvar',
+                        cancelButtonText: 'Cancelar',
+                        preConfirm: () => {
+                            const name = document.getElementById('staffName').value;
+                            const role = document.getElementById('staffRole').value;
+                            const dailyRate = parseFloat(document.getElementById('staffRate').value);
+                            
+                            if (!name || !role || !dailyRate) {
+                                Swal.showValidationMessage('Preencha todos os campos');
+                                return false;
+                            }
+                            
+                            return { name, role, dailyRate };
+                        }
+                    }).then(async (result) => {
+                        if (result.isConfirmed) {
+                            const { name, role, dailyRate } = result.value;
+                            const db = window.firebaseDb;
+                            const { addDoc, collection, updateDoc, doc } = window.firebaseModules;
+                            
+                            if (member) {
+                                await updateDoc(doc(db, `users/${user.value.uid}/staff`, member.id), { name, role, dailyRate });
+                            } else {
+                                await addDoc(collection(db, `users/${user.value.uid}/staff`), { name, role, dailyRate });
+                            }
+                            
+                            Swal.fire('Sucesso!', 'Membro salvo com sucesso', 'success');
+                        }
+                    });
+                };
+
+                const openExpenseModal = () => {
+                    Swal.fire({
+                        title: 'Nova Despesa',
+                        html: `
+                            <div class="mb-3">
+                                <label class="form-label">Descrição</label>
+                                <input type="text" id="expenseDesc" class="form-control" placeholder="Ex: Material para decoração">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Valor</label>
+                                <input type="number" id="expenseValue" class="form-control" placeholder="R$ 0,00" step="0.01">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Data</label>
+                                <input type="date" id="expenseDate" class="form-control" value="${new Date().toISOString().slice(0, 10)}">
+                            </div>
+                        `,
+                        showCancelButton: true,
+                        confirmButtonText: 'Salvar',
+                        cancelButtonText: 'Cancelar',
+                        preConfirm: () => {
+                            const description = document.getElementById('expenseDesc').value;
+                            const value = parseFloat(document.getElementById('expenseValue').value);
+                            const date = document.getElementById('expenseDate').value;
+                            
+                            if (!description || !value || !date) {
+                                Swal.showValidationMessage('Preencha todos os campos');
+                                return false;
+                            }
+                            
+                            return { description, value, date };
+                        }
+                    }).then(async (result) => {
+                        if (result.isConfirmed) {
+                            const { description, value, date } = result.value;
+                            const db = window.firebaseDb;
+                            const { addDoc, collection } = window.firebaseModules;
+                            
+                            await addDoc(collection(db, `users/${user.value.uid}/expenses`), {
+                                description,
+                                value,
+                                date
+                            });
+                            
+                            Swal.fire('Sucesso!', 'Despesa registrada com sucesso', 'success');
+                        }
+                    });
+                };
+
+                // Event methods
+                const openEventDetails = (app) => {
+                    const client = clients.value.find(c => c.id === app.clientId);
+                    
+                    Swal.fire({
+                        title: 'Detalhes do Evento',
+                        html: `
+                            <div class="text-start">
+                                <h6 class="fw-bold">${client?.name || 'Cliente'}</h6>
+                                <p class="text-muted">
+                                    <i class="bi bi-calendar3 me-2"></i>${formatDate(app.date)} às ${app.time}<br>
+                                    <i class="bi bi-geo-alt me-2"></i>${app.location.bairro}, ${app.location.cidade}<br>
+                                    <i class="bi bi-palette me-2"></i>${app.details.colors || 'Sem tema definido'}
+                                </p>
+                                <div class="border-top pt-3">
+                                    <h6 class="fw-bold">Serviços</h6>
+                                    ${app.selectedServices?.map(s => `
+                                        <div class="d-flex justify-content-between mb-1">
+                                            <span>${s.description}</span>
+                                            <span class="fw-bold">${formatCurrency(s.price)}</span>
+                                        </div>
+                                    `).join('') || '<p class="text-muted">Nenhum serviço selecionado</p>'}
+                                </div>
+                                <div class="border-top pt-3 mt-3">
+                                    <div class="d-flex justify-content-between">
+                                        <span class="fw-bold">Total:</span>
+                                        <span class="fw-bold">${formatCurrency(app.totalServices || 0)}</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between">
+                                        <span>Entrada paga:</span>
+                                        <span class="text-success">- ${formatCurrency(app.details.entryFee || 0)}</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between border-top pt-2 mt-2">
+                                        <span class="fw-bold">A receber:</span>
+                                        <span class="fw-bold text-primary">${formatCurrency(app.finalBalance || 0)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `,
+                        showCancelButton: true,
+                        confirmButtonText: app.status === 'pending' ? 'Marcar como Concluído' : 'Reabrir',
+                        cancelButtonText: 'Fechar'
+                    }).then(async (result) => {
+                        if (result.isConfirmed) {
+                            const db = window.firebaseDb;
+                            const { updateDoc, doc } = window.firebaseModules;
+                            
+                            const newStatus = app.status === 'pending' ? 'concluded' : 'pending';
+                            await updateDoc(doc(db, `users/${user.value.uid}/appointments`, app.id), { status: newStatus });
+                            
+                            Swal.fire('Sucesso!', `Evento ${newStatus === 'concluded' ? 'concluído' : 'reaberto'}`, 'success');
+                        }
+                    });
+                };
+
+                const editEvent = (app) => {
+                    Object.assign(tempApp, app);
+                    view.value = 'dashboard';
+                    // Note: Você pode criar um componente de edição completo se necessário
+                };
+
+                const editClient = (client) => openClientModal(client);
+                const editService = (service) => openServiceModal(service);
+
+                // Delete methods
+                const deleteClient = async (id) => {
+                    const result = await Swal.fire({
+                        title: 'Tem certeza?',
+                        text: 'Esta ação não pode ser desfeita!',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sim, excluir!',
+                        cancelButtonText: 'Cancelar'
+                    });
+                    
+                    if (result.isConfirmed) {
+                        const db = window.firebaseDb;
+                        const { deleteDoc, doc } = window.firebaseModules;
+                        
+                        await deleteDoc(doc(db, `users/${user.value.uid}/clients`, id));
+                        Swal.fire('Excluído!', 'Cliente removido com sucesso', 'success');
+                    }
+                };
+
+                const deleteStaff = async (id) => {
+                    const result = await Swal.fire({
+                        title: 'Tem certeza?',
+                        text: 'Esta ação não pode ser desfeita!',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sim, excluir!',
+                        cancelButtonText: 'Cancelar'
+                    });
+                    
+                    if (result.isConfirmed) {
+                        const db = window.firebaseDb;
+                        const { deleteDoc, doc } = window.firebaseModules;
+                        
+                        await deleteDoc(doc(db, `users/${user.value.uid}/staff`, id));
+                        Swal.fire('Excluído!', 'Membro removido com sucesso', 'success');
+                    }
+                };
+
+                // Company methods
+                const handleLogoUpload = (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        if (file.size > 500000) {
+                            Swal.fire('Erro', 'A imagem deve ter no máximo 500KB', 'error');
+                            return;
+                        }
+                        
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                            company.logo = event.target.result;
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                };
+
+                const saveCompany = async () => {
+                    const db = window.firebaseDb;
+                    const { setDoc, doc } = window.firebaseModules;
+                    
+                    await setDoc(doc(db, `users/${user.value.uid}/settings`, 'company'), { ...company });
+                    Swal.fire('Sucesso!', 'Dados da empresa atualizados', 'success');
+                };
+
+                // Export methods
+                const exportData = (type) => {
+                    let data, filename, contentType;
+                    
+                    switch (type) {
+                        case 'clients':
+                            data = clients.value;
+                            filename = 'clientes.json';
+                            contentType = 'application/json';
+                            break;
+                        case 'events':
+                            data = appointments.value.map(app => ({
+                                ...app,
+                                clientName: getClientName(app.clientId)
+                            }));
+                            filename = 'eventos.json';
+                            contentType = 'application/json';
+                            break;
+                        case 'finances':
+                            data = {
+                                receita: kpiRevenue.value,
+                                despesas: kpiTotalExpenses.value,
+                                lucro: kpiProfit.value,
+                                eventos: appointments.value.length,
+                                clientes: clients.value.length
+                            };
+                            filename = 'relatorio-financeiro.json';
+                            contentType = 'application/json';
+                            break;
+                    }
+                    
+                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: contentType });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    
+                    Swal.fire('Exportado!', `Arquivo ${filename} baixado`, 'success');
+                };
+
+                // Chart methods
+                const initCharts = () => {
+                    setTimeout(() => {
+                        const ctx = document.getElementById('financeChart');
+                        if (ctx) {
+                            new Chart(ctx.getContext('2d'), {
+                                type: 'doughnut',
+                                data: {
+                                    labels: ['Receitas', 'Despesas'],
+                                    datasets: [{
+                                        data: [kpiRevenue.value, kpiTotalExpenses.value],
+                                        backgroundColor: ['#10b981', '#ef4444'],
+                                        borderWidth: 0
+                                    }]
+                                },
+                                options: {
+                                    responsive: true,
+                                    plugins: {
+                                        legend: {
+                                            position: 'bottom'
+                                        }
+                                    },
+                                    cutout: '70%'
+                                }
+                            });
+                        }
+                    }, 100);
+                };
 
                 return {
-                    user, email, password, isRegistering, handleLogin, logout, view, isDark, dashboardFilter, filterDate, 
-                    isEditing, currentReceipt, clients, services, staff, expenses, company, tempApp, tempServiceSelect, 
-                    tempStaffSelect, expenseFilterMonth, filteredExpenses, currentMonth, currentYear, monthNames, 
-                    kpiRevenue, kpiTotalExpenses, kpiProfit, kpiReceivables, next7DaysApps, sortedAppointments,
-                    openClientModal, openServiceModal, openStaffModal, openExpenseModal, deleteClient, deleteStaff,
-                    startNewSchedule, addServiceToApp, removeServiceFromApp, addStaffToApp, saveAppointment, changeStatus, 
-                    showReceipt, calcTotalServices, calcTotalStaffCost, calcFinalBalance, toggleDarkMode, formatCurrency, 
-                    formatDate, getMonth, getDay, getClientName, getGreeting, saveCompany, downloadReceiptImage, handleLogoUpload
+                    // State
+                    user, email, password, isRegistering, view, isDark, sidebarOpen, notificationsEnabled,
+                    clients, services, staff, expenses, appointments, company,
+                    calendarMonth, expenseFilterMonth, tempApp,
+                    
+                    // Computed
+                    kpiRevenue, kpiTotalExpenses, kpiProfit,
+                    next7DaysApps, sortedAppointments, filteredExpenses,
+                    expensesMonthTotal, calcTotalStaffCostMonth, monthProfit,
+                    
+                    // Methods
+                    handleLogin, logout, toggleTheme, toggleSidebar,
+                    formatCurrency, formatDate, getMonth, getDay, getClientName, getGreeting,
+                    openQuickEventModal, openClientModal, openServiceModal, openStaffModal, openExpenseModal,
+                    openEventDetails, editEvent, editClient, editService,
+                    deleteClient, deleteStaff, handleLogoUpload, saveCompany, exportData
                 };
             }
-        }).mount('#root');
+        }).mount('#app');
     </script>
 </body>
 </html>
