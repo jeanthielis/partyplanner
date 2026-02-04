@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PartyPlanner Premium v15</title>
+    <title>PartyPlanner v16 (Design Premium)</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -33,35 +33,41 @@
     <style>
         body { font-family: 'Inter', sans-serif; transition: background-color 0.3s; }
         [v-cloak] { display: none; }
+        
         .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
         .fade-enter-from, .fade-leave-to { opacity: 0; }
 
-        /* Estilo dos Inputs Modernos */
+        /* Inputs Modernos com Ícones */
+        .input-group { position: relative; }
+        .input-icon { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: #9ca3af; pointer-events: none; }
+        
         .input-modern {
+            @apply w-full p-4 pl-10 rounded-2xl outline-none border border-gray-200 bg-gray-50 text-gray-800 transition-all focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20;
+            @apply dark:bg-darkinput dark:border-gray-700 dark:text-white dark:focus:bg-darkcard;
+        }
+        
+        /* Select simples sem icone */
+        .select-modern {
             @apply w-full p-4 rounded-2xl outline-none border border-gray-200 bg-gray-50 text-gray-800 transition-all focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20;
             @apply dark:bg-darkinput dark:border-gray-700 dark:text-white dark:focus:bg-darkcard;
         }
 
         .card-modern {
-            @apply bg-white dark:bg-darkcard p-5 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 dark:border-gray-800;
+            @apply bg-white dark:bg-darkcard p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 dark:border-gray-800;
         }
 
         .glass-nav {
             @apply bg-white/90 dark:bg-darkcard/90 backdrop-blur-md border-t border-gray-200 dark:border-gray-800;
         }
         
-        /* Ajustes SweetAlert Mobile */
+        /* SweetAlert Mobile Fix */
         div:where(.swal2-container) div:where(.swal2-popup) {
-            box-sizing: border-box !important;
-            width: 90% !important;
-            max-width: 380px !important;
-            padding: 1.5rem !important;
-            border-radius: 20px !important;
+            width: 90% !important; max-width: 380px !important; padding: 1.5rem !important; border-radius: 20px !important;
         }
         .swal2-html-container { margin: 1em 0 0.3em !important; overflow: visible !important; }
         .swal2-input, .swal2-select { width: 100% !important; margin: 0.5em 0 !important; height: 3em !important; }
         .dark .swal2-popup { background: #1e293b !important; color: white !important; }
-        .dark .swal2-input, .dark .swal2-select { background: #334155 !important; color: white !important; border: 1px solid #475569 !important; }
+        .dark .swal2-input { background: #334155 !important; color: white !important; border: 1px solid #475569 !important; }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 dark:bg-darkbg dark:text-gray-100 font-sans antialiased pb-28">
@@ -78,8 +84,14 @@
                     <p class="text-gray-500 font-medium">Gestão Premium</p>
                 </div>
                 <form @submit.prevent="handleLogin" class="space-y-4">
-                    <input v-model="email" type="email" placeholder="Seu e-mail" class="input-modern" required>
-                    <input v-model="password" type="password" placeholder="Sua senha" class="input-modern" required>
+                    <div class="input-group">
+                        <i class="fa-solid fa-envelope input-icon"></i>
+                        <input v-model="email" type="email" placeholder="Seu e-mail" class="input-modern" required>
+                    </div>
+                    <div class="input-group">
+                        <i class="fa-solid fa-lock input-icon"></i>
+                        <input v-model="password" type="password" placeholder="Sua senha" class="input-modern" required>
+                    </div>
                     <button type="submit" class="w-full py-4 rounded-2xl bg-gray-900 dark:bg-white dark:text-gray-900 text-white font-bold text-lg shadow-xl hover:scale-[1.02] transition">
                         {{ isRegistering ? 'Criar Conta' : 'Entrar' }}
                     </button>
@@ -134,98 +146,130 @@
                             <p class="text-xs font-medium text-white/80">Faturamento</p>
                             <p class="text-xl font-bold">{{ formatCurrency(kpiRevenue) }}</p>
                         </div>
-                        <div class="card-modern"><span class="bg-green-100 dark:bg-green-900/30 text-green-600 p-2 rounded-lg mb-2 inline-block"><i class="fa-solid fa-arrow-trend-up"></i></span><p class="text-xs text-gray-400 font-bold uppercase">Lucro</p><p class="text-lg font-bold">{{ formatCurrency(kpiProfit) }}</p></div>
-                        <div class="card-modern"><span class="bg-red-100 dark:bg-red-900/30 text-red-500 p-2 rounded-lg mb-2 inline-block"><i class="fa-solid fa-arrow-trend-down"></i></span><p class="text-xs text-gray-400 font-bold uppercase">Despesas</p><p class="text-lg font-bold">{{ formatCurrency(kpiTotalExpenses) }}</p></div>
-                        <div class="card-modern border-warning/50"><span class="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 p-2 rounded-lg mb-2 inline-block"><i class="fa-solid fa-hand-holding-dollar"></i></span><p class="text-xs text-gray-400 font-bold uppercase">A Receber</p><p class="text-lg font-bold">{{ formatCurrency(kpiReceivables) }}</p></div>
+                        <div class="card-modern">
+                            <span class="bg-green-100 dark:bg-green-900/30 text-green-600 p-2 rounded-lg mb-2 inline-block"><i class="fa-solid fa-arrow-trend-up"></i></span>
+                            <p class="text-xs text-gray-400 font-bold uppercase">Lucro</p>
+                            <p class="text-lg font-bold">{{ formatCurrency(kpiProfit) }}</p>
+                        </div>
+                        <div class="card-modern">
+                            <span class="bg-red-100 dark:bg-red-900/30 text-red-500 p-2 rounded-lg mb-2 inline-block"><i class="fa-solid fa-arrow-trend-down"></i></span>
+                            <p class="text-xs text-gray-400 font-bold uppercase">Despesas</p>
+                            <p class="text-lg font-bold">{{ formatCurrency(kpiTotalExpenses) }}</p>
+                        </div>
+                        <div class="card-modern border-warning/50">
+                            <span class="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 p-2 rounded-lg mb-2 inline-block"><i class="fa-solid fa-hand-holding-dollar"></i></span>
+                            <p class="text-xs text-gray-400 font-bold uppercase">A Receber</p>
+                            <p class="text-lg font-bold">{{ formatCurrency(kpiReceivables) }}</p>
+                        </div>
                     </div>
 
                     <div class="flex justify-between items-center mb-3"><h3 class="font-bold text-gray-700 dark:text-gray-300">Agenda Recente</h3><button @click="view='appointments_list'" class="text-xs text-primary font-bold">Ver tudo</button></div>
                     <div v-if="next7DaysApps.length === 0" class="text-center py-10 text-gray-400 bg-gray-50 dark:bg-darkcard/50 rounded-3xl border border-dashed border-gray-200 dark:border-gray-700"><p>Sem festas nos próximos 7 dias</p></div>
-                    <div class="space-y-3"><div v-for="app in next7DaysApps" :key="app.id" class="card-modern !p-4 flex items-center gap-4 cursor-pointer hover:scale-[1.02] transition" @click="view='appointments_list'"><div class="bg-gray-100 dark:bg-gray-800 w-14 h-14 rounded-2xl flex flex-col items-center justify-center text-center"><span class="text-[10px] font-bold text-gray-400 uppercase">{{ getMonth(app.date) }}</span><span class="text-xl font-bold text-gray-800 dark:text-white leading-none">{{ getDay(app.date) }}</span></div><div><h4 class="font-bold text-gray-800 dark:text-white">{{ getClientName(app.clientId) }}</h4><p class="text-xs text-gray-500">{{ app.time }} • {{ app.location.bairro }}</p></div><div class="ml-auto"><span class="w-2 h-2 rounded-full bg-primary block"></span></div></div></div>
-                </div>
-
-                <div v-if="view === 'reports'" class="animate-fade">
-                    <h2 class="font-bold text-2xl mb-6 dark:text-white">Relatórios</h2>
-                    <div class="card-modern mb-6"><h3 class="text-xs font-bold text-gray-400 uppercase mb-4">Evolução Financeira</h3><div class="h-56 w-full"><canvas id="revenueChart"></canvas></div></div>
-                    <h3 class="font-bold text-gray-700 dark:text-gray-300 mb-3">Extrato</h3>
-                    <div class="space-y-2"><div v-for="app in sortedAppointments.slice(0,5)" :key="'r'+app.id" class="bg-white dark:bg-darkcard p-3 rounded-2xl flex justify-between items-center border border-gray-100 dark:border-gray-800"><div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center"><i class="fa-solid fa-arrow-down"></i></div><div><p class="text-xs font-bold">{{ getClientName(app.clientId) }}</p><p class="text-[10px] text-gray-400">{{ formatDate(app.date) }}</p></div></div><span class="text-sm font-bold text-green-500">+{{ formatCurrency(app.totalServices) }}</span></div><div v-for="exp in expenses.slice(0,5)" :key="'e'+exp.id" class="bg-white dark:bg-darkcard p-3 rounded-2xl flex justify-between items-center border border-gray-100 dark:border-gray-800"><div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center"><i class="fa-solid fa-arrow-up"></i></div><div><p class="text-xs font-bold">{{ exp.description }}</p><p class="text-[10px] text-gray-400">{{ formatDate(exp.date) }}</p></div></div><span class="text-sm font-bold text-red-500">-{{ formatCurrency(exp.value) }}</span></div></div>
-                </div>
-
-                <div v-if="view === 'appointments_list'" class="animate-fade">
-                    <div class="flex justify-between items-center mb-6"><h2 class="font-bold text-2xl dark:text-white">Agenda</h2><button @click="view='calendar'" class="bg-gray-100 dark:bg-gray-800 p-2 rounded-xl text-primary"><i class="fa-solid fa-calendar-days"></i></button></div>
-                    <div class="bg-white dark:bg-darkcard p-2 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex gap-2 mb-6"><input v-model="filterDate" type="date" class="bg-transparent w-full text-sm outline-none px-2 dark:text-white"><button @click="filterDate=''" class="text-gray-400 px-2"><i class="fa-solid fa-xmark"></i></button></div>
-                    <div class="space-y-4"><div v-for="app in sortedAppointments" :key="app.id" class="card-modern relative overflow-hidden group"><div class="absolute top-4 right-4"><span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider" :class="statusClass(app.status)">{{ statusText(app.status) }}</span></div><div class="mb-3"><p class="text-xs text-gray-400 mb-1 flex items-center gap-1"><i class="fa-regular fa-clock"></i> {{ formatDate(app.date) }} às {{ app.time }}</p><h3 class="text-lg font-bold text-gray-800 dark:text-white">{{ getClientName(app.clientId) }}</h3><p class="text-xs text-gray-500 mt-1"><i class="fa-solid fa-map-pin"></i> {{ app.location.bairro }}</p><p v-if="app.details.colors" class="text-xs text-primary font-bold mt-2 bg-primary/10 inline-block px-2 py-1 rounded-lg"><i class="fa-solid fa-palette"></i> {{ app.details.colors }}</p></div><div class="flex justify-between items-center pt-4 border-t border-gray-100 dark:border-gray-800"><div><p class="text-[10px] text-gray-400 uppercase">Restante</p><p class="text-base font-bold text-primary">{{ formatCurrency(app.finalBalance) }}</p></div><div class="flex gap-2"><button v-if="app.status === 'pending'" @click="changeStatus(app, 'concluded')" class="w-10 h-10 rounded-xl bg-green-50 text-green-600 hover:bg-green-100 flex items-center justify-center transition"><i class="fa-solid fa-check"></i></button><button @click="showReceipt(app)" class="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-white flex items-center justify-center transition"><i class="fa-solid fa-file-invoice"></i></button></div></div></div></div>
-                </div>
-
-                <div v-if="view === 'expenses'" class="animate-fade">
-                    <button @click="view='catalog_hub'" class="mb-4 text-gray-500 flex items-center gap-2"><i class="fa-solid fa-arrow-left"></i> Voltar</button>
-                    <h2 class="font-bold text-2xl mb-4 dark:text-white">Finanças</h2>
-                    
-                    <button @click="openExpenseModal" class="w-full bg-red-500 text-white py-4 rounded-2xl font-bold shadow-lg shadow-red-500/30 mb-6 flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-circle-minus"></i> Lançar Nova Despesa
-                    </button>
-
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="font-bold text-gray-600 dark:text-gray-300">Histórico</h3>
-                        <input type="month" v-model="expenseFilterMonth" class="bg-gray-100 dark:bg-darkcard text-sm p-2 rounded-xl border border-gray-200 dark:border-gray-700 outline-none dark:text-white">
-                    </div>
-
-                    <div v-if="filteredExpenses.length === 0" class="text-center text-gray-400 py-10">Nenhuma despesa neste mês.</div>
-                    <div class="space-y-3">
-                        <div v-for="exp in filteredExpenses" :key="exp.id" class="card-modern !p-4 flex justify-between items-center border-l-4 border-l-red-400">
-                            <div>
-                                <p class="font-bold text-sm text-gray-800 dark:text-white">{{ exp.description }}</p>
-                                <p class="text-xs text-gray-500">{{ formatDate(exp.date) }}</p>
-                            </div>
-                            <span class="font-bold text-red-500">- {{ formatCurrency(exp.value) }}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div v-if="view === 'company_settings'" class="animate-fade">
-                    <button @click="view='catalog_hub'" class="mb-4 text-gray-500 flex items-center gap-2"><i class="fa-solid fa-arrow-left"></i> Voltar</button>
-                    <div class="card-modern space-y-4">
-                        <h2 class="font-bold text-lg dark:text-white border-b pb-2 dark:border-gray-700">Dados da Empresa</h2>
-                        <div class="flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl relative bg-gray-50 dark:bg-darkbg"><div v-if="company.logo" class="w-32 h-32 mb-2 relative"><img :src="company.logo" class="w-full h-full object-contain"><button @click="company.logo = ''" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center"><i class="fa-solid fa-times"></i></button></div><div v-else class="text-center text-gray-400"><i class="fa-solid fa-image text-3xl mb-2"></i><p class="text-xs">Toque para adicionar Logo</p></div><input type="file" @change="handleLogoUpload" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" accept="image/*"></div>
-                        <div class="space-y-4">
-                            <div><label class="text-xs font-bold text-gray-500 ml-2">Nome Fantasia</label><input v-model="company.fantasia" class="input-modern"></div>
-                            <div><label class="text-xs font-bold text-gray-500 ml-2">Razão Social</label><input v-model="company.razao" class="input-modern"></div>
-                            <div><label class="text-xs font-bold text-gray-500 ml-2">CNPJ</label><input v-model="company.cnpj" class="input-modern"></div>
-                            <div><label class="text-xs font-bold text-gray-500 ml-2">Endereço Completo</label><input v-model="company.endereco" class="input-modern"></div>
-                            <div class="grid grid-cols-2 gap-3"><div><label class="text-xs font-bold text-gray-500 ml-2">Cidade</label><input v-model="company.cidade" class="input-modern"></div><div><label class="text-xs font-bold text-gray-500 ml-2">WhatsApp</label><input v-model="company.contato" class="input-modern"></div></div>
-                        </div>
-                        <button @click="saveCompany" class="w-full bg-primary text-white py-4 rounded-2xl font-bold shadow-lg mt-4">Salvar Configurações</button>
-                    </div>
+                    <div class="space-y-3"><div v-for="app in next7DaysApps" :key="app.id" class="card-modern !p-4 flex items-center gap-4 cursor-pointer hover:scale-[1.02] transition" @click="view='appointments_list'"><div class="bg-gray-100 dark:bg-gray-800 w-14 h-14 rounded-2xl flex flex-col items-center justify-center text-center"><span class="text-[10px] font-bold text-gray-400 uppercase">{{ getMonth(app.date) }}</span><span class="text-xl font-bold text-gray-800 dark:text-white leading-none">{{ getDay(app.date) }}</span></div><div><h4 class="font-bold text-gray-800 dark:text-white">{{ getClientName(app.clientId) }}</h4><p class="text-xs text-gray-500">{{ app.time }} • {{ app.location.bairro }}</p></div></div></div>
                 </div>
 
                 <div v-if="view === 'schedule'" class="animate-fade">
-                    <h2 class="font-bold text-2xl mb-6 dark:text-white">{{ isEditing ? 'Editar' : 'Nova Festa' }}</h2>
-                    <form @submit.prevent="saveAppointment" class="space-y-5">
-                        <section class="card-modern space-y-3">
-                            <label class="text-xs font-bold text-gray-400 uppercase ml-1">Cliente</label>
-                            <select v-model="tempApp.clientId" class="input-modern" required><option value="" disabled>Selecione...</option><option v-for="c in clients" :value="c.id">{{ c.name }}</option></select>
-                        </section>
-                        <section class="card-modern space-y-3">
-                            <label class="text-xs font-bold text-gray-400 uppercase ml-1">Evento</label>
-                            <div class="grid grid-cols-2 gap-3"><input v-model="tempApp.date" type="date" class="input-modern" required><input v-model="tempApp.time" type="time" class="input-modern" required></div>
-                            <input v-model="tempApp.location.bairro" placeholder="Bairro" class="input-modern" required>
-                            <div class="grid grid-cols-3 gap-3"><input v-model="tempApp.location.cidade" placeholder="Cidade" class="input-modern col-span-2"><input v-model="tempApp.location.numero" placeholder="Nº" class="input-modern"></div>
-                            <input v-model="tempApp.details.colors" placeholder="Tema / Cores dos Balões" class="input-modern border-l-4 border-primary">
-                        </section>
-                        <section class="card-modern space-y-3">
-                            <label class="text-xs font-bold text-gray-400 uppercase ml-1">Itens</label>
-                            <div class="flex gap-2"><select v-model="tempServiceSelect" class="input-modern py-3 text-sm"><option value="" disabled>Serviço...</option><option v-for="s in services" :value="s">{{s.description}}</option></select><button type="button" @click="addServiceToApp" class="bg-primary text-white w-14 rounded-2xl text-xl font-bold">+</button></div>
-                            <div class="space-y-2"><div v-for="(s,i) in tempApp.selectedServices" class="flex justify-between items-center text-sm bg-gray-50 dark:bg-gray-800 p-3 rounded-xl border border-gray-100 dark:border-gray-700"><span>{{s.description}}</span><div class="flex items-center gap-3"><span class="font-bold">{{formatCurrency(s.price)}}</span><i @click="removeServiceFromApp(i)" class="fa-solid fa-times text-red-400 cursor-pointer"></i></div></div></div>
-                            <div class="flex gap-2 mt-4"><select v-model="tempStaffSelect" class="input-modern py-3 text-sm"><option value="" disabled>Equipe...</option><option v-for="st in staff" :value="st">{{st.name}}</option></select><button type="button" @click="addStaffToApp" class="bg-indigo-500 text-white w-14 rounded-2xl text-xl font-bold">+</button></div>
-                            <div class="space-y-2"><div v-for="(st,i) in tempApp.selectedStaff" class="flex justify-between items-center text-sm bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-300 p-3 rounded-xl border border-indigo-100 dark:border-indigo-800"><span>{{st.name}}</span><span class="font-bold">{{formatCurrency(st.dailyRate)}}</span></div></div>
-                            <div class="bg-gray-50 dark:bg-gray-800 p-4 rounded-2xl text-sm space-y-2 mt-4">
-                                <div class="flex justify-between"><span>Total Bruto</span><span class="font-bold">{{formatCurrency(calcTotalServices)}}</span></div>
-                                <div class="flex justify-between text-red-500 text-xs"><span>Custo Equipe</span><span>- {{formatCurrency(calcTotalStaffCost)}}</span></div>
-                                <div class="flex justify-between items-center pt-3 border-t border-gray-200 dark:border-gray-700"><span class="font-bold text-gray-500 uppercase text-xs">Entrada Paga</span><input v-model.number="tempApp.details.entryFee" type="number" class="w-32 text-right p-2 rounded-lg bg-white dark:bg-darkcard border outline-none font-bold text-green-600"></div>
-                                <div class="flex justify-between text-xl font-bold text-primary pt-2"><span>A Pagar</span><span>{{formatCurrency(calcFinalBalance)}}</span></div>
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="font-bold text-2xl dark:text-white">{{ isEditing ? 'Editar Festa' : 'Novo Agendamento' }}</h2>
+                        <button @click="view='appointments_list'" class="text-gray-400 hover:text-primary"><i class="fa-solid fa-times text-xl"></i></button>
+                    </div>
+                    
+                    <form @submit.prevent="saveAppointment" class="space-y-6 pb-24">
+                        
+                        <section class="card-modern space-y-4">
+                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2"><i class="fa-solid fa-user-clock text-primary"></i> Cliente & Data</h3>
+                            
+                            <div>
+                                <select v-model="tempApp.clientId" class="select-modern" required>
+                                    <option value="" disabled>Selecione o Cliente</option>
+                                    <option v-for="c in clients" :value="c.id">{{ c.name }}</option>
+                                </select>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="input-group">
+                                    <i class="fa-regular fa-calendar input-icon"></i>
+                                    <input v-model="tempApp.date" type="date" class="input-modern" required>
+                                </div>
+                                <div class="input-group">
+                                    <i class="fa-regular fa-clock input-icon"></i>
+                                    <input v-model="tempApp.time" type="time" class="input-modern" required>
+                                </div>
                             </div>
                         </section>
-                        <button type="submit" class="w-full bg-gray-900 dark:bg-white dark:text-gray-900 text-white py-4 rounded-2xl font-bold text-lg shadow-xl">Salvar Agendamento</button>
+
+                        <section class="card-modern space-y-4">
+                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2"><i class="fa-solid fa-location-dot text-secondary"></i> Local & Tema</h3>
+                            
+                            <div class="input-group">
+                                <i class="fa-solid fa-map-pin input-icon"></i>
+                                <input v-model="tempApp.location.bairro" placeholder="Bairro" class="input-modern" required>
+                            </div>
+                            
+                            <div class="grid grid-cols-3 gap-3">
+                                <input v-model="tempApp.location.cidade" placeholder="Cidade" class="select-modern col-span-2">
+                                <input v-model="tempApp.location.numero" placeholder="Nº" class="select-modern">
+                            </div>
+
+                            <div class="input-group">
+                                <i class="fa-solid fa-palette input-icon text-purple-500"></i>
+                                <input v-model="tempApp.details.colors" placeholder="Cores / Tema da Festa" class="input-modern !border-purple-200 focus:!border-purple-500 bg-purple-50/50 dark:bg-purple-900/10">
+                            </div>
+                        </section>
+
+                        <section class="card-modern space-y-4">
+                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2"><i class="fa-solid fa-layer-group text-warning"></i> Composição</h3>
+                            
+                            <div class="flex gap-2">
+                                <select v-model="tempServiceSelect" class="select-modern py-3 text-sm flex-1"><option value="" disabled>Adicionar Serviço...</option><option v-for="s in services" :value="s">{{s.description}}</option></select>
+                                <button type="button" @click="addServiceToApp" class="bg-primary text-white w-14 rounded-2xl text-xl font-bold shadow-lg hover:bg-indigo-600 transition">+</button>
+                            </div>
+                            
+                            <div class="space-y-2">
+                                <div v-for="(s,i) in tempApp.selectedServices" class="flex justify-between items-center text-sm bg-gray-50 dark:bg-gray-800 p-3 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                                    <span class="font-medium text-gray-700 dark:text-gray-200">{{s.description}}</span>
+                                    <div class="flex items-center gap-3">
+                                        <span class="font-bold text-primary">{{formatCurrency(s.price)}}</span>
+                                        <button type="button" @click="removeServiceFromApp(i)" class="w-6 h-6 rounded-full bg-red-100 text-red-500 flex items-center justify-center text-xs"><i class="fa-solid fa-times"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="flex gap-2 mt-4">
+                                <select v-model="tempStaffSelect" class="select-modern py-3 text-sm flex-1"><option value="" disabled>Adicionar Equipe...</option><option v-for="st in staff" :value="st">{{st.name}}</option></select>
+                                <button type="button" @click="addStaffToApp" class="bg-indigo-500 text-white w-14 rounded-2xl text-xl font-bold shadow-lg hover:bg-indigo-600 transition">+</button>
+                            </div>
+                            <div class="space-y-2">
+                                <div v-for="(st,i) in tempApp.selectedStaff" class="flex justify-between items-center text-sm bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-300 p-3 rounded-2xl border border-indigo-100 dark:border-indigo-800 shadow-sm">
+                                    <span><i class="fa-solid fa-user mr-2 opacity-50"></i>{{st.name}}</span><span class="font-bold">{{formatCurrency(st.dailyRate)}}</span>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="bg-gray-900 dark:bg-white text-white dark:text-gray-900 p-6 rounded-3xl shadow-xl relative overflow-hidden">
+                            <div class="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-10 -mt-10 blur-xl"></div>
+                            
+                            <h3 class="text-xs font-bold uppercase tracking-widest mb-4 opacity-50">Resumo Financeiro</h3>
+                            
+                            <div class="space-y-2 text-sm opacity-90 mb-4 border-b border-white/10 pb-4">
+                                <div class="flex justify-between"><span>Serviços (+)</span><span>{{formatCurrency(calcTotalServices)}}</span></div>
+                                <div class="flex justify-between text-red-300 dark:text-red-500"><span>Custo Equipe (-)</span><span>{{formatCurrency(calcTotalStaffCost)}}</span></div>
+                            </div>
+
+                            <div class="flex justify-between items-center mb-4">
+                                <span class="font-bold text-sm uppercase">Entrada Paga</span>
+                                <input v-model.number="tempApp.details.entryFee" type="number" class="w-32 text-right p-2 rounded-xl bg-white/10 border border-white/20 text-white dark:text-gray-900 dark:bg-gray-200 outline-none focus:bg-white/20 transition font-bold">
+                            </div>
+
+                            <div class="flex justify-between items-end">
+                                <span class="text-xs opacity-50">Restante a Pagar</span>
+                                <span class="text-3xl font-bold tracking-tight">{{formatCurrency(calcFinalBalance)}}</span>
+                            </div>
+                        </section>
+
+                        <button type="submit" class="w-full bg-gradient-to-r from-primary to-indigo-600 text-white py-4 rounded-2xl font-bold text-lg shadow-xl shadow-primary/30 hover:scale-[1.02] transition">
+                            Confirmar Agendamento
+                        </button>
                     </form>
                 </div>
 
@@ -250,6 +294,38 @@
                         </div>
                     </div>
                     <div class="space-y-3 text-center no-print max-w-sm mx-auto"><button @click="downloadReceiptImage" class="w-full bg-gray-900 text-white py-3 rounded-2xl font-bold shadow-xl flex items-center justify-center gap-2"><i class="fa-solid fa-share-nodes"></i> Baixar Comprovante</button><button @click="view='appointments_list'" class="w-full text-gray-500 py-3">Voltar</button></div>
+                </div>
+
+                <div v-if="view === 'reports'" class="animate-fade">
+                    <h2 class="font-bold text-2xl mb-6 dark:text-white">Relatórios</h2>
+                    <div class="card-modern mb-6"><h3 class="text-xs font-bold text-gray-400 uppercase mb-4">Evolução Financeira</h3><div class="h-56 w-full"><canvas id="revenueChart"></canvas></div></div>
+                    <h3 class="font-bold text-gray-700 dark:text-gray-300 mb-3">Extrato Recente</h3>
+                    <div class="space-y-2"><div v-for="app in sortedAppointments.slice(0,5)" :key="'r'+app.id" class="bg-white dark:bg-darkcard p-3 rounded-2xl flex justify-between items-center border border-gray-100 dark:border-gray-800"><div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center"><i class="fa-solid fa-arrow-down"></i></div><div><p class="text-xs font-bold">{{ getClientName(app.clientId) }}</p><p class="text-[10px] text-gray-400">{{ formatDate(app.date) }}</p></div></div><span class="text-sm font-bold text-green-500">+{{ formatCurrency(app.totalServices) }}</span></div><div v-for="exp in expenses.slice(0,5)" :key="'e'+exp.id" class="bg-white dark:bg-darkcard p-3 rounded-2xl flex justify-between items-center border border-gray-100 dark:border-gray-800"><div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center"><i class="fa-solid fa-arrow-up"></i></div><div><p class="text-xs font-bold">{{ exp.description }}</p><p class="text-[10px] text-gray-400">{{ formatDate(exp.date) }}</p></div></div><span class="text-sm font-bold text-red-500">-{{ formatCurrency(exp.value) }}</span></div></div>
+                </div>
+
+                <div v-if="view === 'appointments_list'" class="animate-fade">
+                    <div class="flex justify-between items-center mb-6"><h2 class="font-bold text-2xl dark:text-white">Agenda</h2><button @click="view='calendar'" class="bg-gray-100 dark:bg-gray-800 p-2 rounded-xl text-primary"><i class="fa-solid fa-calendar-days"></i></button></div>
+                    <div class="bg-white dark:bg-darkcard p-2 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex gap-2 mb-6"><input v-model="filterDate" type="date" class="bg-transparent w-full text-sm outline-none px-2 dark:text-white"><button @click="filterDate=''" class="text-gray-400 px-2"><i class="fa-solid fa-xmark"></i></button></div>
+                    <div class="space-y-4"><div v-for="app in sortedAppointments" :key="app.id" class="card-modern relative overflow-hidden group"><div class="absolute top-4 right-4"><span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider" :class="statusClass(app.status)">{{ statusText(app.status) }}</span></div><div class="mb-3"><p class="text-xs text-gray-400 mb-1 flex items-center gap-1"><i class="fa-regular fa-clock"></i> {{ formatDate(app.date) }} às {{ app.time }}</p><h3 class="text-lg font-bold text-gray-800 dark:text-white">{{ getClientName(app.clientId) }}</h3><p class="text-xs text-gray-500 mt-1"><i class="fa-solid fa-map-pin"></i> {{ app.location.bairro }}</p><p v-if="app.details.colors" class="text-xs text-primary font-bold mt-2 bg-primary/10 inline-block px-2 py-1 rounded-lg"><i class="fa-solid fa-palette"></i> {{ app.details.colors }}</p></div><div class="flex justify-between items-center pt-4 border-t border-gray-100 dark:border-gray-800"><div><p class="text-[10px] text-gray-400 uppercase">Restante</p><p class="text-base font-bold text-primary">{{ formatCurrency(app.finalBalance) }}</p></div><div class="flex gap-2"><button v-if="app.status === 'pending'" @click="changeStatus(app, 'concluded')" class="w-10 h-10 rounded-xl bg-green-50 text-green-600 hover:bg-green-100 flex items-center justify-center transition"><i class="fa-solid fa-check"></i></button><button @click="showReceipt(app)" class="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-white flex items-center justify-center transition"><i class="fa-solid fa-file-invoice"></i></button></div></div></div></div>
+                </div>
+
+                <div v-if="view === 'expenses'" class="animate-fade">
+                    <button @click="view='catalog_hub'" class="mb-4 text-gray-500 flex items-center gap-2"><i class="fa-solid fa-arrow-left"></i> Voltar</button>
+                    <h2 class="font-bold text-2xl mb-4 dark:text-white">Finanças</h2>
+                    <button @click="openExpenseModal" class="w-full bg-red-500 text-white py-4 rounded-2xl font-bold shadow-lg shadow-red-500/30 mb-6 flex items-center justify-center gap-2"><i class="fa-solid fa-circle-minus"></i> Lançar Nova Despesa</button>
+                    <div class="flex items-center justify-between mb-4"><h3 class="font-bold text-gray-600 dark:text-gray-300">Histórico</h3><input type="month" v-model="expenseFilterMonth" class="bg-gray-100 dark:bg-darkcard text-sm p-2 rounded-xl border border-gray-200 dark:border-gray-700 outline-none dark:text-white"></div>
+                    <div v-if="filteredExpenses.length === 0" class="text-center text-gray-400 py-10">Nenhuma despesa neste mês.</div>
+                    <div class="space-y-3"><div v-for="exp in filteredExpenses" :key="exp.id" class="card-modern !p-4 flex justify-between items-center border-l-4 border-l-red-400"><div><p class="font-bold text-sm text-gray-800 dark:text-white">{{ exp.description }}</p><p class="text-xs text-gray-500">{{ formatDate(exp.date) }}</p></div><span class="font-bold text-red-500">- {{ formatCurrency(exp.value) }}</span></div></div>
+                </div>
+
+                <div v-if="view === 'company_settings'" class="animate-fade">
+                    <button @click="view='catalog_hub'" class="mb-4 text-gray-500 flex items-center gap-2"><i class="fa-solid fa-arrow-left"></i> Voltar</button>
+                    <div class="card-modern space-y-4">
+                        <h2 class="font-bold text-lg dark:text-white border-b pb-2 dark:border-gray-700">Dados da Empresa</h2>
+                        <div class="flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl relative bg-gray-50 dark:bg-darkbg"><div v-if="company.logo" class="w-32 h-32 mb-2 relative"><img :src="company.logo" class="w-full h-full object-contain"><button @click="company.logo = ''" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center"><i class="fa-solid fa-times"></i></button></div><div v-else class="text-center text-gray-400"><i class="fa-solid fa-image text-3xl mb-2"></i><p class="text-xs">Toque para adicionar Logo</p></div><input type="file" @change="handleLogoUpload" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" accept="image/*"></div>
+                        <div class="space-y-4"><div><label class="text-xs font-bold text-gray-500 ml-2">Nome Fantasia</label><input v-model="company.fantasia" class="input-modern"></div><div><label class="text-xs font-bold text-gray-500 ml-2">Razão Social</label><input v-model="company.razao" class="input-modern"></div><div><label class="text-xs font-bold text-gray-500 ml-2">CNPJ</label><input v-model="company.cnpj" class="input-modern"></div><div><label class="text-xs font-bold text-gray-500 ml-2">Endereço</label><input v-model="company.endereco" class="input-modern"></div><div class="grid grid-cols-2 gap-3"><div><label class="text-xs font-bold text-gray-500 ml-2">Cidade</label><input v-model="company.cidade" class="input-modern"></div><div><label class="text-xs font-bold text-gray-500 ml-2">WhatsApp</label><input v-model="company.contato" class="input-modern"></div></div></div>
+                        <button @click="saveCompany" class="w-full bg-primary text-white py-4 rounded-2xl font-bold shadow-lg mt-4">Salvar Dados</button>
+                    </div>
                 </div>
 
                 <div v-if="view === 'catalog_hub'" class="animate-fade">
@@ -370,13 +446,19 @@
                 const handleLogoUpload = (e) => { const file = e.target.files[0]; if (file) { if(file.size > 800000) { Swal.fire('Erro', 'Imagem muito grande. Max 800kb', 'error'); return; } const reader = new FileReader(); reader.onload = (ev) => company.logo = ev.target.result; reader.readAsDataURL(file); } };
                 const saveCompany = async () => { await setDoc(doc(db, `users/${user.value.uid}/settings`, 'company'), { ...company }); Swal.fire('Sucesso', 'Dados salvos!', 'success'); };
 
-                // --- MODAIS CORRIGIDOS (HTML) ---
-                const openClientModal = async () => { const {value:v}=await Swal.fire({title:'Cliente',html:'<input id="n" class="swal2-input" placeholder="Nome"><input id="p" class="swal2-input" placeholder="Tel"><input id="e" class="swal2-input" placeholder="Email">',preConfirm:()=>[document.getElementById('n').value,document.getElementById('p').value,document.getElementById('e').value]}); if(v)addDocToDb('clients',{name:v[0],phone:v[1],email:v[2]}); };
-                const openServiceModal = async () => { const {value:v}=await Swal.fire({title:'Serviço',html:'<input id="d" class="swal2-input" placeholder="Desc"><input id="p" type="number" class="swal2-input" placeholder="R$">',preConfirm:()=>[document.getElementById('d').value,document.getElementById('p').value]}); if(v)addDocToDb('services',{description:v[0],price:Number(v[1])}); };
+                // MODAL CLIENTE (HTML APRIMORADO)
+                const openClientModal = async () => { 
+                    const {value:v}=await Swal.fire({
+                        title:'Novo Cliente',
+                        html:'<input id="n" class="swal2-input" placeholder="Nome Completo"><input id="p" class="swal2-input" placeholder="Telefone / WhatsApp"><input id="e" class="swal2-input" placeholder="E-mail (Opcional)">',
+                        preConfirm:()=>[document.getElementById('n').value,document.getElementById('p').value,document.getElementById('e').value]
+                    }); 
+                    if(v && v[0]) addDocToDb('clients',{name:v[0],phone:v[1],email:v[2]}); 
+                };
+                const openServiceModal = async () => { const {value:v}=await Swal.fire({title:'Serviço',html:'<input id="d" class="swal2-input" placeholder="Descrição"><input id="p" type="number" class="swal2-input" placeholder="Valor (R$)">',preConfirm:()=>[document.getElementById('d').value,document.getElementById('p').value]}); if(v)addDocToDb('services',{description:v[0],price:Number(v[1])}); };
                 const openStaffModal = async () => { const {value:v}=await Swal.fire({title:'Staff',html:'<input id="n" class="swal2-input" placeholder="Nome"><input id="r" class="swal2-input" placeholder="Função"><input id="d" type="number" class="swal2-input" placeholder="Diária">',preConfirm:()=>[document.getElementById('n').value,document.getElementById('r').value,document.getElementById('d').value]}); if(v)addDocToDb('staff',{name:v[0],role:v[1],dailyRate:Number(v[2])}); };
-                const deleteClient=(id)=>deleteDocFromDb('clients',id); const deleteStaff=(id)=>deleteDocFromDb('staff',id);
                 
-                // MODAL DESPESA (NOVO)
+                // MODAL DESPESA (IGUAL)
                 const openExpenseModal = async () => {
                     const { value: v } = await Swal.fire({
                         title: 'Nova Despesa',
@@ -389,6 +471,8 @@
                     }
                 };
 
+                const deleteClient=(id)=>deleteDocFromDb('clients',id); const deleteStaff=(id)=>deleteDocFromDb('staff',id);
+                
                 // Filtro de Despesas
                 const filteredExpenses = computed(() => expenses.value.filter(e => e.date.startsWith(expenseFilterMonth.value)).sort((a,b)=>new Date(b.date)-new Date(a.date)));
 
