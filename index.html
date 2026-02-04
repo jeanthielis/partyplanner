@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PartyPlanner v12.1 (Correção Entrada)</title>
+    <title>PartyPlanner Premium v13</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -12,196 +12,385 @@
             theme: {
                 extend: {
                     colors: {
-                        primary: '#8b5cf6', secondary: '#ec4899', success: '#10b981', 
-                        danger: '#ef4444', warning: '#f59e0b', darkbg: '#0f172a', 
-                        darkcard: '#1e293b', darkinput: '#374151'
+                        primary: '#6366f1', // Indigo Moderno
+                        secondary: '#ec4899', // Pink
+                        success: '#10b981', 
+                        danger: '#ef4444', 
+                        warning: '#f59e0b', 
+                        darkbg: '#0f172a', 
+                        darkcard: '#1e293b', 
+                        darkinput: '#334155'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif']
                     }
                 }
             }
         }
     </script>
 
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <style>
-        body, div, nav, header, button, input, select { transition: background-color 0.3s, color 0.3s, border-color 0.3s; }
+        body { font-family: 'Inter', sans-serif; transition: background-color 0.3s; }
         [v-cloak] { display: none; }
+        
+        /* Transições de View */
         .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
         .fade-enter-from, .fade-leave-to { opacity: 0; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .input-base { @apply w-full p-3 rounded-xl outline-none border transition-colors bg-gray-50 border-gray-200 text-gray-800 dark:bg-darkinput dark:border-gray-600 dark:text-white dark:placeholder-gray-400; }
-        .card-base { @apply bg-white dark:bg-darkcard p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700; }
-        div:where(.swal2-container) div:where(.swal2-popup) { width: 90% !important; max-width: 400px !important; padding: 1.5em !important; border-radius: 1rem !important; }
-        .swal2-input, .swal2-file, .swal2-textarea, .swal2-select { margin: 1em 0 !important; width: 100% !important; }
-        .dark .swal2-popup { background: #1e293b !important; color: #fff !important; }
-        .dark .swal2-input { background: #374151 !important; color: white !important; border-color: #4b5563 !important; }
+
+        /* Estilo dos Inputs Modernos */
+        .input-modern {
+            @apply w-full p-4 rounded-2xl outline-none border border-transparent bg-gray-100 text-gray-800 transition-all focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20;
+            @apply dark:bg-darkinput dark:text-white dark:focus:bg-darkcard;
+        }
+
+        /* Cards com efeito sutil */
+        .card-modern {
+            @apply bg-white dark:bg-darkcard p-5 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 dark:border-gray-800;
+        }
+
+        /* Glassmorphism para Menus */
+        .glass-nav {
+            @apply bg-white/90 dark:bg-darkcard/90 backdrop-blur-md border-t border-gray-200 dark:border-gray-800;
+        }
+        
+        /* Ajustes SweetAlert Mobile */
+        div:where(.swal2-container) div:where(.swal2-popup) { width: 90% !important; max-width: 380px !important; border-radius: 20px !important; }
+        .dark .swal2-popup { background: #1e293b !important; color: white !important; }
+        .dark .swal2-input, .dark .swal2-select { background: #334155 !important; color: white !important; border: none !important; }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-800 dark:bg-darkbg dark:text-gray-100 font-sans antialiased pb-24">
+<body class="bg-gray-50 text-gray-800 dark:bg-darkbg dark:text-gray-100 font-sans antialiased pb-28">
 
     <div id="root" v-cloak>
 
-        <div v-if="!user" class="fixed inset-0 z-50 bg-gradient-to-br from-primary to-secondary flex items-center justify-center p-6">
-            <div class="bg-white dark:bg-darkcard p-8 rounded-3xl shadow-2xl w-full max-w-sm">
-                <div class="text-center mb-8">
-                    <div class="bg-gray-100 dark:bg-gray-700 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-primary text-2xl"><i class="fa-solid fa-chart-line"></i></div>
-                    <h1 class="text-2xl font-bold text-gray-800 dark:text-white">PartyPlanner</h1>
-                    <p class="text-xs text-gray-500 uppercase font-bold mt-1">Gestão Completa</p>
+        <div v-if="!user" class="fixed inset-0 z-50 bg-white dark:bg-darkbg flex flex-col items-center justify-center p-6">
+            <div class="w-full max-w-sm">
+                <div class="text-center mb-10">
+                    <div class="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-gradient-to-tr from-primary to-secondary text-white text-3xl shadow-xl shadow-primary/30 mb-4">
+                        <i class="fa-solid fa-champagne-glasses"></i>
+                    </div>
+                    <h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">PartyPlanner</h1>
+                    <p class="text-gray-500 font-medium">Gestão Inteligente</p>
                 </div>
                 <form @submit.prevent="handleLogin" class="space-y-4">
-                    <input v-model="email" type="email" placeholder="E-mail" class="input-base" required>
-                    <input v-model="password" type="password" placeholder="Senha" class="input-base" required>
-                    <button type="submit" class="w-full bg-gradient-to-r from-primary to-secondary text-white py-4 rounded-xl font-bold shadow-lg hover:scale-[1.02] transition">{{ isRegistering ? 'Criar Conta' : 'Entrar' }}</button>
+                    <input v-model="email" type="email" placeholder="Seu e-mail" class="input-modern" required>
+                    <input v-model="password" type="password" placeholder="Sua senha" class="input-modern" required>
+                    <button type="submit" class="w-full py-4 rounded-2xl bg-gray-900 dark:bg-white dark:text-gray-900 text-white font-bold text-lg shadow-xl hover:scale-[1.02] transition">
+                        {{ isRegistering ? 'Criar Conta' : 'Entrar' }}
+                    </button>
                 </form>
-                <div class="mt-6 text-center"><button @click="isRegistering = !isRegistering" class="text-sm text-gray-500 hover:text-primary underline">{{ isRegistering ? 'Já tenho conta? Entrar' : 'Cadastre-se' }}</button></div>
+                <button @click="isRegistering = !isRegistering" class="w-full text-center mt-6 text-sm text-gray-500 hover:text-primary">
+                    {{ isRegistering ? 'Já possui conta? Entrar' : 'Não tem conta? Cadastre-se' }}
+                </button>
             </div>
         </div>
 
         <div v-else>
-            <header class="bg-white dark:bg-darkcard shadow-sm sticky top-0 z-20 px-4 py-3 flex justify-between items-center border-b dark:border-gray-700">
+            
+            <header class="fixed top-0 w-full z-30 bg-white/80 dark:bg-darkbg/80 backdrop-blur-md border-b border-gray-200/50 dark:border-gray-800 px-5 py-4 flex justify-between items-center">
                 <div class="flex items-center gap-3">
-                    <div class="bg-gradient-to-r from-primary to-secondary text-white w-10 h-10 rounded-xl flex items-center justify-center shadow-md"><i class="fa-solid fa-cloud"></i></div>
-                    <div><h1 class="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary leading-none">PartyPlanner</h1><p class="text-[10px] text-gray-400 font-bold tracking-wider">ONLINE</p></div>
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-r from-primary to-secondary flex items-center justify-center text-white shadow-lg shadow-primary/20">
+                        <i class="fa-solid fa-calendar-check"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-bold leading-none">PartyPlanner</h1>
+                        <span class="text-[10px] uppercase font-bold text-success tracking-wider">Online</span>
+                    </div>
                 </div>
                 <div class="flex gap-2">
-                    <button @click="toggleDarkMode" class="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-600 dark:text-yellow-400 transition hover:bg-gray-200"><i :class="isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon'"></i></button>
-                    <button @click="logout" class="w-9 h-9 rounded-full bg-red-50 dark:bg-red-900/30 text-red-500 flex items-center justify-center transition hover:bg-red-100"><i class="fa-solid fa-power-off"></i></button>
+                    <button @click="toggleDarkMode" class="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-yellow-400 flex items-center justify-center transition">
+                        <i :class="isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon'"></i>
+                    </button>
+                    <button @click="logout" class="w-10 h-10 rounded-full bg-red-50 dark:bg-red-900/20 text-red-500 flex items-center justify-center transition">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                    </button>
                 </div>
             </header>
 
-            <main class="p-4 max-w-md mx-auto">
+            <div class="h-24"></div>
+
+            <main class="px-5 max-w-md mx-auto">
 
                 <div v-if="view === 'dashboard'" class="animate-fade">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="font-bold text-xl dark:text-white">Dashboard</h2>
-                        <div class="bg-white dark:bg-darkcard rounded-lg p-1 flex shadow-sm border border-gray-100 dark:border-gray-700">
-                            <button @click="dashboardFilter = 'month'" :class="dashboardFilter === 'month' ? 'bg-primary text-white shadow' : 'text-gray-400'" class="px-3 py-1 rounded text-xs font-bold transition">Mês</button>
-                            <button @click="dashboardFilter = 'year'" :class="dashboardFilter === 'year' ? 'bg-primary text-white shadow' : 'text-gray-400'" class="px-3 py-1 rounded text-xs font-bold transition">Ano</button>
+                    <div class="flex justify-between items-end mb-6">
+                        <div>
+                            <p class="text-xs text-gray-400 font-bold uppercase">Bem-vindo</p>
+                            <h2 class="text-2xl font-bold dark:text-white">Visão Geral</h2>
+                        </div>
+                        <div class="bg-gray-100 dark:bg-darkcard p-1 rounded-xl flex">
+                            <button @click="dashboardFilter='month'" :class="dashboardFilter==='month'?'bg-white dark:bg-gray-700 shadow text-gray-800 dark:text-white':'text-gray-400'" class="px-3 py-1.5 rounded-lg text-xs font-bold transition">Mês</button>
+                            <button @click="dashboardFilter='year'" :class="dashboardFilter==='year'?'bg-white dark:bg-gray-700 shadow text-gray-800 dark:text-white':'text-gray-400'" class="px-3 py-1.5 rounded-lg text-xs font-bold transition">Ano</button>
                         </div>
                     </div>
-                    <div class="card-base mb-4"><h3 class="text-xs font-bold text-gray-400 uppercase mb-3">Faturamento Mensal</h3><div class="relative h-48 w-full"><canvas id="revenueChart"></canvas></div></div>
-                    <div class="grid grid-cols-2 gap-3 mb-4">
-                        <div class="card-base border-l-4 border-l-primary"><span class="text-[10px] text-gray-400 font-bold uppercase">Faturamento</span><p class="text-lg font-bold text-gray-800 dark:text-white">{{ formatCurrency(kpiRevenue) }}</p></div>
-                        <div class="card-base border-l-4 border-l-danger"><span class="text-[10px] text-gray-400 font-bold uppercase">Despesas</span><p class="text-lg font-bold text-danger">{{ formatCurrency(kpiTotalExpenses) }}</p></div>
-                        <div class="card-base border-l-4 border-l-success"><span class="text-[10px] text-gray-400 font-bold uppercase">Lucro</span><p class="text-lg font-bold text-success">{{ formatCurrency(kpiProfit) }}</p></div>
-                        <div class="card-base border-l-4 border-l-warning"><span class="text-[10px] text-gray-400 font-bold uppercase">A Receber</span><p class="text-lg font-bold text-warning">{{ formatCurrency(kpiReceivables) }}</p></div>
+
+                    <div class="grid grid-cols-2 gap-4 mb-6">
+                        <div class="card-modern bg-gradient-to-br from-primary to-indigo-600 border-none text-white">
+                            <i class="fa-solid fa-wallet text-white/50 text-2xl mb-2"></i>
+                            <p class="text-xs font-medium text-white/80">Faturamento</p>
+                            <p class="text-xl font-bold">{{ formatCurrency(kpiRevenue) }}</p>
+                        </div>
+                        <div class="card-modern">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="bg-green-100 dark:bg-green-900/30 text-green-600 p-2 rounded-lg"><i class="fa-solid fa-arrow-trend-up"></i></span>
+                            </div>
+                            <p class="text-xs text-gray-400 font-bold uppercase">Lucro Líquido</p>
+                            <p class="text-lg font-bold text-gray-800 dark:text-white">{{ formatCurrency(kpiProfit) }}</p>
+                        </div>
+                        <div class="card-modern">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="bg-red-100 dark:bg-red-900/30 text-red-500 p-2 rounded-lg"><i class="fa-solid fa-arrow-trend-down"></i></span>
+                            </div>
+                            <p class="text-xs text-gray-400 font-bold uppercase">Despesas</p>
+                            <p class="text-lg font-bold text-gray-800 dark:text-white">{{ formatCurrency(kpiTotalExpenses) }}</p>
+                        </div>
+                        <div class="card-modern border-warning/50">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 p-2 rounded-lg"><i class="fa-solid fa-hand-holding-dollar"></i></span>
+                            </div>
+                            <p class="text-xs text-gray-400 font-bold uppercase">A Receber</p>
+                            <p class="text-lg font-bold text-gray-800 dark:text-white">{{ formatCurrency(kpiReceivables) }}</p>
+                        </div>
                     </div>
-                    <h3 class="font-bold text-gray-700 dark:text-gray-300 mb-3 text-sm uppercase tracking-wide">Agenda Recente</h3>
-                    <div v-if="next7DaysApps.length === 0" class="card-base text-center py-8"><p class="text-gray-400 text-sm">Nenhuma festa próxima.</p></div>
-                    <div class="space-y-2"><div v-for="app in next7DaysApps" :key="app.id" class="card-base flex items-center gap-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800" @click="view = 'appointments_list'"><div class="bg-gray-100 dark:bg-gray-700 w-12 h-12 rounded-xl flex flex-col items-center justify-center flex-shrink-0"><span class="text-[9px] font-bold text-gray-500 uppercase">{{ getMonth(app.date) }}</span><span class="text-lg font-bold text-primary leading-none">{{ getDay(app.date) }}</span></div><div><p class="font-bold text-sm dark:text-white line-clamp-1">{{ getClientName(app.clientId) }}</p><p class="text-xs text-gray-500">{{ app.time }} • {{ app.location.bairro }}</p></div></div></div>
+
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-bold text-gray-700 dark:text-gray-300">Agenda Recente</h3>
+                        <button @click="view='appointments_list'" class="text-xs text-primary font-bold">Ver tudo</button>
+                    </div>
+                    
+                    <div v-if="next7DaysApps.length === 0" class="text-center py-10 text-gray-400 bg-gray-50 dark:bg-darkcard/50 rounded-3xl border border-dashed border-gray-200 dark:border-gray-700">
+                        <p>Sem festas nos próximos 7 dias</p>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div v-for="app in next7DaysApps" :key="app.id" class="card-modern !p-4 flex items-center gap-4 cursor-pointer hover:scale-[1.02] transition" @click="view='appointments_list'">
+                            <div class="bg-gray-100 dark:bg-gray-800 w-14 h-14 rounded-2xl flex flex-col items-center justify-center text-center">
+                                <span class="text-[10px] font-bold text-gray-400 uppercase">{{ getMonth(app.date) }}</span>
+                                <span class="text-xl font-bold text-gray-800 dark:text-white leading-none">{{ getDay(app.date) }}</span>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800 dark:text-white">{{ getClientName(app.clientId) }}</h4>
+                                <p class="text-xs text-gray-500">{{ app.time }} • {{ app.location.bairro }}</p>
+                            </div>
+                            <div class="ml-auto">
+                                <span class="w-2 h-2 rounded-full bg-primary block"></span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <div v-if="view === 'company_settings'" class="animate-fade">
-                    <button @click="view='catalog_hub'" class="mb-4 text-gray-500 flex items-center gap-2"><i class="fa-solid fa-arrow-left"></i> Voltar</button>
-                    <div class="card-base space-y-4">
-                        <h2 class="font-bold text-lg dark:text-white border-b pb-2 dark:border-gray-700">Dados da Empresa</h2>
-                        <div class="flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl relative">
-                            <div v-if="company.logo" class="w-32 h-32 mb-2 relative"><img :src="company.logo" class="w-full h-full object-contain"><button @click="company.logo = ''" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center"><i class="fa-solid fa-times"></i></button></div>
-                            <div v-else class="text-center text-gray-400"><i class="fa-solid fa-image text-4xl mb-2"></i><p class="text-xs">Toque para adicionar Logo</p></div>
-                            <input type="file" @change="handleLogoUpload" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" accept="image/*">
+                <div v-if="view === 'reports'" class="animate-fade">
+                    <h2 class="font-bold text-2xl mb-6 dark:text-white">Relatórios</h2>
+                    
+                    <div class="card-modern mb-6">
+                        <h3 class="text-xs font-bold text-gray-400 uppercase mb-4">Evolução Financeira</h3>
+                        <div class="h-56 w-full">
+                            <canvas id="revenueChart"></canvas>
                         </div>
-                        <div class="space-y-3">
-                            <div><label class="text-xs font-bold text-gray-400 uppercase">Nome Fantasia</label><input v-model="company.fantasia" placeholder="Ex: Happy Festas" class="input-base"></div>
-                            <div><label class="text-xs font-bold text-gray-400 uppercase">Razão Social</label><input v-model="company.razao" placeholder="Ex: João da Silva ME" class="input-base"></div>
-                            <div><label class="text-xs font-bold text-gray-400 uppercase">CNPJ</label><input v-model="company.cnpj" placeholder="00.000.000/0000-00" class="input-base"></div>
-                            <div><label class="text-xs font-bold text-gray-400 uppercase">Endereço Completo</label><input v-model="company.endereco" placeholder="Rua, Número, Bairro" class="input-base"></div>
-                            <div class="grid grid-cols-2 gap-2"><div><label class="text-xs font-bold text-gray-400 uppercase">Cidade</label><input v-model="company.cidade" placeholder="Cidade" class="input-base"></div><div><label class="text-xs font-bold text-gray-400 uppercase">Contato (Tel)</label><input v-model="company.contato" placeholder="(xx) xxxxx-xxxx" class="input-base"></div></div>
+                    </div>
+
+                    <h3 class="font-bold text-gray-700 dark:text-gray-300 mb-3">Extrato de Transações</h3>
+                    <div class="space-y-2">
+                        <div v-for="app in sortedAppointments.slice(0,10)" :key="'r'+app.id" class="bg-white dark:bg-darkcard p-3 rounded-2xl flex justify-between items-center border border-gray-100 dark:border-gray-800">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center"><i class="fa-solid fa-arrow-down"></i></div>
+                                <div><p class="text-xs font-bold">Festa: {{ getClientName(app.clientId) }}</p><p class="text-[10px] text-gray-400">{{ formatDate(app.date) }}</p></div>
+                            </div>
+                            <span class="text-sm font-bold text-green-500">+{{ formatCurrency(app.totalServices) }}</span>
                         </div>
-                        <button @click="saveCompany" class="w-full bg-primary text-white py-3 rounded-xl font-bold shadow-lg mt-4">Salvar Configurações</button>
+                        <div v-for="exp in expenses.slice(0,10)" :key="'e'+exp.id" class="bg-white dark:bg-darkcard p-3 rounded-2xl flex justify-between items-center border border-gray-100 dark:border-gray-800">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center"><i class="fa-solid fa-arrow-up"></i></div>
+                                <div><p class="text-xs font-bold">{{ exp.description }}</p><p class="text-[10px] text-gray-400">{{ formatDate(exp.date) }}</p></div>
+                            </div>
+                            <span class="text-sm font-bold text-red-500">-{{ formatCurrency(exp.value) }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="view === 'appointments_list'" class="animate-fade">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="font-bold text-2xl dark:text-white">Agenda</h2>
+                        <button @click="view='calendar'" class="bg-gray-100 dark:bg-gray-800 p-2 rounded-xl text-primary"><i class="fa-solid fa-calendar-days"></i></button>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-darkcard p-2 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex gap-2 mb-6">
+                        <input v-model="filterDate" type="date" class="bg-transparent w-full text-sm outline-none px-2 dark:text-white">
+                        <button @click="filterDate=''" class="text-gray-400 px-2"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div v-for="app in sortedAppointments" :key="app.id" class="card-modern relative overflow-hidden group">
+                            <div class="absolute top-4 right-4">
+                                <span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider" :class="statusClass(app.status)">{{ statusText(app.status) }}</span>
+                            </div>
+
+                            <div class="mb-3">
+                                <p class="text-xs text-gray-400 mb-1 flex items-center gap-1"><i class="fa-regular fa-clock"></i> {{ formatDate(app.date) }} às {{ app.time }}</p>
+                                <h3 class="text-lg font-bold text-gray-800 dark:text-white">{{ getClientName(app.clientId) }}</h3>
+                                <p class="text-xs text-gray-500 mt-1"><i class="fa-solid fa-map-pin"></i> {{ app.location.bairro }}</p>
+                                <p v-if="app.details.colors" class="text-xs text-primary font-bold mt-2 bg-primary/10 inline-block px-2 py-1 rounded-lg"><i class="fa-solid fa-palette"></i> {{ app.details.colors }}</p>
+                            </div>
+
+                            <div class="flex justify-between items-center pt-4 border-t border-gray-100 dark:border-gray-800">
+                                <div>
+                                    <p class="text-[10px] text-gray-400 uppercase">Restante</p>
+                                    <p class="text-base font-bold text-primary">{{ formatCurrency(app.finalBalance) }}</p>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button v-if="app.status === 'pending'" @click="changeStatus(app, 'concluded')" class="w-10 h-10 rounded-xl bg-green-50 text-green-600 hover:bg-green-100 flex items-center justify-center transition"><i class="fa-solid fa-check"></i></button>
+                                    <button @click="showReceipt(app)" class="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-white flex items-center justify-center transition"><i class="fa-solid fa-file-invoice"></i></button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 <div v-if="view === 'schedule'" class="animate-fade">
-                    <h2 class="font-bold text-xl mb-4 dark:text-white">{{ isEditing ? 'Editar Festa' : 'Agendar Festa' }}</h2>
-                    <form @submit.prevent="saveAppointment" class="space-y-4 pb-24">
-                        <section class="card-base"><label class="text-xs font-bold text-gray-400 uppercase ml-1">Cliente</label><select v-model="tempApp.clientId" class="input-base mt-1" required><option value="" disabled>Selecione...</option><option v-for="c in clients" :value="c.id">{{ c.name }}</option></select></section>
-                        <section class="card-base">
-                            <label class="text-xs font-bold text-gray-400 uppercase ml-1">Detalhes do Evento</label>
-                            <div class="grid grid-cols-2 gap-2 mt-1 mb-2"><input v-model="tempApp.date" type="date" class="input-base" required><input v-model="tempApp.time" type="time" class="input-base" required></div>
-                            <input v-model="tempApp.location.bairro" placeholder="Bairro" class="input-base mb-2" required>
-                            <div class="mt-3 pt-3 border-t dark:border-gray-700"><label class="text-xs font-bold text-gray-400 uppercase ml-1 text-primary">Decoração / Balões</label><input v-model="tempApp.details.colors" placeholder="Ex: Azul Royal e Dourado (Tema Circo)" class="input-base mt-1 bg-purple-50 dark:bg-gray-800 border-purple-200"></div>
+                    <h2 class="font-bold text-2xl mb-6 dark:text-white">{{ isEditing ? 'Editar' : 'Nova Festa' }}</h2>
+                    <form @submit.prevent="saveAppointment" class="space-y-5">
+                        <section class="card-modern space-y-3">
+                            <label class="text-xs font-bold text-gray-400 uppercase ml-1">Cliente</label>
+                            <select v-model="tempApp.clientId" class="input-modern" required>
+                                <option value="" disabled>Selecione...</option>
+                                <option v-for="c in clients" :value="c.id">{{ c.name }}</option>
+                            </select>
                         </section>
-                        <section class="card-base">
-                            <label class="text-xs font-bold text-gray-400 uppercase ml-1">Serviços e Equipe</label>
-                            <div class="flex gap-2 mt-1 mb-2"><select v-model="tempServiceSelect" class="input-base text-sm py-2"><option value="" disabled>Serviço...</option><option v-for="s in services" :value="s">{{s.description}}</option></select><button type="button" @click="addServiceToApp" class="bg-primary text-white px-4 rounded-xl font-bold">+</button></div>
-                            <div class="mb-4 space-y-1"><div v-for="(s,i) in tempApp.selectedServices" class="flex justify-between text-xs bg-gray-100 dark:bg-gray-700 p-2 rounded-lg"><span>{{s.description}}</span><div class="flex gap-2"><span>{{formatCurrency(s.price)}}</span><i @click="removeServiceFromApp(i)" class="fa-solid fa-times text-red-400 cursor-pointer"></i></div></div></div>
-                            <div class="flex gap-2 mt-1 mb-2"><select v-model="tempStaffSelect" class="input-base text-sm py-2"><option value="" disabled>Staff...</option><option v-for="st in staff" :value="st">{{st.name}}</option></select><button type="button" @click="addStaffToApp" class="bg-indigo-500 text-white px-4 rounded-xl font-bold">+</button></div>
-                            <div class="mb-4 space-y-1"><div v-for="(st,i) in tempApp.selectedStaff" class="flex justify-between text-xs bg-indigo-50 dark:bg-indigo-900/30 p-2 rounded-lg text-indigo-700 dark:text-indigo-300"><span>{{st.name}}</span><span>{{formatCurrency(st.dailyRate)}}</span></div></div>
-                            <div class="bg-gray-100 dark:bg-gray-800 p-3 rounded-xl text-xs space-y-2 mt-4">
-                                <div class="flex justify-between"><span>Serviços (+)</span><span>{{formatCurrency(calcTotalServices)}}</span></div>
-                                <div class="flex justify-between text-red-500"><span>Staff (-)</span><span>{{formatCurrency(calcTotalStaffCost)}}</span></div>
-                                <div class="flex justify-between items-center pt-2 border-t border-gray-300 dark:border-gray-600"><span class="font-bold">Entrada Recebida</span><input v-model.number="tempApp.details.entryFee" type="number" class="w-24 text-right p-1 rounded bg-white dark:bg-gray-700 input-base !py-1"></div>
-                                <div class="flex justify-between font-bold text-lg text-primary pt-2"><span>Restante:</span><span>{{formatCurrency(calcFinalBalance)}}</span></div>
+
+                        <section class="card-modern space-y-3">
+                            <label class="text-xs font-bold text-gray-400 uppercase ml-1">Evento</label>
+                            <div class="grid grid-cols-2 gap-3">
+                                <input v-model="tempApp.date" type="date" class="input-modern" required>
+                                <input v-model="tempApp.time" type="time" class="input-modern" required>
+                            </div>
+                            <input v-model="tempApp.location.bairro" placeholder="Bairro" class="input-modern" required>
+                            <div class="grid grid-cols-3 gap-3">
+                                <input v-model="tempApp.location.cidade" placeholder="Cidade" class="input-modern col-span-2">
+                                <input v-model="tempApp.location.numero" placeholder="Nº" class="input-modern">
+                            </div>
+                            <input v-model="tempApp.details.colors" placeholder="Tema / Cores dos Balões" class="input-modern border-l-4 border-primary">
+                        </section>
+
+                        <section class="card-modern space-y-3">
+                            <label class="text-xs font-bold text-gray-400 uppercase ml-1">Itens</label>
+                            <div class="flex gap-2">
+                                <select v-model="tempServiceSelect" class="input-modern py-3 text-sm"><option value="" disabled>Serviço...</option><option v-for="s in services" :value="s">{{s.description}}</option></select>
+                                <button type="button" @click="addServiceToApp" class="bg-primary text-white w-14 rounded-2xl text-xl font-bold">+</button>
+                            </div>
+                            <div class="space-y-2">
+                                <div v-for="(s,i) in tempApp.selectedServices" class="flex justify-between items-center text-sm bg-gray-50 dark:bg-gray-800 p-3 rounded-xl border border-gray-100 dark:border-gray-700">
+                                    <span>{{s.description}}</span>
+                                    <div class="flex items-center gap-3">
+                                        <span class="font-bold">{{formatCurrency(s.price)}}</span>
+                                        <i @click="removeServiceFromApp(i)" class="fa-solid fa-times text-red-400 cursor-pointer"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="flex gap-2 mt-4">
+                                <select v-model="tempStaffSelect" class="input-modern py-3 text-sm"><option value="" disabled>Equipe...</option><option v-for="st in staff" :value="st">{{st.name}}</option></select>
+                                <button type="button" @click="addStaffToApp" class="bg-indigo-500 text-white w-14 rounded-2xl text-xl font-bold">+</button>
+                            </div>
+                            <div class="space-y-2">
+                                <div v-for="(st,i) in tempApp.selectedStaff" class="flex justify-between items-center text-sm bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-300 p-3 rounded-xl border border-indigo-100 dark:border-indigo-800">
+                                    <span>{{st.name}}</span><span class="font-bold">{{formatCurrency(st.dailyRate)}}</span>
+                                </div>
+                            </div>
+
+                            <div class="bg-gray-50 dark:bg-gray-800 p-4 rounded-2xl text-sm space-y-2 mt-4">
+                                <div class="flex justify-between"><span>Total Bruto</span><span class="font-bold">{{formatCurrency(calcTotalServices)}}</span></div>
+                                <div class="flex justify-between text-red-500 text-xs"><span>Custo Equipe</span><span>- {{formatCurrency(calcTotalStaffCost)}}</span></div>
+                                <div class="flex justify-between items-center pt-3 border-t border-gray-200 dark:border-gray-700">
+                                    <span class="font-bold text-gray-500 uppercase text-xs">Entrada Paga</span>
+                                    <input v-model.number="tempApp.details.entryFee" type="number" class="w-32 text-right p-2 rounded-lg bg-white dark:bg-darkcard border outline-none font-bold text-green-600">
+                                </div>
+                                <div class="flex justify-between text-xl font-bold text-primary pt-2"><span>A Pagar</span><span>{{formatCurrency(calcFinalBalance)}}</span></div>
                             </div>
                         </section>
-                        <button type="submit" class="w-full bg-gradient-to-r from-primary to-secondary text-white font-bold py-4 rounded-xl shadow-lg active:scale-95 transition">Confirmar Agendamento</button>
+
+                        <button type="submit" class="w-full bg-gray-900 dark:bg-white dark:text-gray-900 text-white py-4 rounded-2xl font-bold text-lg shadow-xl">Salvar Agendamento</button>
                     </form>
                 </div>
 
                 <div v-if="view === 'receipt' && currentReceipt" class="animate-fade">
                     <div class="flex justify-center mb-6">
-                        <div id="receipt-capture-area" class="bg-white p-6 w-[350px] shadow-2xl relative text-gray-800 font-mono text-sm leading-relaxed border-t-8 border-primary">
-                            <div class="text-center border-b-2 border-dashed border-gray-300 pb-4 mb-4">
-                                <img v-if="company.logo" :src="company.logo" class="h-16 mx-auto mb-2 object-contain">
-                                <h2 class="text-xl font-bold uppercase tracking-wider">{{ company.fantasia || 'PartyPlanner' }}</h2>
-                                <p class="text-[10px] text-gray-500 font-bold">{{ company.razao }}</p>
+                        <div id="receipt-capture-area" class="bg-white p-8 w-[350px] shadow-2xl relative text-gray-800 font-mono text-sm leading-relaxed border-b-8 border-primary rounded-t-lg">
+                            <div class="text-center border-b-2 border-dashed border-gray-200 pb-6 mb-6">
+                                <img v-if="company.logo" :src="company.logo" class="h-16 mx-auto mb-3 object-contain">
+                                <h2 class="text-xl font-bold uppercase tracking-wider text-black">{{ company.fantasia || 'PartyPlanner' }}</h2>
+                                <p class="text-[10px] text-gray-500">{{ company.razao }}</p>
                                 <p class="text-[10px] text-gray-500">{{ company.endereco }} - {{ company.cidade }}</p>
                                 <p class="text-[10px] text-gray-500">CNPJ: {{ company.cnpj }} | Tel: {{ company.contato }}</p>
                             </div>
-                            <div class="mb-4 text-xs">
-                                <p><strong>CLIENTE:</strong> {{ getClientName(currentReceipt.clientId) }}</p>
-                                <p><strong>DATA:</strong> {{ formatDate(currentReceipt.date) }} às {{ currentReceipt.time }}</p>
-                                <p><strong>LOCAL:</strong> {{ currentReceipt.location.bairro }}</p>
-                                <div v-if="currentReceipt.details.colors" class="mt-2 p-2 bg-purple-50 border border-purple-100 rounded"><strong><i class="fa-solid fa-palette"></i> CORES/TEMA:</strong><br>{{ currentReceipt.details.colors }}</div>
+                            <div class="mb-6 text-xs space-y-1">
+                                <div class="flex justify-between"><span class="text-gray-400">CLIENTE</span><span class="font-bold">{{ getClientName(currentReceipt.clientId) }}</span></div>
+                                <div class="flex justify-between"><span class="text-gray-400">DATA</span><span class="font-bold">{{ formatDate(currentReceipt.date) }} às {{ currentReceipt.time }}</span></div>
+                                <div class="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                                    <p class="text-gray-400 mb-1">LOCAL</p>
+                                    <p class="font-bold">{{ currentReceipt.location.bairro }}, {{ currentReceipt.location.cidade }}</p>
+                                    <p>{{ currentReceipt.location.numero }}</p>
+                                </div>
+                                <div v-if="currentReceipt.details.colors" class="mt-2 p-3 bg-purple-50 rounded-lg border border-purple-100 text-purple-800">
+                                    <p class="text-[10px] font-bold uppercase opacity-70">Decoração</p>
+                                    <p class="font-bold">{{ currentReceipt.details.colors }}</p>
+                                </div>
                             </div>
-                            <table class="w-full mb-4 border-collapse text-xs">
-                                <tr v-for="s in currentReceipt.selectedServices" class="border-b border-gray-100"><td class="py-1">{{ s.description }}</td><td class="text-right">{{ formatCurrency(s.price) }}</td></tr>
+                            <table class="w-full mb-6 border-collapse text-xs">
+                                <thead><tr class="border-b border-gray-800 text-gray-400"><th class="text-left py-1 font-normal">DESCRIÇÃO</th><th class="text-right py-1 font-normal">VALOR</th></tr></thead>
+                                <tbody><tr v-for="s in currentReceipt.selectedServices" class="border-b border-gray-100"><td class="py-2">{{ s.description }}</td><td class="text-right">{{ formatCurrency(s.price) }}</td></tr></tbody>
                             </table>
-                            <div class="border-t-2 border-dashed border-gray-300 pt-2 space-y-1">
-                                <div class="flex justify-between text-xs"><span>SUBTOTAL:</span><span>{{ formatCurrency(currentReceipt.totalServices) }}</span></div>
-                                <div class="flex justify-between text-xs text-red-600"><span>ENTRADA:</span><span>- {{ formatCurrency(currentReceipt.entryFee) }}</span></div>
-                                <div class="flex justify-between text-lg font-bold mt-2"><span>A PAGAR:</span><span>{{ formatCurrency(currentReceipt.finalBalance) }}</span></div>
+                            <div class="border-t-2 border-dashed border-gray-200 pt-4 space-y-2">
+                                <div class="flex justify-between text-xs text-gray-500"><span>SUBTOTAL</span><span>{{ formatCurrency(currentReceipt.totalServices) }}</span></div>
+                                <div class="flex justify-between text-xs text-green-600 font-bold bg-green-50 p-1 rounded"><span>ENTRADA PAGA</span><span>- {{ formatCurrency(currentReceipt.entryFee) }}</span></div>
+                                <div class="flex justify-between text-xl font-bold mt-2 pt-2 border-t border-gray-100"><span>TOTAL</span><span>{{ formatCurrency(currentReceipt.finalBalance) }}</span></div>
                             </div>
                         </div>
                     </div>
-                    <div class="space-y-2 text-center no-print max-w-sm mx-auto">
-                        <button @click="downloadReceiptImage" class="w-full bg-green-600 text-white py-3 rounded-xl font-bold shadow"><i class="fa-solid fa-image mr-2"></i> Baixar Imagem</button>
+                    <div class="space-y-3 text-center no-print max-w-sm mx-auto">
+                        <button @click="downloadReceiptImage" class="w-full bg-gray-900 text-white py-3 rounded-2xl font-bold shadow-xl flex items-center justify-center gap-2"><i class="fa-solid fa-share-nodes"></i> Baixar Comprovante</button>
                         <button @click="view='appointments_list'" class="w-full text-gray-500 py-3">Voltar</button>
                     </div>
                 </div>
 
-                <div v-if="view === 'catalog_hub'" class="grid grid-cols-2 gap-3">
-                    <div @click="view='company_settings'" class="card-base border-t-4 border-primary cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"><i class="fa-solid fa-building text-2xl text-primary mb-2"></i><p class="font-bold text-sm">Empresa</p></div>
-                    <div @click="view='clients_list'" class="card-base border-t-4 border-blue-500 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"><i class="fa-solid fa-users text-2xl text-blue-500 mb-2"></i><p class="font-bold text-sm">Clientes</p></div>
-                    <div @click="view='services_list'" class="card-base border-t-4 border-pink-500 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"><i class="fa-solid fa-wand-magic-sparkles text-2xl text-pink-500 mb-2"></i><p class="font-bold text-sm">Serviços</p></div>
-                    <div @click="view='staff_list'" class="card-base border-t-4 border-indigo-500 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"><i class="fa-solid fa-user-group text-2xl text-indigo-500 mb-2"></i><p class="font-bold text-sm">Equipe</p></div>
-                    <div @click="view='expenses'" class="card-base border-t-4 border-red-500 cursor-pointer col-span-2 hover:bg-gray-50 dark:hover:bg-gray-800"><i class="fa-solid fa-money-bill-transfer text-2xl text-red-500 mb-2"></i><p class="font-bold text-sm">Despesas Extras</p></div>
-                </div>
-                
-                <div v-if="view === 'appointments_list'" class="animate-fade">
-                    <h2 class="font-bold text-xl mb-4 dark:text-white">Minha Agenda</h2>
-                    <div class="card-base mb-4 flex gap-2"><input v-model="filterDate" type="date" class="input-base text-sm"><button @click="filterDate=''" class="bg-gray-200 dark:bg-gray-600 px-4 rounded-xl"><i class="fa-solid fa-xmark"></i></button></div>
-                    <div class="space-y-4 pb-20"><div v-for="app in sortedAppointments" :key="app.id" class="card-base relative overflow-hidden"><div class="absolute top-0 right-0 px-3 py-1 text-[10px] font-bold rounded-bl-xl" :class="statusClass(app.status)">{{statusText(app.status)}}</div><h3 class="font-bold text-lg dark:text-white">{{getClientName(app.clientId)}}</h3><p class="text-xs text-gray-500 mt-1">{{formatDate(app.date)}} - {{app.time}} ({{app.location.bairro}})</p><p v-if="app.details.colors" class="text-xs text-primary font-bold mt-1"><i class="fa-solid fa-palette"></i> {{app.details.colors}}</p><div class="flex justify-between border-t border-gray-100 dark:border-gray-700 pt-3 mt-2"><span class="font-bold text-primary">{{formatCurrency(app.finalBalance)}}</span><button @click="showReceipt(app)" class="text-gray-500"><i class="fa-solid fa-file-invoice text-xl"></i></button></div></div></div>
+                <div v-if="view === 'catalog_hub'" class="animate-fade">
+                    <h2 class="font-bold text-2xl mb-6 dark:text-white">Menu</h2>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div @click="view='company_settings'" class="card-modern cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 flex flex-col items-center text-center"><div class="w-12 h-12 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-xl mb-3"><i class="fa-solid fa-building"></i></div><p class="font-bold text-sm">Empresa</p></div>
+                        <div @click="view='clients_list'" class="card-modern cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 flex flex-col items-center text-center"><div class="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xl mb-3"><i class="fa-solid fa-users"></i></div><p class="font-bold text-sm">Clientes</p></div>
+                        <div @click="view='services_list'" class="card-modern cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 flex flex-col items-center text-center"><div class="w-12 h-12 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center text-xl mb-3"><i class="fa-solid fa-wand-magic-sparkles"></i></div><p class="font-bold text-sm">Serviços</p></div>
+                        <div @click="view='staff_list'" class="card-modern cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 flex flex-col items-center text-center"><div class="w-12 h-12 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xl mb-3"><i class="fa-solid fa-user-group"></i></div><p class="font-bold text-sm">Equipe</p></div>
+                        <div @click="view='expenses'" class="card-modern col-span-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-4 px-6"><div class="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-xl"><i class="fa-solid fa-money-bill-transfer"></i></div><p class="font-bold text-sm">Lançar Despesa Extra</p></div>
+                    </div>
                 </div>
 
-                <div v-if="view === 'clients_list'"><div class="flex items-center gap-3 mb-4"><button @click="view='catalog_hub'" class="text-gray-400"><i class="fa-solid fa-arrow-left"></i></button><h2 class="font-bold text-xl">Clientes</h2></div><button @click="openClientModal" class="w-full bg-blue-500 text-white py-3 rounded-xl mb-4">Novo</button><div v-for="c in clients" class="card-base mb-2 flex justify-between"><div><p class="font-bold">{{c.name}}</p><p class="text-xs">{{c.phone}}</p></div><button @click="deleteClient(c.id)" class="text-red-400"><i class="fa-solid fa-trash"></i></button></div></div>
-                <div v-if="view === 'services_list'"><div class="flex items-center gap-3 mb-4"><button @click="view='catalog_hub'" class="text-gray-400"><i class="fa-solid fa-arrow-left"></i></button><h2 class="font-bold text-xl">Serviços</h2></div><button @click="openServiceModal" class="w-full bg-pink-500 text-white py-3 rounded-xl mb-4">Novo</button><div v-for="s in services" class="card-base mb-2 flex justify-between"><span>{{s.description}}</span><span>{{formatCurrency(s.price)}}</span></div></div>
-                <div v-if="view === 'staff_list'"><div class="flex items-center gap-3 mb-4"><button @click="view='catalog_hub'" class="text-gray-400"><i class="fa-solid fa-arrow-left"></i></button><h2 class="font-bold text-xl">Equipe</h2></div><button @click="openStaffModal" class="w-full bg-indigo-500 text-white py-3 rounded-xl mb-4">Novo</button><div v-for="s in staff" class="card-base mb-2 flex justify-between"><span>{{s.name}}</span><span>{{formatCurrency(s.dailyRate)}}</span><button @click="deleteStaff(s.id)" class="text-red-400"><i class="fa-solid fa-trash"></i></button></div></div>
-                <div v-if="view === 'expenses'"><div class="flex items-center gap-3 mb-4"><button @click="view='catalog_hub'" class="text-gray-400"><i class="fa-solid fa-arrow-left"></i></button><h2 class="font-bold text-xl">Despesas</h2></div><div class="card-base mb-4 space-y-2"><input v-model="newExpense.description" placeholder="Desc" class="input-base"><div class="flex gap-2"><input v-model.number="newExpense.value" type="number" placeholder="$$" class="input-base"><input v-model="newExpense.date" type="date" class="input-base"></div><button @click="addExpense" class="w-full bg-red-500 text-white py-2 rounded-lg font-bold">Salvar</button></div><div v-for="e in expenses" class="card-base border-l-4 border-red-500 flex justify-between"><div><p class="font-bold">{{e.description}}</p><p class="text-xs">{{formatDate(e.date)}}</p></div><span>{{formatCurrency(e.value)}}</span></div></div>
+                <div v-if="view === 'calendar'" class="animate-fade"><div class="flex items-center gap-3 mb-4"><button @click="view='dashboard'"><i class="fa-solid fa-arrow-left text-xl"></i></button><h2 class="font-bold text-xl">Calendário</h2></div><div class="card-modern"><div class="flex justify-between items-center mb-4"><button @click="changeMonth(-1)" class="p-2"><i class="fa-solid fa-chevron-left"></i></button><h3 class="font-bold capitalize text-lg">{{ monthNames[currentMonth] }} {{ currentYear }}</h3><button @click="changeMonth(1)" class="p-2"><i class="fa-solid fa-chevron-right"></i></button></div><div class="grid grid-cols-7 gap-1 text-center text-xs font-bold text-gray-400 mb-2"><div>D</div><div>S</div><div>T</div><div>Q</div><div>Q</div><div>S</div><div>S</div></div><div class="grid grid-cols-7 gap-1"><div v-for="b in firstDayOfMonth" :key="'b'+b"></div><div v-for="d in daysInMonth" :key="d" class="h-14 border dark:border-gray-700 rounded-lg flex flex-col items-center justify-center cursor-pointer transition hover:border-primary" :class="{'bg-purple-50 dark:bg-purple-900/20': hasEvent(d)}" @click="selectDateFromCalendar(d)"><span class="text-xs font-bold" :class="{'text-primary': hasEvent(d)}">{{ d }}</span><div v-if="hasEvent(d)" class="mt-1 w-1.5 h-1.5 bg-primary rounded-full"></div></div></div></div></div>
+                
+                <div v-if="view === 'clients_list'"><button @click="view='catalog_hub'" class="mb-4"><i class="fa-solid fa-arrow-left"></i> Voltar</button><h2 class="font-bold text-2xl mb-4">Clientes</h2><button @click="openClientModal" class="w-full bg-blue-500 text-white py-3 rounded-2xl mb-4 shadow font-bold">Novo Cliente</button><div class="space-y-2"><div v-for="c in clients" class="card-modern flex justify-between items-center py-3"><div><p class="font-bold">{{c.name}}</p><p class="text-xs text-gray-500">{{c.phone}}</p></div><button @click="deleteClient(c.id)" class="text-red-400"><i class="fa-solid fa-trash"></i></button></div></div></div>
+                <div v-if="view === 'services_list'"><button @click="view='catalog_hub'" class="mb-4"><i class="fa-solid fa-arrow-left"></i> Voltar</button><h2 class="font-bold text-2xl mb-4">Serviços</h2><button @click="openServiceModal" class="w-full bg-pink-500 text-white py-3 rounded-2xl mb-4 shadow font-bold">Novo Serviço</button><div class="space-y-2"><div v-for="s in services" class="card-modern flex justify-between py-3"><span>{{s.description}}</span><span class="font-bold text-pink-500">{{formatCurrency(s.price)}}</span></div></div></div>
+                <div v-if="view === 'staff_list'"><button @click="view='catalog_hub'" class="mb-4"><i class="fa-solid fa-arrow-left"></i> Voltar</button><h2 class="font-bold text-2xl mb-4">Equipe</h2><button @click="openStaffModal" class="w-full bg-indigo-500 text-white py-3 rounded-2xl mb-4 shadow font-bold">Novo Membro</button><div class="space-y-2"><div v-for="s in staff" class="card-modern flex justify-between items-center py-3"><div><p class="font-bold">{{s.name}}</p><p class="text-xs text-gray-500">{{s.role}}</p></div><div class="text-right"><p class="font-bold text-indigo-500">{{formatCurrency(s.dailyRate)}}</p><button @click="deleteStaff(s.id)" class="text-red-400 text-xs mt-1"><i class="fa-solid fa-trash"></i></button></div></div></div></div>
+                <div v-if="view === 'expenses'"><button @click="view='catalog_hub'" class="mb-4"><i class="fa-solid fa-arrow-left"></i> Voltar</button><h2 class="font-bold text-2xl mb-4">Despesas</h2><div class="card-modern mb-4 space-y-2"><input v-model="newExpense.description" placeholder="Descrição" class="input-modern"><div class="flex gap-2"><input v-model.number="newExpense.value" type="number" placeholder="Valor" class="input-modern"><input v-model="newExpense.date" type="date" class="input-modern"></div><button @click="addExpense" class="w-full bg-red-500 text-white py-3 rounded-2xl font-bold">Registrar</button></div><div class="space-y-2"><div v-for="e in expenses" class="card-modern border-l-4 border-red-500 flex justify-between py-3"><div><p class="font-bold text-sm">{{e.description}}</p><p class="text-xs text-gray-500">{{formatDate(e.date)}}</p></div><span class="font-bold text-red-500">- {{formatCurrency(e.value)}}</span></div></div></div>
 
             </main>
 
-            <nav class="fixed bottom-0 w-full bg-white dark:bg-darkcard border-t dark:border-gray-700 flex justify-around py-2 z-30 shadow-lg">
-                <button @click="view='dashboard'" :class="view==='dashboard'?'text-primary':'text-gray-400'" class="flex flex-col items-center p-2"><i class="fa-solid fa-chart-pie text-xl mb-1"></i><span class="text-[10px] font-bold">Dash</span></button>
-                <button @click="view='appointments_list'" :class="view==='appointments_list'?'text-primary':'text-gray-400'" class="flex flex-col items-center p-2"><i class="fa-solid fa-calendar-check text-xl mb-1"></i><span class="text-[10px] font-bold">Agenda</span></button>
-                <div class="relative -top-6"><button @click="startNewSchedule" class="bg-primary text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg border-4 border-gray-50 dark:border-darkbg"><i class="fa-solid fa-plus text-2xl"></i></button></div>
-                <button @click="view='expenses'" :class="view==='expenses'?'text-primary':'text-gray-400'" class="flex flex-col items-center p-2"><i class="fa-solid fa-money-bill-transfer text-xl mb-1"></i><span class="text-[10px] font-bold">Saídas</span></button>
-                <button @click="view='catalog_hub'" :class="view.includes('catalog')||view.includes('_list')?'text-primary':'text-gray-400'" class="flex flex-col items-center p-2"><i class="fa-solid fa-folder-open text-xl mb-1"></i><span class="text-[10px] font-bold">Cadastros</span></button>
+            <nav class="fixed bottom-0 w-full glass-nav flex justify-around py-4 z-40 pb-safe">
+                <button @click="view='dashboard'" :class="view==='dashboard'?'text-primary scale-110':'text-gray-400'" class="flex flex-col items-center transition duration-300"><i class="fa-solid fa-house text-xl mb-1"></i><span class="text-[10px] font-bold">Home</span></button>
+                <button @click="view='appointments_list'" :class="view==='appointments_list'?'text-primary scale-110':'text-gray-400'" class="flex flex-col items-center transition duration-300"><i class="fa-solid fa-calendar-check text-xl mb-1"></i><span class="text-[10px] font-bold">Agenda</span></button>
+                
+                <div class="relative -top-8">
+                    <button @click="startNewSchedule" class="bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full w-16 h-16 flex items-center justify-center shadow-2xl shadow-gray-500/30 transform transition hover:scale-105 active:scale-95">
+                        <i class="fa-solid fa-plus text-2xl"></i>
+                    </button>
+                </div>
+
+                <button @click="view='reports'" :class="view==='reports'?'text-primary scale-110':'text-gray-400'" class="flex flex-col items-center transition duration-300"><i class="fa-solid fa-chart-pie text-xl mb-1"></i><span class="text-[10px] font-bold">Relatórios</span></button>
+                <button @click="view='catalog_hub'" :class="view.includes('catalog')||view.includes('_list')?'text-primary scale-110':'text-gray-400'" class="flex flex-col items-center transition duration-300"><i class="fa-solid fa-grid-2 text-xl mb-1"></i><span class="text-[10px] font-bold">Menu</span></button>
             </nav>
         </div>
     </div>
@@ -212,7 +401,7 @@
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, getDocs, doc, setDoc, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // --- 🔴 CHAVES FIREBASE ---
+        // --- 🔴 COLE SUAS CHAVES DO FIREBASE AQUI ---
         const firebaseConfig = {
           apiKey: "AIzaSyAhHRcZwrzD36oEFaeQzD1Fd-685YRAxBA",
           authDomain: "partyplanner-3f352.firebaseapp.com",
@@ -222,6 +411,7 @@
           appId: "1:748641483081:web:dec19c31c9e58d9040c298",
           measurementId: "G-YVYD6MEXC1"
         };
+        // --------------------------------------------
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -260,10 +450,7 @@
                 const currentYear = ref(today.getFullYear());
 
                 onMounted(() => {
-                    onAuthStateChanged(auth, (u) => {
-                        user.value = u;
-                        if(u) loadData();
-                    });
+                    onAuthStateChanged(auth, (u) => { user.value = u; if(u) loadData(); });
                 });
 
                 const handleLogin = async () => { try { if (isRegistering.value) await createUserWithEmailAndPassword(auth, email.value, password.value); else await signInWithEmailAndPassword(auth, email.value, password.value); } catch (e) { Swal.fire('Erro', 'Verifique dados', 'error'); } };
@@ -275,7 +462,7 @@
                     onSnapshot(collection(db, `users/${uid}/services`), (s) => services.value = s.docs.map(d=>({id:d.id,...d.data()})));
                     onSnapshot(collection(db, `users/${uid}/staff`), (s) => staff.value = s.docs.map(d=>({id:d.id,...d.data()})));
                     onSnapshot(collection(db, `users/${uid}/expenses`), (s) => expenses.value = s.docs.map(d=>({id:d.id,...d.data()})));
-                    onSnapshot(collection(db, `users/${uid}/appointments`), (s) => { appointments.value = s.docs.map(d=>({id:d.id,...d.data()})); if(view.value==='dashboard') renderChart(); });
+                    onSnapshot(collection(db, `users/${uid}/appointments`), (s) => { appointments.value = s.docs.map(d=>({id:d.id,...d.data()})); if(view.value==='reports') renderChart(); });
                     onSnapshot(doc(db, `users/${uid}/settings`, 'company'), (doc) => { if (doc.exists()) Object.assign(company, doc.data()); });
                 };
 
@@ -288,16 +475,16 @@
                     for(let i=5; i>=0; i--) { const d=new Date(); d.setMonth(d.getMonth()-i); const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; last6Months.push(key); monthlyData[key]=0; }
                     appointments.value.forEach(app => { const key=app.date.substring(0,7); if(monthlyData[key]!==undefined && app.status!=='cancelled') monthlyData[key]+=(app.totalServices||0); });
                     if(chartInstance) chartInstance.destroy();
-                    chartInstance = new Chart(ctx, { type: 'bar', data: { labels: last6Months.map(k=>{const [y,m]=k.split('-'); return monthNames[parseInt(m)-1]}), datasets:[{label:'Faturamento', data:Object.values(monthlyData), backgroundColor:'#8b5cf6', borderRadius:5}] }, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}} });
+                    chartInstance = new Chart(ctx, { type: 'bar', data: { labels: last6Months.map(k=>{const [y,m]=k.split('-'); return monthNames[parseInt(m)-1]}), datasets:[{label:'Faturamento', data:Object.values(monthlyData), backgroundColor:'#6366f1', borderRadius:10, borderSkipped: false}] }, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}, scales:{x:{grid:{display:false}}, y:{grid:{display:false, drawBorder:false}}}} });
                 };
-                watch(view, (v) => { if(v==='dashboard') setTimeout(renderChart,200); });
+                watch(view, (v) => { if(v==='reports') setTimeout(renderChart,200); });
 
                 const addDocToDb = (coll, data) => addDoc(collection(db, `users/${user.value.uid}/${coll}`), data);
                 const deleteDocFromDb = (coll, id) => deleteDoc(doc(db, `users/${user.value.uid}/${coll}`, id));
                 const updateDocInDb = (coll, id, data) => updateDoc(doc(db, `users/${user.value.uid}/${coll}`, id), data);
 
                 const handleLogoUpload = (e) => { const file = e.target.files[0]; if (file) { if(file.size > 800000) { Swal.fire('Erro', 'Imagem muito grande. Max 800kb', 'error'); return; } const reader = new FileReader(); reader.onload = (ev) => company.logo = ev.target.result; reader.readAsDataURL(file); } };
-                const saveCompany = async () => { await setDoc(doc(db, `users/${user.value.uid}/settings`, 'company'), { ...company }); Swal.fire('Sucesso', 'Dados da empresa salvos!', 'success'); };
+                const saveCompany = async () => { await setDoc(doc(db, `users/${user.value.uid}/settings`, 'company'), { ...company }); Swal.fire('Sucesso', 'Dados salvos!', 'success'); };
 
                 const openClientModal = async () => { const {value:v}=await Swal.fire({title:'Cliente',html:'<input id="n" class="swal2-input" placeholder="Nome"><input id="p" class="swal2-input" placeholder="Tel"><input id="e" class="swal2-input" placeholder="Email">',preConfirm:()=>[document.getElementById('n').value,document.getElementById('p').value,document.getElementById('e').value]}); if(v)addDocToDb('clients',{name:v[0],phone:v[1],email:v[2]}); };
                 const openServiceModal = async () => { const {value:v}=await Swal.fire({title:'Serviço',html:'<input id="d" class="swal2-input" placeholder="Desc"><input id="p" type="number" class="swal2-input" placeholder="R$">',preConfirm:()=>[document.getElementById('d').value,document.getElementById('p').value]}); if(v)addDocToDb('services',{description:v[0],price:Number(v[1])}); };
@@ -340,6 +527,12 @@
                 const kpiReceivables = computed(()=>appointments.value.filter(a=>a.status==='pending').reduce((s,a)=>s+(a.finalBalance||0),0));
                 const next7DaysApps = computed(()=>{ const t=new Date();t.setHours(0,0,0,0); const w=new Date(t);w.setDate(t.getDate()+7); return appointments.value.filter(a=>{ const d=new Date(a.date.split('-')[0],a.date.split('-')[1]-1,a.date.split('-')[2]); return d>=t&&d<=w&&a.status==='pending'; }).sort((a,b)=>new Date(a.date)-new Date(b.date)); });
                 const sortedAppointments = computed(()=>{ let l=appointments.value; if(filterDate.value)l=l.filter(a=>a.date===filterDate.value); return l.sort((a,b)=>new Date(b.date)-new Date(a.date)); });
+                
+                const firstDayOfMonth = computed(()=>new Date(currentYear.value,currentMonth.value,1).getDay());
+                const daysInMonth = computed(()=>new Date(currentYear.value,currentMonth.value+1,0).getDate());
+                const changeMonth = (d) => { currentMonth.value+=d; if(currentMonth.value>11){currentMonth.value=0;currentYear.value++}else if(currentMonth.value<0){currentMonth.value=11;currentYear.value--} };
+                const hasEvent = (d) => { const c=`${currentYear.value}-${String(currentMonth.value+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; return appointments.value.some(a=>a.date===c && a.status!=='cancelled'); };
+                const selectDateFromCalendar = (d) => { filterDate.value=`${currentYear.value}-${String(currentMonth.value+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; view.value='appointments_list'; };
 
                 return {
                     user, email, password, isRegistering, handleLogin, logout, view, isDark, dashboardFilter, filterDate, isEditing, currentReceipt,
@@ -347,7 +540,8 @@
                     currentMonth, currentYear, monthNames, kpiRevenue, kpiTotalExpenses, kpiProfit, kpiReceivables, next7DaysApps, sortedAppointments,
                     addExpense, openClientModal, openServiceModal, openStaffModal, deleteClient, deleteStaff,
                     startNewSchedule, addServiceToApp, removeServiceFromApp, addStaffToApp, saveAppointment, changeStatus, showReceipt,
-                    calcTotalServices, calcTotalStaffCost, calcFinalBalance, toggleDarkMode, formatCurrency, formatDate, getMonth, getDay, getClientName, statusClass, statusText, saveCompany, downloadReceiptImage, handleLogoUpload
+                    calcTotalServices, calcTotalStaffCost, calcFinalBalance, toggleDarkMode, formatCurrency, formatDate, getMonth, getDay, getClientName, statusClass, statusText, saveCompany, downloadReceiptImage, handleLogoUpload,
+                    firstDayOfMonth, daysInMonth, changeMonth, hasEvent, selectDateFromCalendar
                 };
             }
         }).mount('#root');
