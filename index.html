@@ -16,12 +16,30 @@
                         secondary: '#ec4899', 
                         darkbg: '#0f172a', 
                         surface: '#1e293b',
-                        accent: '#818cf8'
+                        accent: '#818cf8',
+                        inputbg: '#f8fafc',
+                        inputborder: '#e2e8f0'
                     },
                     fontFamily: { sans: ['Inter', 'sans-serif'] },
                     boxShadow: {
                         'glow': '0 0 20px rgba(79, 70, 229, 0.3)',
-                        'float': '0 10px 30px -10px rgba(0,0,0,0.1)'
+                        'float': '0 10px 30px -10px rgba(0,0,0,0.1)',
+                        'input': '0 2px 10px -3px rgba(0, 0, 0, 0.05)',
+                        'input-focus': '0 4px 20px -4px rgba(79, 70, 229, 0.15)'
+                    },
+                    animation: {
+                        'input-focus': 'inputFocus 0.2s ease-out',
+                        'float-label': 'floatLabel 0.2s ease-out'
+                    },
+                    keyframes: {
+                        inputFocus: {
+                            '0%': { transform: 'scale(1)', boxShadow: '0 2px 10px -3px rgba(0, 0, 0, 0.05)' },
+                            '100%': { transform: 'scale(1.002)', boxShadow: '0 4px 20px -4px rgba(79, 70, 229, 0.15)' }
+                        },
+                        floatLabel: {
+                            '0%': { transform: 'translateY(0) scale(1)', opacity: '0.5' },
+                            '100%': { transform: 'translateY(-24px) scale(0.85)', opacity: '1' }
+                        }
                     }
                 }
             }
@@ -36,25 +54,136 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <style>
-        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            -webkit-tap-highlight-color: transparent; 
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
         [v-cloak] { display: none; }
         
         /* Transições de View */
         .fade-enter-active, .fade-leave-active { transition: opacity 0.15s ease; }
         .fade-enter-from, .fade-leave-to { opacity: 0; }
 
-        /* Inputs Ultra Modernos (Sem borda, fundo suave) */
-        .input-next {
-            @apply w-full p-4 rounded-2xl bg-gray-100 text-gray-900 outline-none transition-all placeholder-gray-400 font-medium;
-            @apply dark:bg-surface dark:text-white dark:placeholder-gray-500;
-            @apply focus:ring-2 focus:ring-primary/50 focus:bg-white dark:focus:bg-gray-800;
+        /* Inputs Modernos Redesign */
+        .input-modern {
+            @apply w-full p-4 rounded-2xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-all duration-200;
+            @apply border-2 border-gray-200 dark:border-gray-700 placeholder-gray-400 dark:placeholder-gray-500;
+            @apply font-medium text-base;
+            @apply focus:border-primary focus:ring-4 focus:ring-primary/10 focus:bg-white dark:focus:bg-gray-800;
+            @apply hover:border-gray-300 dark:hover:border-gray-600;
+            box-shadow: 0 2px 10px -3px rgba(0, 0, 0, 0.05);
         }
 
-        .select-next {
-            @apply w-full p-4 rounded-2xl bg-gray-100 text-gray-900 outline-none appearance-none font-medium;
-            @apply dark:bg-surface dark:text-white;
+        .input-modern:focus {
+            animation: inputFocus 0.2s ease-out;
+            box-shadow: 0 4px 20px -4px rgba(79, 70, 229, 0.15);
+            transform: scale(1.002);
+        }
+
+        /* Inputs com label flutuante */
+        .input-group {
+            @apply relative mb-6;
+        }
+
+        .input-group input,
+        .input-group select {
+            @apply pt-6 pb-3 px-4;
+        }
+
+        .input-group label {
+            @apply absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400;
+            @apply transition-all duration-200 pointer-events-none text-sm font-medium;
+        }
+
+        .input-group input:focus + label,
+        .input-group input:not(:placeholder-shown) + label,
+        .input-group select:focus + label,
+        .input-group select:not(:placeholder-shown) + label {
+            @apply text-primary dark:text-accent;
+            transform: translateY(-24px) scale(0.85);
+            animation: floatLabel 0.2s ease-out;
+        }
+
+        /* Select Moderno */
+        .select-modern {
+            @apply w-full p-4 rounded-2xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-all duration-200;
+            @apply border-2 border-gray-200 dark:border-gray-700 font-medium text-base;
+            @apply focus:border-primary focus:ring-4 focus:ring-primary/10;
+            @apply appearance-none cursor-pointer;
+            @apply hover:border-gray-300 dark:hover:border-gray-600;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 1rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em;
+            box-shadow: 0 2px 10px -3px rgba(0, 0, 0, 0.05);
+        }
+
+        .dark .select-modern {
             background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-            background-position: right 1rem center; background-repeat: no-repeat; background-size: 1.5em;
+        }
+
+        .select-modern:focus {
+            animation: inputFocus 0.2s ease-out;
+            box-shadow: 0 4px 20px -4px rgba(79, 70, 229, 0.15);
+            transform: scale(1.002);
+        }
+
+        /* Inputs para números (valores monetários) */
+        .input-currency {
+            @apply text-right font-bold;
+            background-position: left 1rem center;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cline x1='12' y1='1' x2='12' y2='23'%3e%3c/line%3e%3cpath d='M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6'%3e%3c/path%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-size: 1.2em;
+            padding-left: 3rem !important;
+        }
+
+        .dark .input-currency {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cline x1='12' y1='1' x2='12' y2='23'%3e%3c/line%3e%3cpath d='M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6'%3e%3c/path%3e%3c/svg%3e");
+        }
+
+        /* Input para datas */
+        .input-date {
+            background-position: right 1rem center;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3crect x='3' y='4' width='18' height='18' rx='2' ry='2'%3e%3c/rect%3e%3cline x1='16' y1='2' x2='16' y2='6'%3e%3c/line%3e%3cline x1='8' y1='2' x2='8' y2='6'%3e%3c/line%3e%3cline x1='3' y1='10' x2='21' y2='10'%3e%3c/line%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-size: 1.2em;
+            padding-right: 3rem !important;
+        }
+
+        .dark .input-date {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3crect x='3' y='4' width='18' height='18' rx='2' ry='2'%3e%3c/rect%3e%3cline x1='16' y1='2' x2='16' y2='6'%3e%3c/line%3e%3cline x1='8' y1='2' x2='8' y2='6'%3e%3c/line%3e%3cline x1='3' y1='10' x2='21' y2='10'%3e%3c/line%3e%3c/svg%3e");
+        }
+
+        /* Input para horário */
+        .input-time {
+            background-position: right 1rem center;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3ccircle cx='12' cy='12' r='10'%3e%3c/circle%3e%3cpolyline points='12 6 12 12 16 14'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-size: 1.2em;
+            padding-right: 3rem !important;
+        }
+
+        .dark .input-time {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3ccircle cx='12' cy='12' r='10'%3e%3c/circle%3e%3cpolyline points='12 6 12 12 16 14'%3e%3c/polyline%3e%3c/svg%3e");
+        }
+
+        /* Estilo para inputs desabilitados */
+        .input-modern:disabled,
+        .select-modern:disabled {
+            @apply bg-gray-100 dark:bg-gray-900 border-gray-300 dark:border-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed;
+        }
+
+        /* Estilo para inputs inválidos */
+        .input-modern:invalid,
+        .select-modern:invalid {
+            @apply border-red-300 dark:border-red-800;
+        }
+
+        .input-modern:invalid:focus {
+            @apply ring-4 ring-red-500/10 border-red-500;
         }
 
         /* Menu Flutuante (Island) */
@@ -72,10 +201,39 @@
             border-radius: 24px !important; padding: 1.5rem !important; width: 90% !important; max-width: 360px !important;
         }
         .swal2-input, .swal2-select { 
-            border-radius: 12px !important; background: #f3f4f6 !important; border: none !important;
+            border-radius: 16px !important; 
+            background: #f8fafc !important; 
+            border: 2px solid #e2e8f0 !important;
+            font-family: 'Inter', sans-serif !important;
+            padding: 12px 16px !important;
         }
-        .dark .swal2-popup { background: #1e293b !important; color: white !important; }
-        .dark .swal2-input, .dark .swal2-select { background: #334155 !important; color: white !important; }
+        .dark .swal2-popup { 
+            background: #1e293b !important; 
+            color: white !important; 
+        }
+        .dark .swal2-input, .dark .swal2-select { 
+            background: #334155 !important; 
+            color: white !important; 
+            border-color: #475569 !important;
+        }
+
+        /* Scrollbar personalizada */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            @apply bg-gray-100 dark:bg-gray-800 rounded-full;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            @apply bg-gray-300 dark:bg-gray-600 rounded-full;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            @apply bg-gray-400 dark:bg-gray-500;
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-900 dark:bg-darkbg dark:text-gray-100 antialiased pb-32">
@@ -90,9 +248,15 @@
                 <h1 class="text-4xl font-extrabold tracking-tight mb-2">Bem-vindo</h1>
                 <p class="text-gray-500 text-lg">Gerencie seus eventos como um pro.</p>
             </div>
-            <form @submit.prevent="handleLogin" class="space-y-4">
-                <input v-model="email" type="email" placeholder="E-mail" class="input-next">
-                <input v-model="password" type="password" placeholder="Senha" class="input-next">
+            <form @submit.prevent="handleLogin" class="space-y-6">
+                <div class="input-group">
+                    <input v-model="email" type="email" class="input-modern" placeholder=" " required>
+                    <label for="email">E-mail</label>
+                </div>
+                <div class="input-group">
+                    <input v-model="password" type="password" class="input-modern" placeholder=" " required>
+                    <label for="password">Senha</label>
+                </div>
                 <button type="submit" class="w-full py-4 rounded-2xl btn-gradient text-lg">
                     {{ isRegistering ? 'Cadastrar' : 'Entrar' }}
                 </button>
@@ -110,10 +274,10 @@
                     <h2 class="text-2xl font-bold dark:text-white">PartyPlanner</h2>
                 </div>
                 <div class="flex gap-2">
-                    <button @click="toggleDarkMode" class="w-10 h-10 rounded-full bg-gray-200 dark:bg-surface flex items-center justify-center text-gray-600 dark:text-yellow-400">
+                    <button @click="toggleDarkMode" class="w-10 h-10 rounded-full bg-gray-200 dark:bg-surface flex items-center justify-center text-gray-600 dark:text-yellow-400 transition-colors">
                         <i :class="isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon'"></i>
                     </button>
-                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600 flex items-center justify-center cursor-pointer" @click="logout">
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600 flex items-center justify-center cursor-pointer transition-all hover:scale-105" @click="logout">
                         <i class="fa-solid fa-user text-gray-500 dark:text-gray-300"></i>
                     </div>
                 </div>
@@ -165,7 +329,7 @@
 
                     <div class="flex justify-between items-center mb-4 mt-4">
                         <h3 class="text-lg font-bold dark:text-white">Próximos Eventos</h3>
-                        <button @click="view='appointments_list'" class="text-sm text-primary font-bold">Ver todos</button>
+                        <button @click="view='appointments_list'" class="text-sm text-primary font-bold hover:underline">Ver todos</button>
                     </div>
 
                     <div v-if="next7DaysApps.length === 0" class="p-8 rounded-3xl bg-gray-100 dark:bg-surface text-center text-gray-400">
@@ -174,7 +338,7 @@
                     </div>
 
                     <div class="space-y-3 pb-24">
-                        <div v-for="app in next7DaysApps" :key="app.id" @click="view='appointments_list'" class="bg-white dark:bg-surface p-4 rounded-3xl flex items-center gap-4 shadow-sm border border-gray-100 dark:border-gray-800">
+                        <div v-for="app in next7DaysApps" :key="app.id" @click="view='appointments_list'" class="bg-white dark:bg-surface p-4 rounded-3xl flex items-center gap-4 shadow-sm border border-gray-100 dark:border-gray-800 hover:shadow-md transition-shadow cursor-pointer">
                             <div class="w-12 h-12 rounded-2xl bg-gray-100 dark:bg-gray-800 flex flex-col items-center justify-center text-center flex-shrink-0">
                                 <span class="text-[10px] font-bold text-gray-400 uppercase">{{ getMonth(app.date) }}</span>
                                 <span class="text-lg font-bold text-gray-800 dark:text-white leading-none">{{ getDay(app.date) }}</span>
@@ -183,7 +347,7 @@
                                 <h4 class="font-bold text-gray-900 dark:text-white truncate">{{ getClientName(app.clientId) }}</h4>
                                 <p class="text-xs text-gray-500">{{ app.time }} • {{ app.location.bairro }}</p>
                             </div>
-                            <div :class="{'bg-yellow-100 text-yellow-600': app.status==='pending', 'bg-green-100 text-green-600': app.status==='concluded'}" class="px-2 py-1 rounded-lg text-[10px] font-bold uppercase">
+                            <div :class="{'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400': app.status==='pending', 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400': app.status==='concluded'}" class="px-2 py-1 rounded-lg text-[10px] font-bold uppercase">
                                 {{ app.status === 'pending' ? 'Pendente' : 'OK' }}
                             </div>
                         </div>
@@ -193,12 +357,17 @@
                 <div v-if="view === 'appointments_list'" class="animate-fade">
                     <h2 class="text-2xl font-bold mb-6 dark:text-white">Agenda Completa</h2>
                     <div class="flex gap-2 mb-6">
-                        <input v-model="filterDate" type="date" class="input-next">
-                        <button @click="filterDate=''" class="w-14 rounded-2xl bg-gray-200 dark:bg-surface flex items-center justify-center"><i class="fa-solid fa-times"></i></button>
+                        <div class="input-group flex-1">
+                            <input v-model="filterDate" type="date" class="input-modern input-date">
+                            <label v-if="!filterDate">Filtrar por data</label>
+                        </div>
+                        <button @click="filterDate=''" class="w-14 rounded-2xl bg-gray-200 dark:bg-surface flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors">
+                            <i class="fa-solid fa-times"></i>
+                        </button>
                     </div>
                     
                     <div class="space-y-4 pb-24">
-                        <div v-for="app in sortedAppointments" :key="app.id" class="bg-white dark:bg-surface p-5 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800">
+                        <div v-for="app in sortedAppointments" :key="app.id" class="bg-white dark:bg-surface p-5 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 hover:shadow-md transition-shadow">
                             <div class="flex justify-between items-start mb-3">
                                 <div>
                                     <p class="text-xs font-bold text-primary mb-1">{{ formatDate(app.date) }} às {{ app.time }}</p>
@@ -216,8 +385,12 @@
                                     <p class="text-base font-bold text-gray-900 dark:text-white">{{ formatCurrency(app.finalBalance) }}</p>
                                 </div>
                                 <div class="flex gap-2">
-                                    <button @click="showReceipt(app)" class="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-white flex items-center justify-center"><i class="fa-solid fa-file-invoice"></i></button>
-                                    <button v-if="app.status==='pending'" @click="changeStatus(app,'concluded')" class="w-10 h-10 rounded-xl bg-green-500 text-white flex items-center justify-center shadow-lg shadow-green-500/30"><i class="fa-solid fa-check"></i></button>
+                                    <button @click="showReceipt(app)" class="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-white flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                                        <i class="fa-solid fa-file-invoice"></i>
+                                    </button>
+                                    <button v-if="app.status==='pending'" @click="changeStatus(app,'concluded')" class="w-10 h-10 rounded-xl bg-green-500 text-white flex items-center justify-center shadow-lg shadow-green-500/30 hover:bg-green-600 transition-colors">
+                                        <i class="fa-solid fa-check"></i>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -226,7 +399,9 @@
 
                 <div v-if="view === 'schedule'" class="animate-fade">
                     <div class="flex items-center justify-between mb-6">
-                        <button @click="view='dashboard'" class="w-10 h-10 rounded-full bg-gray-100 dark:bg-surface flex items-center justify-center"><i class="fa-solid fa-arrow-left"></i></button>
+                        <button @click="view='dashboard'" class="w-10 h-10 rounded-full bg-gray-100 dark:bg-surface flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                            <i class="fa-solid fa-arrow-left"></i>
+                        </button>
                         <h2 class="text-xl font-bold dark:text-white">{{ isEditing ? 'Editar' : 'Nova Festa' }}</h2>
                         <div class="w-10"></div>
                     </div>
@@ -234,44 +409,77 @@
                     <form @submit.prevent="saveAppointment" class="space-y-6 pb-32">
                         <div class="bg-white dark:bg-surface p-5 rounded-3xl space-y-4 shadow-sm">
                             <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest">Quem & Quando</h3>
-                            <select v-model="tempApp.clientId" class="select-next" required>
-                                <option value="" disabled>Selecione o Cliente</option>
-                                <option v-for="c in clients" :value="c.id">{{ c.name }}</option>
-                            </select>
-                            <div class="flex gap-3">
-                                <input v-model="tempApp.date" type="date" class="input-next" required>
-                                <input v-model="tempApp.time" type="time" class="input-next" required>
+                            <div class="input-group">
+                                <select v-model="tempApp.clientId" class="select-modern" required>
+                                    <option value="" disabled selected>Selecione o Cliente</option>
+                                    <option v-for="c in clients" :value="c.id">{{ c.name }}</option>
+                                </select>
+                                <label>Cliente</label>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="input-group">
+                                    <input v-model="tempApp.date" type="date" class="input-modern input-date" required>
+                                    <label>Data</label>
+                                </div>
+                                <div class="input-group">
+                                    <input v-model="tempApp.time" type="time" class="input-modern input-time" required>
+                                    <label>Horário</label>
+                                </div>
                             </div>
                         </div>
 
                         <div class="bg-white dark:bg-surface p-5 rounded-3xl space-y-4 shadow-sm">
                             <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest">Onde & Como</h3>
-                            <input v-model="tempApp.location.bairro" placeholder="Bairro" class="input-next" required>
-                            <div class="flex gap-3">
-                                <input v-model="tempApp.location.cidade" placeholder="Cidade" class="input-next">
-                                <input v-model="tempApp.location.numero" placeholder="Nº" class="input-next w-1/3">
+                            <div class="input-group">
+                                <input v-model="tempApp.location.bairro" class="input-modern" required placeholder=" ">
+                                <label>Bairro</label>
                             </div>
-                            <input v-model="tempApp.details.colors" placeholder="Tema / Cores dos Balões" class="input-next border-l-4 border-primary">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="input-group">
+                                    <input v-model="tempApp.location.cidade" class="input-modern" placeholder=" ">
+                                    <label>Cidade</label>
+                                </div>
+                                <div class="input-group">
+                                    <input v-model="tempApp.location.numero" class="input-modern" placeholder=" ">
+                                    <label>Número</label>
+                                </div>
+                            </div>
+                            <div class="input-group">
+                                <input v-model="tempApp.details.colors" class="input-modern border-l-4 border-primary" placeholder=" ">
+                                <label>Tema / Cores dos Balões</label>
+                            </div>
                         </div>
 
                         <div class="bg-white dark:bg-surface p-5 rounded-3xl space-y-4 shadow-sm">
                             <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest">Composição</h3>
                             <div class="flex gap-2">
-                                <select v-model="tempServiceSelect" class="select-next text-sm py-3"><option value="" disabled>Add Serviço...</option><option v-for="s in services" :value="s">{{s.description}}</option></select>
-                                <button type="button" @click="addServiceToApp" class="bg-gray-900 dark:bg-white text-white dark:text-gray-900 w-12 rounded-xl text-xl">+</button>
+                                <div class="input-group flex-1">
+                                    <select v-model="tempServiceSelect" class="select-modern text-sm py-3">
+                                        <option value="" disabled selected>Add Serviço...</option>
+                                        <option v-for="s in services" :value="s">{{s.description}}</option>
+                                    </select>
+                                    <label>Serviço</label>
+                                </div>
+                                <button type="button" @click="addServiceToApp" class="bg-gray-900 dark:bg-white text-white dark:text-gray-900 w-12 rounded-xl text-xl hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors">+</button>
                             </div>
                             <div class="space-y-2">
                                 <div v-for="(s,i) in tempApp.selectedServices" class="flex justify-between items-center text-sm bg-gray-50 dark:bg-darkbg p-3 rounded-xl">
                                     <span class="font-medium">{{s.description}}</span>
                                     <div class="flex items-center gap-3">
                                         <span class="font-bold">{{formatCurrency(s.price)}}</span>
-                                        <i @click="removeServiceFromApp(i)" class="fa-solid fa-times text-red-400"></i>
+                                        <i @click="removeServiceFromApp(i)" class="fa-solid fa-times text-red-400 hover:text-red-600 cursor-pointer transition-colors"></i>
                                     </div>
                                 </div>
                             </div>
                             <div class="flex gap-2 mt-2">
-                                <select v-model="tempStaffSelect" class="select-next text-sm py-3"><option value="" disabled>Add Equipe...</option><option v-for="st in staff" :value="st">{{st.name}}</option></select>
-                                <button type="button" @click="addStaffToApp" class="bg-indigo-500 text-white w-12 rounded-xl text-xl">+</button>
+                                <div class="input-group flex-1">
+                                    <select v-model="tempStaffSelect" class="select-modern text-sm py-3">
+                                        <option value="" disabled selected>Add Equipe...</option>
+                                        <option v-for="st in staff" :value="st">{{st.name}}</option>
+                                    </select>
+                                    <label>Equipe</label>
+                                </div>
+                                <button type="button" @click="addStaffToApp" class="bg-indigo-500 text-white w-12 rounded-xl text-xl hover:bg-indigo-600 transition-colors">+</button>
                             </div>
                             <div class="space-y-2">
                                 <div v-for="(st,i) in tempApp.selectedStaff" class="flex justify-between items-center text-sm bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-300 p-3 rounded-xl">
@@ -285,7 +493,10 @@
                             <div class="flex justify-between text-sm text-red-300 dark:text-red-500 mb-4"><span>Custo Equipe</span><span>- {{formatCurrency(calcTotalStaffCost)}}</span></div>
                             <div class="flex justify-between items-center mb-6 pt-4 border-t border-white/10 dark:border-gray-200">
                                 <span class="font-bold text-sm">ENTRADA PAGA</span>
-                                <input v-model.number="tempApp.details.entryFee" type="number" class="w-32 text-right p-2 rounded-xl bg-white/10 dark:bg-gray-100 border-none outline-none font-bold text-white dark:text-gray-900">
+                                <div class="input-group w-32">
+                                    <input v-model.number="tempApp.details.entryFee" type="number" class="input-modern input-currency text-right bg-white/10 dark:bg-gray-100 border-none text-white dark:text-gray-900">
+                                    <label>Valor</label>
+                                </div>
                             </div>
                             <div class="flex justify-between items-end">
                                 <span class="text-xs opacity-50 uppercase tracking-widest">A Receber</span>
@@ -293,26 +504,31 @@
                             </div>
                         </div>
 
-                        <button type="submit" class="w-full py-4 rounded-2xl btn-gradient text-lg shadow-xl">Confirmar</button>
+                        <button type="submit" class="w-full py-4 rounded-2xl btn-gradient text-lg shadow-xl hover:shadow-primary/40 transition-all">Confirmar</button>
                     </form>
                 </div>
 
                 <div v-if="view === 'expenses'" class="animate-fade">
                     <div class="flex items-center justify-between mb-6">
                         <h2 class="text-2xl font-bold dark:text-white">Finanças</h2>
-                        <input type="month" v-model="expenseFilterMonth" class="bg-gray-100 dark:bg-surface p-2 rounded-xl text-sm outline-none">
+                        <div class="input-group w-40">
+                            <input type="month" v-model="expenseFilterMonth" class="input-modern">
+                            <label>Mês</label>
+                        </div>
                     </div>
                     
-                    <button @click="openExpenseModal" class="w-full py-4 bg-red-500 text-white rounded-2xl font-bold shadow-lg shadow-red-500/30 mb-6 flex items-center justify-center gap-2">
+                    <button @click="openExpenseModal" class="w-full py-4 bg-red-500 text-white rounded-2xl font-bold shadow-lg shadow-red-500/30 mb-6 flex items-center justify-center gap-2 hover:bg-red-600 transition-colors">
                         <i class="fa-solid fa-circle-minus"></i> Lançar Saída
                     </button>
 
                     <div v-if="filteredExpenses.length === 0" class="text-center text-gray-400 py-10">Sem lançamentos no mês.</div>
                     
                     <div class="space-y-3 pb-24">
-                        <div v-for="exp in filteredExpenses" :key="exp.id" class="bg-white dark:bg-surface p-4 rounded-2xl flex justify-between items-center shadow-sm">
+                        <div v-for="exp in filteredExpenses" :key="exp.id" class="bg-white dark:bg-surface p-4 rounded-2xl flex justify-between items-center shadow-sm hover:shadow-md transition-shadow">
                             <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-full bg-red-50 dark:bg-red-900/20 text-red-500 flex items-center justify-center"><i class="fa-solid fa-arrow-up"></i></div>
+                                <div class="w-10 h-10 rounded-full bg-red-50 dark:bg-red-900/20 text-red-500 flex items-center justify-center">
+                                    <i class="fa-solid fa-arrow-up"></i>
+                                </div>
                                 <div>
                                     <p class="font-bold text-sm">{{ exp.description }}</p>
                                     <p class="text-xs text-gray-500">{{ formatDate(exp.date) }}</p>
@@ -353,53 +569,195 @@
                         </div>
                     </div>
                     <div class="flex gap-3 justify-center">
-                        <button @click="downloadReceiptImage" class="bg-gray-900 text-white px-6 py-3 rounded-xl font-bold shadow-lg"><i class="fa-solid fa-download mr-2"></i> Baixar</button>
-                        <button @click="view='appointments_list'" class="bg-gray-200 text-gray-600 px-6 py-3 rounded-xl font-bold">Voltar</button>
+                        <button @click="downloadReceiptImage" class="bg-gray-900 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-black transition-colors">
+                            <i class="fa-solid fa-download mr-2"></i> Baixar
+                        </button>
+                        <button @click="view='appointments_list'" class="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-6 py-3 rounded-xl font-bold hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                            Voltar
+                        </button>
                     </div>
                 </div>
 
                 <div v-if="view === 'company_settings'">
-                    <button @click="view='catalog_hub'" class="mb-4 text-gray-500"><i class="fa-solid fa-arrow-left"></i> Voltar</button>
+                    <button @click="view='catalog_hub'" class="mb-4 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
+                        <i class="fa-solid fa-arrow-left"></i> Voltar
+                    </button>
                     <div class="bg-white dark:bg-surface p-6 rounded-3xl shadow-sm space-y-4">
                         <h2 class="text-xl font-bold dark:text-white">Empresa</h2>
-                        <div class="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-2xl bg-gray-50 dark:bg-darkbg"><div v-if="company.logo" class="w-32 h-32 mb-2 relative"><img :src="company.logo" class="w-full h-full object-contain"><button @click="company.logo = ''" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center"><i class="fa-solid fa-times"></i></button></div><div v-else class="text-center text-gray-400"><i class="fa-solid fa-cloud-arrow-up text-3xl mb-2"></i><p class="text-xs">Logo da Empresa</p></div><input type="file" @change="handleLogoUpload" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" accept="image/*"></div>
-                        <input v-model="company.fantasia" placeholder="Nome Fantasia" class="input-next">
-                        <input v-model="company.razao" placeholder="Razão Social" class="input-next">
-                        <input v-model="company.cnpj" placeholder="CNPJ" class="input-next">
-                        <input v-model="company.endereco" placeholder="Endereço" class="input-next">
-                        <input v-model="company.cidade" placeholder="Cidade" class="input-next">
-                        <input v-model="company.contato" placeholder="Telefone" class="input-next">
-                        <button @click="saveCompany" class="w-full py-4 rounded-2xl btn-gradient text-lg">Salvar</button>
+                        <div class="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-2xl bg-gray-50 dark:bg-darkbg relative cursor-pointer hover:border-primary/50 transition-colors">
+                            <div v-if="company.logo" class="w-32 h-32 mb-2 relative">
+                                <img :src="company.logo" class="w-full h-full object-contain">
+                                <button @click="company.logo = ''" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors">
+                                    <i class="fa-solid fa-times"></i>
+                                </button>
+                            </div>
+                            <div v-else class="text-center text-gray-400">
+                                <i class="fa-solid fa-cloud-arrow-up text-3xl mb-2"></i>
+                                <p class="text-xs">Logo da Empresa</p>
+                            </div>
+                            <input type="file" @change="handleLogoUpload" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" accept="image/*">
+                        </div>
+                        
+                        <div class="space-y-4">
+                            <div class="input-group">
+                                <input v-model="company.fantasia" class="input-modern" placeholder=" ">
+                                <label>Nome Fantasia</label>
+                            </div>
+                            <div class="input-group">
+                                <input v-model="company.razao" class="input-modern" placeholder=" ">
+                                <label>Razão Social</label>
+                            </div>
+                            <div class="input-group">
+                                <input v-model="company.cnpj" class="input-modern" placeholder=" ">
+                                <label>CNPJ</label>
+                            </div>
+                            <div class="input-group">
+                                <input v-model="company.endereco" class="input-modern" placeholder=" ">
+                                <label>Endereço</label>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="input-group">
+                                    <input v-model="company.cidade" class="input-modern" placeholder=" ">
+                                    <label>Cidade</label>
+                                </div>
+                                <div class="input-group">
+                                    <input v-model="company.contato" class="input-modern" placeholder=" ">
+                                    <label>Telefone</label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <button @click="saveCompany" class="w-full py-4 rounded-2xl btn-gradient text-lg hover:shadow-primary/40 transition-all">
+                            Salvar
+                        </button>
                     </div>
                 </div>
 
                 <div v-if="view === 'catalog_hub'" class="animate-fade">
                     <h2 class="text-2xl font-bold mb-6 dark:text-white">Cadastros</h2>
                     <div class="grid grid-cols-2 gap-4">
-                        <div @click="view='company_settings'" class="bg-white dark:bg-surface p-6 rounded-3xl flex flex-col items-center justify-center gap-3 shadow-sm hover:scale-[1.02] transition"><div class="w-12 h-12 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-xl"><i class="fa-solid fa-building"></i></div><span class="font-bold text-sm">Empresa</span></div>
-                        <div @click="view='clients_list'" class="bg-white dark:bg-surface p-6 rounded-3xl flex flex-col items-center justify-center gap-3 shadow-sm hover:scale-[1.02] transition"><div class="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xl"><i class="fa-solid fa-users"></i></div><span class="font-bold text-sm">Clientes</span></div>
-                        <div @click="view='services_list'" class="bg-white dark:bg-surface p-6 rounded-3xl flex flex-col items-center justify-center gap-3 shadow-sm hover:scale-[1.02] transition"><div class="w-12 h-12 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center text-xl"><i class="fa-solid fa-wand-magic-sparkles"></i></div><span class="font-bold text-sm">Serviços</span></div>
-                        <div @click="view='staff_list'" class="bg-white dark:bg-surface p-6 rounded-3xl flex flex-col items-center justify-center gap-3 shadow-sm hover:scale-[1.02] transition"><div class="w-12 h-12 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xl"><i class="fa-solid fa-id-card"></i></div><span class="font-bold text-sm">Equipe</span></div>
+                        <div @click="view='company_settings'" class="bg-white dark:bg-surface p-6 rounded-3xl flex flex-col items-center justify-center gap-3 shadow-sm hover:scale-[1.02] transition-all cursor-pointer border border-transparent hover:border-primary/20">
+                            <div class="w-12 h-12 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-xl">
+                                <i class="fa-solid fa-building"></i>
+                            </div>
+                            <span class="font-bold text-sm">Empresa</span>
+                        </div>
+                        <div @click="view='clients_list'" class="bg-white dark:bg-surface p-6 rounded-3xl flex flex-col items-center justify-center gap-3 shadow-sm hover:scale-[1.02] transition-all cursor-pointer border border-transparent hover:border-blue-500/20">
+                            <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xl">
+                                <i class="fa-solid fa-users"></i>
+                            </div>
+                            <span class="font-bold text-sm">Clientes</span>
+                        </div>
+                        <div @click="view='services_list'" class="bg-white dark:bg-surface p-6 rounded-3xl flex flex-col items-center justify-center gap-3 shadow-sm hover:scale-[1.02] transition-all cursor-pointer border border-transparent hover:border-pink-500/20">
+                            <div class="w-12 h-12 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center text-xl">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                            </div>
+                            <span class="font-bold text-sm">Serviços</span>
+                        </div>
+                        <div @click="view='staff_list'" class="bg-white dark:bg-surface p-6 rounded-3xl flex flex-col items-center justify-center gap-3 shadow-sm hover:scale-[1.02] transition-all cursor-pointer border border-transparent hover:border-indigo-500/20">
+                            <div class="w-12 h-12 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xl">
+                                <i class="fa-solid fa-id-card"></i>
+                            </div>
+                            <span class="font-bold text-sm">Equipe</span>
+                        </div>
                     </div>
                 </div>
 
-                <div v-if="view === 'clients_list'"><div class="flex items-center gap-3 mb-4"><button @click="view='catalog_hub'"><i class="fa-solid fa-arrow-left"></i></button><h2 class="text-xl font-bold">Clientes</h2></div><button @click="openClientModal" class="w-full py-3 bg-blue-500 text-white rounded-2xl mb-4 font-bold">Novo Cliente</button><div class="space-y-2 pb-24"><div v-for="c in clients" class="bg-white dark:bg-surface p-4 rounded-2xl flex justify-between"><div><p class="font-bold">{{c.name}}</p><p class="text-xs text-gray-500">{{c.phone}}</p></div><button @click="deleteClient(c.id)" class="text-red-400"><i class="fa-solid fa-trash"></i></button></div></div></div>
-                <div v-if="view === 'services_list'"><div class="flex items-center gap-3 mb-4"><button @click="view='catalog_hub'"><i class="fa-solid fa-arrow-left"></i></button><h2 class="text-xl font-bold">Serviços</h2></div><button @click="openServiceModal" class="w-full py-3 bg-pink-500 text-white rounded-2xl mb-4 font-bold">Novo Serviço</button><div class="space-y-2 pb-24"><div v-for="s in services" class="bg-white dark:bg-surface p-4 rounded-2xl flex justify-between"><span>{{s.description}}</span><span class="font-bold text-pink-500">{{formatCurrency(s.price)}}</span></div></div></div>
-                <div v-if="view === 'staff_list'"><div class="flex items-center gap-3 mb-4"><button @click="view='catalog_hub'"><i class="fa-solid fa-arrow-left"></i></button><h2 class="text-xl font-bold">Equipe</h2></div><button @click="openStaffModal" class="w-full py-3 bg-indigo-500 text-white rounded-2xl mb-4 font-bold">Novo Membro</button><div class="space-y-2 pb-24"><div v-for="s in staff" class="bg-white dark:bg-surface p-4 rounded-2xl flex justify-between"><span>{{s.name}}</span><div class="flex gap-3"><span class="font-bold text-indigo-500">{{formatCurrency(s.dailyRate)}}</span><button @click="deleteStaff(s.id)" class="text-red-400"><i class="fa-solid fa-trash"></i></button></div></div></div></div>
+                <!-- Seções de listagem mantidas com inputs atualizados -->
+                <div v-if="view === 'clients_list'">
+                    <div class="flex items-center gap-3 mb-4">
+                        <button @click="view='catalog_hub'" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                            <i class="fa-solid fa-arrow-left"></i>
+                        </button>
+                        <h2 class="text-xl font-bold dark:text-white">Clientes</h2>
+                    </div>
+                    <button @click="openClientModal" class="w-full py-4 bg-blue-500 text-white rounded-2xl mb-6 font-bold hover:bg-blue-600 transition-colors">
+                        Novo Cliente
+                    </button>
+                    <div class="space-y-3 pb-24">
+                        <div v-for="c in clients" class="bg-white dark:bg-surface p-4 rounded-2xl flex justify-between items-center shadow-sm hover:shadow-md transition-shadow">
+                            <div>
+                                <p class="font-bold">{{c.name}}</p>
+                                <p class="text-sm text-gray-500">{{c.phone}}</p>
+                                <p class="text-xs text-gray-400">{{c.email}}</p>
+                            </div>
+                            <button @click="deleteClient(c.id)" class="text-red-400 hover:text-red-600 transition-colors">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="view === 'services_list'">
+                    <div class="flex items-center gap-3 mb-4">
+                        <button @click="view='catalog_hub'" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                            <i class="fa-solid fa-arrow-left"></i>
+                        </button>
+                        <h2 class="text-xl font-bold dark:text-white">Serviços</h2>
+                    </div>
+                    <button @click="openServiceModal" class="w-full py-4 bg-pink-500 text-white rounded-2xl mb-6 font-bold hover:bg-pink-600 transition-colors">
+                        Novo Serviço
+                    </button>
+                    <div class="space-y-3 pb-24">
+                        <div v-for="s in services" class="bg-white dark:bg-surface p-4 rounded-2xl flex justify-between items-center shadow-sm hover:shadow-md transition-shadow">
+                            <span class="font-medium">{{s.description}}</span>
+                            <span class="font-bold text-pink-500">{{formatCurrency(s.price)}}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="view === 'staff_list'">
+                    <div class="flex items-center gap-3 mb-4">
+                        <button @click="view='catalog_hub'" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                            <i class="fa-solid fa-arrow-left"></i>
+                        </button>
+                        <h2 class="text-xl font-bold dark:text-white">Equipe</h2>
+                    </div>
+                    <button @click="openStaffModal" class="w-full py-4 bg-indigo-500 text-white rounded-2xl mb-6 font-bold hover:bg-indigo-600 transition-colors">
+                        Novo Membro
+                    </button>
+                    <div class="space-y-3 pb-24">
+                        <div v-for="s in staff" class="bg-white dark:bg-surface p-4 rounded-2xl flex justify-between items-center shadow-sm hover:shadow-md transition-shadow">
+                            <div>
+                                <span class="font-medium">{{s.name}}</span>
+                                <p class="text-xs text-gray-500">{{s.role}}</p>
+                            </div>
+                            <div class="flex gap-3 items-center">
+                                <span class="font-bold text-indigo-500">{{formatCurrency(s.dailyRate)}}</span>
+                                <button @click="deleteStaff(s.id)" class="text-red-400 hover:text-red-600 transition-colors">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
             </main>
 
             <nav class="nav-island">
-                <button @click="view='dashboard'" :class="view==='dashboard'?'text-primary scale-110':'text-gray-400'" class="flex flex-col items-center transition"><i class="fa-solid fa-house text-xl"></i></button>
-                <button @click="view='appointments_list'" :class="view==='appointments_list'?'text-primary scale-110':'text-gray-400'" class="flex flex-col items-center transition"><i class="fa-solid fa-calendar-days text-xl"></i></button>
-                <button @click="view='expenses'" :class="view==='expenses'?'text-primary scale-110':'text-gray-400'" class="flex flex-col items-center transition"><i class="fa-solid fa-chart-pie text-xl"></i></button>
-                <button @click="view='catalog_hub'" :class="view.includes('catalog')||view.includes('_list')?'text-primary scale-110':'text-gray-400'" class="flex flex-col items-center transition"><i class="fa-solid fa-layer-group text-xl"></i></button>
+                <button @click="view='dashboard'" :class="view==='dashboard'?'text-primary scale-110':'text-gray-400'" class="flex flex-col items-center transition-all duration-200">
+                    <i class="fa-solid fa-house text-xl mb-1"></i>
+                    <span class="text-[10px] font-bold">Início</span>
+                </button>
+                <button @click="view='appointments_list'" :class="view==='appointments_list'?'text-primary scale-110':'text-gray-400'" class="flex flex-col items-center transition-all duration-200">
+                    <i class="fa-solid fa-calendar-days text-xl mb-1"></i>
+                    <span class="text-[10px] font-bold">Agenda</span>
+                </button>
+                <button @click="view='expenses'" :class="view==='expenses'?'text-primary scale-110':'text-gray-400'" class="flex flex-col items-center transition-all duration-200">
+                    <i class="fa-solid fa-chart-pie text-xl mb-1"></i>
+                    <span class="text-[10px] font-bold">Finanças</span>
+                </button>
+                <button @click="view='catalog_hub'" :class="view.includes('catalog')||view.includes('_list')?'text-primary scale-110':'text-gray-400'" class="flex flex-col items-center transition-all duration-200">
+                    <i class="fa-solid fa-layer-group text-xl mb-1"></i>
+                    <span class="text-[10px] font-bold">Cadastros</span>
+                </button>
             </nav>
 
         </div>
     </div>
 
     <script type="module">
+        // O restante do código JavaScript permanece exatamente o mesmo
         import { createApp, ref, computed, reactive, watch, onMounted, nextTick } from 'https://unpkg.com/vue@3/dist/vue.esm-browser.js';
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
@@ -452,9 +810,31 @@
                 const currentMonth = ref(today.getMonth());
                 const currentYear = ref(today.getFullYear());
 
-                onMounted(() => { onAuthStateChanged(auth, (u) => { user.value = u; if(u) loadData(); }); });
+                onMounted(() => { 
+                    onAuthStateChanged(auth, (u) => { 
+                        user.value = u; 
+                        if(u) loadData(); 
+                    });
+                    // Verificar tema salvo
+                    const savedTheme = localStorage.getItem('darkMode');
+                    if (savedTheme === 'true') {
+                        isDark.value = true;
+                        document.documentElement.classList.add('dark');
+                    }
+                });
 
-                const handleLogin = async () => { try { if (isRegistering.value) await createUserWithEmailAndPassword(auth, email.value, password.value); else await signInWithEmailAndPassword(auth, email.value, password.value); } catch (e) { Swal.fire('Erro', 'Verifique dados', 'error'); } };
+                const handleLogin = async () => { 
+                    try { 
+                        if (isRegistering.value) {
+                            await createUserWithEmailAndPassword(auth, email.value, password.value);
+                        } else {
+                            await signInWithEmailAndPassword(auth, email.value, password.value);
+                        }
+                    } catch (e) { 
+                        Swal.fire('Erro', 'Verifique seus dados', 'error'); 
+                    } 
+                };
+                
                 const logout = () => signOut(auth);
 
                 const loadData = () => {
@@ -471,21 +851,93 @@
                 const deleteDocFromDb = (coll, id) => deleteDoc(doc(db, `users/${user.value.uid}/${coll}`, id));
                 const updateDocInDb = (coll, id, data) => updateDoc(doc(db, `users/${user.value.uid}/${coll}`, id), data);
 
-                const handleLogoUpload = (e) => { const file = e.target.files[0]; if (file) { if(file.size > 800000) { Swal.fire('Erro', 'Max 800kb', 'error'); return; } const reader = new FileReader(); reader.onload = (ev) => company.logo = ev.target.result; reader.readAsDataURL(file); } };
-                const saveCompany = async () => { await setDoc(doc(db, `users/${user.value.uid}/settings`, 'company'), { ...company }); Swal.fire({icon:'success',title:'Salvo',toast:true,position:'top',timer:1500,showConfirmButton:false}); };
+                const handleLogoUpload = (e) => { 
+                    const file = e.target.files[0]; 
+                    if (file) { 
+                        if(file.size > 800000) { 
+                            Swal.fire('Erro', 'Arquivo muito grande (máx. 800kb)', 'error'); 
+                            return; 
+                        } 
+                        const reader = new FileReader(); 
+                        reader.onload = (ev) => company.logo = ev.target.result; 
+                        reader.readAsDataURL(file); 
+                    } 
+                };
+                
+                const saveCompany = async () => { 
+                    await setDoc(doc(db, `users/${user.value.uid}/settings`, 'company'), { ...company }); 
+                    Swal.fire({
+                        icon:'success',
+                        title:'Salvo',
+                        toast:true,
+                        position:'top',
+                        timer:1500,
+                        showConfirmButton:false,
+                        background: isDark.value ? '#1e293b' : '#fff',
+                        color: isDark.value ? '#fff' : '#000'
+                    }); 
+                };
 
                 // Modais
-                const openClientModal = async () => { const {value:v}=await Swal.fire({title:'Novo Cliente',html:'<input id="n" class="swal2-input" placeholder="Nome"><input id="p" class="swal2-input" placeholder="Tel"><input id="e" class="swal2-input" placeholder="Email">',preConfirm:()=>[document.getElementById('n').value,document.getElementById('p').value,document.getElementById('e').value]}); if(v&&v[0])addDocToDb('clients',{name:v[0],phone:v[1],email:v[2]}); };
-                const openServiceModal = async () => { const {value:v}=await Swal.fire({title:'Novo Serviço',html:'<input id="d" class="swal2-input" placeholder="Desc"><input id="p" type="number" class="swal2-input" placeholder="Valor">',preConfirm:()=>[document.getElementById('d').value,document.getElementById('p').value]}); if(v&&v[0])addDocToDb('services',{description:v[0],price:Number(v[1])}); };
-                const openStaffModal = async () => { const {value:v}=await Swal.fire({title:'Novo Staff',html:'<input id="n" class="swal2-input" placeholder="Nome"><input id="r" class="swal2-input" placeholder="Função"><input id="d" type="number" class="swal2-input" placeholder="Diária">',preConfirm:()=>[document.getElementById('n').value,document.getElementById('r').value,document.getElementById('d').value]}); if(v&&v[0])addDocToDb('staff',{name:v[0],role:v[1],dailyRate:Number(v[2])}); };
-                const openExpenseModal = async () => { const {value:v}=await Swal.fire({title:'Nova Despesa',html:'<input id="d" class="swal2-input" placeholder="Desc"><input id="v" type="number" class="swal2-input" placeholder="Valor"><input id="t" type="date" class="swal2-input">',preConfirm:()=>[document.getElementById('d').value,document.getElementById('v').value,document.getElementById('t').value]}); if(v&&v[0])addDocToDb('expenses',{description:v[0],value:Number(v[1]),date:v[2]}); };
+                const openClientModal = async () => { 
+                    const {value:v}=await Swal.fire({
+                        title:'Novo Cliente',
+                        html:'<input id="n" class="swal2-input" placeholder="Nome"><input id="p" class="swal2-input" placeholder="Telefone"><input id="e" class="swal2-input" placeholder="Email">',
+                        preConfirm:()=>[document.getElementById('n').value,document.getElementById('p').value,document.getElementById('e').value]
+                    }); 
+                    if(v&&v[0]) addDocToDb('clients',{name:v[0],phone:v[1],email:v[2]}); 
+                };
+                
+                const openServiceModal = async () => { 
+                    const {value:v}=await Swal.fire({
+                        title:'Novo Serviço',
+                        html:'<input id="d" class="swal2-input" placeholder="Descrição"><input id="p" type="number" class="swal2-input" placeholder="Valor">',
+                        preConfirm:()=>[document.getElementById('d').value,document.getElementById('p').value]
+                    }); 
+                    if(v&&v[0]) addDocToDb('services',{description:v[0],price:Number(v[1])}); 
+                };
+                
+                const openStaffModal = async () => { 
+                    const {value:v}=await Swal.fire({
+                        title:'Novo Staff',
+                        html:'<input id="n" class="swal2-input" placeholder="Nome"><input id="r" class="swal2-input" placeholder="Função"><input id="d" type="number" class="swal2-input" placeholder="Diária">',
+                        preConfirm:()=>[document.getElementById('n').value,document.getElementById('r').value,document.getElementById('d').value]
+                    }); 
+                    if(v&&v[0]) addDocToDb('staff',{name:v[0],role:v[1],dailyRate:Number(v[2])}); 
+                };
+                
+                const openExpenseModal = async () => { 
+                    const {value:v}=await Swal.fire({
+                        title:'Nova Despesa',
+                        html:'<input id="d" class="swal2-input" placeholder="Descrição"><input id="v" type="number" class="swal2-input" placeholder="Valor"><input id="t" type="date" class="swal2-input">',
+                        preConfirm:()=>[document.getElementById('d').value,document.getElementById('v').value,document.getElementById('t').value]
+                    }); 
+                    if(v&&v[0]) addDocToDb('expenses',{description:v[0],value:Number(v[1]),date:v[2]}); 
+                };
 
-                const deleteClient=(id)=>deleteDocFromDb('clients',id); const deleteStaff=(id)=>deleteDocFromDb('staff',id);
+                const deleteClient=(id)=>deleteDocFromDb('clients',id); 
+                const deleteStaff=(id)=>deleteDocFromDb('staff',id);
                 
                 const filteredExpenses = computed(() => expenses.value.filter(e => e.date.startsWith(expenseFilterMonth.value)).sort((a,b)=>new Date(b.date)-new Date(a.date)));
 
-                const startNewSchedule = () => { Object.assign(tempApp,{clientId:'',date:'',time:'',location:{bairro:'',cidade:'',numero:''},details:{entryFee:0,colors:''},selectedServices:[],selectedStaff:[]}); isEditing.value=false; view.value='schedule'; };
-                const addServiceToApp = () => { if(tempServiceSelect.value) tempApp.selectedServices.push({...tempServiceSelect.value}); };
+                const startNewSchedule = () => { 
+                    Object.assign(tempApp,{
+                        clientId:'',
+                        date:'',
+                        time:'',
+                        location:{bairro:'',cidade:'',numero:''},
+                        details:{entryFee:0,colors:''},
+                        selectedServices:[],
+                        selectedStaff:[]
+                    }); 
+                    isEditing.value=false; 
+                    view.value='schedule'; 
+                };
+                
+                const addServiceToApp = () => { 
+                    if(tempServiceSelect.value) tempApp.selectedServices.push({...tempServiceSelect.value}); 
+                };
+                
                 const removeServiceFromApp = (i) => tempApp.selectedServices.splice(i,1);
                 const addStaffToApp = () => { if(tempStaffSelect.value) tempApp.selectedStaff.push({...tempStaffSelect.value}); };
 
@@ -494,44 +946,92 @@
                 const calcFinalBalance = computed(()=>calcTotalServices.value-(tempApp.details.entryFee||0));
 
                 const saveAppointment = () => {
-                    const appData = { ...JSON.parse(JSON.stringify(tempApp)), entryFee: tempApp.details.entryFee, totalServices:calcTotalServices.value, totalStaffCost:calcTotalStaffCost.value, finalBalance:calcFinalBalance.value, status:'pending' };
-                    if(isEditing.value && editingId.value) updateDocInDb('appointments', editingId.value, appData);
-                    else addDocToDb('appointments',appData);
-                    Swal.fire({icon:'success',title:'Agendado!',timer:1500,showConfirmButton:false});
+                    const appData = { 
+                        ...JSON.parse(JSON.stringify(tempApp)), 
+                        entryFee: tempApp.details.entryFee, 
+                        totalServices:calcTotalServices.value, 
+                        totalStaffCost:calcTotalStaffCost.value, 
+                        finalBalance:calcFinalBalance.value, 
+                        status:'pending' 
+                    };
+                    if(isEditing.value && editingId.value) {
+                        updateDocInDb('appointments', editingId.value, appData);
+                    } else {
+                        addDocToDb('appointments',appData);
+                    }
+                    Swal.fire({
+                        icon:'success',
+                        title:'Agendado!',
+                        timer:1500,
+                        showConfirmButton:false,
+                        background: isDark.value ? '#1e293b' : '#fff',
+                        color: isDark.value ? '#fff' : '#000'
+                    });
                     view.value='appointments_list';
                 };
                 
                 const changeStatus = (app,s) => updateDocInDb('appointments',app.id,{status:s});
                 const showReceipt = (app) => { currentReceipt.value=app; view.value='receipt'; };
-                const downloadReceiptImage = () => { html2canvas(document.getElementById('receipt-capture-area'),{scale:2}).then(c=>{const l=document.createElement('a');l.download=`Recibo.png`;l.href=c.toDataURL();l.click();})};
+                
+                const downloadReceiptImage = () => { 
+                    html2canvas(document.getElementById('receipt-capture-area'),{scale:2}).then(c=>{
+                        const l=document.createElement('a');
+                        l.download=`Recibo_${currentReceipt.value.date}.png`;
+                        l.href=c.toDataURL();
+                        l.click();
+                    });
+                };
 
-                const toggleDarkMode=()=>{isDark.value=!isDark.value; if(isDark.value)document.documentElement.classList.add('dark'); else document.documentElement.classList.remove('dark');};
+                const toggleDarkMode=()=>{
+                    isDark.value=!isDark.value; 
+                    if(isDark.value) {
+                        document.documentElement.classList.add('dark');
+                        localStorage.setItem('darkMode', 'true');
+                    } else {
+                        document.documentElement.classList.remove('dark');
+                        localStorage.setItem('darkMode', 'false');
+                    }
+                };
+                
                 const formatCurrency=(v)=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v||0);
                 const formatDate=(d)=>d?d.split('-').reverse().join('/'):'';
-                const getMonth=(d)=>monthNames[parseInt(d.split('-')[1])-1]; const getDay=(d)=>d.split('-')[2];
+                const getMonth=(d)=>monthNames[parseInt(d.split('-')[1])-1]; 
+                const getDay=(d)=>d.split('-')[2];
                 const getClientName=(id)=>clients.value.find(c=>c.id===id)?.name||'...';
-                const getGreeting=()=>{ const h=new Date().getHours(); return h<12?'Bom dia':(h<18?'Boa tarde':'Boa noite'); };
+                const getGreeting=()=>{ 
+                    const h=new Date().getHours(); 
+                    return h<12?'Bom dia':(h<18?'Boa tarde':'Boa noite'); 
+                };
 
                 const kpiRevenue = computed(()=>appointments.value.filter(a=>a.status!=='cancelled').reduce((s,a)=>s+(a.totalServices||0),0));
                 const kpiTotalExpenses = computed(()=>appointments.value.reduce((s,a)=>s+(a.totalStaffCost||0),0)+expenses.value.reduce((s,e)=>s+(e.value||0),0));
                 const kpiProfit = computed(()=>kpiRevenue.value-kpiTotalExpenses.value);
                 const kpiReceivables = computed(()=>appointments.value.filter(a=>a.status==='pending').reduce((s,a)=>s+(a.finalBalance||0),0));
-                const next7DaysApps = computed(()=>{ const t=new Date();t.setHours(0,0,0,0); const w=new Date(t);w.setDate(t.getDate()+7); return appointments.value.filter(a=>{ const d=new Date(a.date.split('-')[0],a.date.split('-')[1]-1,a.date.split('-')[2]); return d>=t&&d<=w&&a.status==='pending'; }).sort((a,b)=>new Date(a.date)-new Date(b.date)); });
-                const sortedAppointments = computed(()=>{ let l=appointments.value; if(filterDate.value)l=l.filter(a=>a.date===filterDate.value); return l.sort((a,b)=>new Date(b.date)-new Date(a.date)); });
-                const firstDayOfMonth = computed(()=>new Date(currentYear.value,currentMonth.value,1).getDay());
-                const daysInMonth = computed(()=>new Date(currentYear.value,currentMonth.value+1,0).getDate());
-                const changeMonth = (d) => { currentMonth.value+=d; if(currentMonth.value>11){currentMonth.value=0;currentYear.value++}else if(currentMonth.value<0){currentMonth.value=11;currentYear.value--} };
-                const hasEvent = (d) => { const c=`${currentYear.value}-${String(currentMonth.value+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; return appointments.value.some(a=>a.date===c && a.status!=='cancelled'); };
-                const selectDateFromCalendar = (d) => { filterDate.value=`${currentYear.value}-${String(currentMonth.value+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; view.value='appointments_list'; };
+                
+                const next7DaysApps = computed(()=>{ 
+                    const t=new Date();t.setHours(0,0,0,0); 
+                    const w=new Date(t);w.setDate(t.getDate()+7); 
+                    return appointments.value.filter(a=>{ 
+                        const d=new Date(a.date.split('-')[0],a.date.split('-')[1]-1,a.date.split('-')[2]); 
+                        return d>=t&&d<=w&&a.status==='pending'; 
+                    }).sort((a,b)=>new Date(a.date)-new Date(b.date)); 
+                });
+                
+                const sortedAppointments = computed(()=>{ 
+                    let l=appointments.value; 
+                    if(filterDate.value) l=l.filter(a=>a.date===filterDate.value); 
+                    return l.sort((a,b)=>new Date(b.date)-new Date(a.date)); 
+                });
 
                 return {
-                    user, email, password, isRegistering, handleLogin, logout, view, isDark, dashboardFilter, filterDate, isEditing, currentReceipt,
-                    clients, services, staff, expenses, company, tempApp, tempServiceSelect, tempStaffSelect, expenseFilterMonth, filteredExpenses,
-                    currentMonth, currentYear, monthNames, kpiRevenue, kpiTotalExpenses, kpiProfit, kpiReceivables, next7DaysApps, sortedAppointments,
+                    user, email, password, isRegistering, handleLogin, logout, view, isDark, dashboardFilter, filterDate, 
+                    isEditing, currentReceipt, clients, services, staff, expenses, company, tempApp, tempServiceSelect, 
+                    tempStaffSelect, expenseFilterMonth, filteredExpenses, currentMonth, currentYear, monthNames, 
+                    kpiRevenue, kpiTotalExpenses, kpiProfit, kpiReceivables, next7DaysApps, sortedAppointments,
                     openClientModal, openServiceModal, openStaffModal, openExpenseModal, deleteClient, deleteStaff,
-                    startNewSchedule, addServiceToApp, removeServiceFromApp, addStaffToApp, saveAppointment, changeStatus, showReceipt,
-                    calcTotalServices, calcTotalStaffCost, calcFinalBalance, toggleDarkMode, formatCurrency, formatDate, getMonth, getDay, getClientName, getGreeting, saveCompany, downloadReceiptImage, handleLogoUpload,
-                    firstDayOfMonth, daysInMonth, changeMonth, hasEvent, selectDateFromCalendar
+                    startNewSchedule, addServiceToApp, removeServiceFromApp, addStaffToApp, saveAppointment, changeStatus, 
+                    showReceipt, calcTotalServices, calcTotalStaffCost, calcFinalBalance, toggleDarkMode, formatCurrency, 
+                    formatDate, getMonth, getDay, getClientName, getGreeting, saveCompany, downloadReceiptImage, handleLogoUpload
                 };
             }
         }).mount('#root');
