@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PartyPlanner - Super Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans">
+
+    <div id="admin-app">
+
+        <div v-if="!user" class="min-h-screen flex items-center justify-center bg-gray-900">
+            <div class="bg-white p-8 rounded-lg shadow-xl w-96">
+                <h1 class="text-2xl font-bold mb-6 text-center text-gray-800"><i class="fa-solid fa-user-shield text-purple-600"></i> Área Restrita</h1>
+                <form @submit.prevent="handleAdminLogin" class="space-y-4">
+                    <input v-model="loginForm.email" type="email" placeholder="Email Admin" class="w-full p-3 border rounded" required>
+                    <input v-model="loginForm.password" type="password" placeholder="Senha" class="w-full p-3 border rounded" required>
+                    <button type="submit" class="w-full bg-purple-600 text-white py-3 rounded font-bold hover:bg-purple-700 transition">
+                        {{ authLoading ? 'Verificando...' : 'Acessar Painel' }}
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div v-else class="min-h-screen flex flex-col">
+            
+            <header class="bg-gray-900 text-white p-4 flex justify-between items-center shadow-lg">
+                <div class="flex items-center gap-3">
+                    <div class="bg-purple-600 p-2 rounded"><i class="fa-solid fa-crown"></i></div>
+                    <h1 class="font-bold text-lg">Super Admin</h1>
+                </div>
+                <div class="flex items-center gap-4">
+                    <span class="text-sm text-gray-400">{{ user.email }}</span>
+                    <button @click="logout" class="bg-red-600 px-3 py-1 rounded text-sm hover:bg-red-700">Sair</button>
+                </div>
+            </header>
+
+            <main class="flex-1 p-6 max-w-6xl mx-auto w-full">
+                
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                    <div class="bg-white p-4 rounded-lg shadow border-l-4 border-blue-500">
+                        <p class="text-xs text-gray-500 font-bold uppercase">Total Clientes</p>
+                        <p class="text-2xl font-bold">{{ stats.total }}</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow border-l-4 border-green-500">
+                        <p class="text-xs text-gray-500 font-bold uppercase">Assinantes Ativos</p>
+                        <p class="text-2xl font-bold text-green-600">{{ stats.active }}</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow border-l-4 border-yellow-500">
+                        <p class="text-xs text-gray-500 font-bold uppercase">Em Teste (Trial)</p>
+                        <p class="text-2xl font-bold text-yellow-600">{{ stats.trials }}</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow border-l-4 border-purple-600">
+                        <p class="text-xs text-gray-500 font-bold uppercase">MRR Estimado</p>
+                        <p class="text-2xl font-bold text-purple-700">{{ formatMoney(stats.mrr) }}</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    
+                    <div class="bg-white p-6 rounded-lg shadow h-fit">
+                        <h2 class="font-bold text-lg mb-4 flex items-center gap-2"><i class="fa-solid fa-user-plus text-purple-600"></i> Novo Cliente</h2>
+                        <div class="space-y-3">
+                            <input v-model="newUserForm.name" placeholder="Nome da Empresa/Pessoa" class="w-full p-2 border rounded text-sm">
+                            <input v-model="newUserForm.email" placeholder="Email do Cliente" class="w-full p-2 border rounded text-sm">
+                            <input v-model="newUserForm.password" placeholder="Senha Provisória" class="w-full p-2 border rounded text-sm">
+                            <button @click="createClient" class="w-full bg-green-600 text-white py-2 rounded font-bold hover:bg-green-700 transition">
+                                {{ authLoading ? 'Criando...' : 'Cadastrar e Liberar' }}
+                            </button>
+                        </div>
+                        <div class="mt-4 p-3 bg-blue-50 text-blue-800 text-xs rounded">
+                            <i class="fa-solid fa-circle-info"></i> O cliente será criado com 30 dias de teste grátis automaticamente.
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="font-bold text-lg">Base de Clientes</h2>
+                            <div class="relative">
+                                <i class="fa-solid fa-search absolute left-3 top-3 text-gray-400 text-xs"></i>
+                                <input v-model="searchTerm" placeholder="Buscar por nome ou email..." class="pl-8 p-2 border rounded text-sm w-64">
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left">
+                                <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
+                                    <tr>
+                                        <th class="p-3">Cliente</th>
+                                        <th class="p-3">Status</th>
+                                        <th class="p-3">Plano</th>
+                                        <th class="p-3 text-right">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    <tr v-for="u in filteredUsers" :key="u.id" class="hover:bg-gray-50">
+                                        <td class="p-3">
+                                            <p class="font-bold text-gray-800">{{ u.name }}</p>
+                                            <p class="text-xs text-gray-500">{{ u.email }}</p>
+                                            <p class="text-[10px] text-gray-400">Criado em: {{ formatDate(u.createdAt) }}</p>
+                                        </td>
+                                        <td class="p-3">
+                                            <span v-if="u.status === 'active'" class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">Ativo</span>
+                                            <span v-else class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-xs font-bold">Trial</span>
+                                        </td>
+                                        <td class="p-3">
+                                            <div v-if="u.status !== 'active'">
+                                                <p class="font-bold text-gray-700">{{ getDaysRemaining(u.createdAt) }} dias</p>
+                                                <p class="text-[10px] text-gray-400">Restantes</p>
+                                            </div>
+                                            <div v-else>
+                                                <p class="font-bold text-purple-600">Pago</p>
+                                                <p class="text-[10px] text-gray-400">Acesso total</p>
+                                            </div>
+                                        </td>
+                                        <td class="p-3 text-right space-x-2">
+                                            <button @click="toggleStatus(u)" class="text-blue-500 hover:bg-blue-50 p-2 rounded transition" title="Alternar Pagamento/Teste">
+                                                <i class="fa-solid fa-file-invoice-dollar"></i>
+                                            </button>
+                                            <button @click="resetUserPassword(u.email)" class="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded transition" title="Enviar Reset de Senha">
+                                                <i class="fa-solid fa-key"></i>
+                                            </button>
+                                            <button @click="deleteUser(u.id)" class="text-red-400 hover:text-red-600 hover:bg-red-50 p-2 rounded transition" title="Remover Acesso">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            
+                            <div v-if="filteredUsers.length === 0" class="text-center py-10 text-gray-400">
+                                Nenhum usuário encontrado.
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script type="module" src="js/admin.js"></script>
+</body>
+</html>
