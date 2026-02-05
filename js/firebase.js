@@ -1,5 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+// Adicionei getDocs, query, where, orderBy aqui na importação
+import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, setDoc, getDocs, query, where, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -16,8 +17,9 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
+// Adicionei as novas funções na lista de exportação abaixo
 export { 
     db, auth, 
-    collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, setDoc,
+    collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, setDoc, getDocs, query, where, orderBy,
     signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged 
 };
