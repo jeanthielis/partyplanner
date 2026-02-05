@@ -1,7 +1,31 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-// Adicionei getDocs, query, where, orderBy aqui na importação
-import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, setDoc, getDocs, query, where, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+// AQUI ESTAVA O PROBLEMA: Adicionei 'getDoc' na lista abaixo
+import { 
+    getFirestore, 
+    collection, 
+    addDoc, 
+    onSnapshot, 
+    doc, 
+    updateDoc, 
+    deleteDoc, 
+    setDoc, 
+    getDocs, 
+    getDoc, // <--- Adicionado
+    query, 
+    where, 
+    orderBy 
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+// Adicionei também 'sendPasswordResetEmail' para o admin
+import { 
+    getAuth, 
+    signInWithEmailAndPassword, 
+    createUserWithEmailAndPassword, 
+    signOut, 
+    onAuthStateChanged,
+    sendPasswordResetEmail 
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyAhHRcZwrzD36oEFaeQzD1Fd-685YRAxBA",
@@ -17,9 +41,25 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-// Adicionei as novas funções na lista de exportação abaixo
+// E AQUI TAMBÉM: Exportando tudo para o app.js usar
 export { 
-    db, auth, 
-    collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, setDoc, getDocs, query, where, orderBy,
-    signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged 
+    db, 
+    auth, 
+    collection, 
+    addDoc, 
+    onSnapshot, 
+    doc, 
+    updateDoc, 
+    deleteDoc, 
+    setDoc, 
+    getDocs, 
+    getDoc, // <--- O app.js precisa disso exportado aqui
+    query, 
+    where, 
+    orderBy,
+    signInWithEmailAndPassword, 
+    createUserWithEmailAndPassword, 
+    signOut, 
+    onAuthStateChanged,
+    sendPasswordResetEmail
 };
