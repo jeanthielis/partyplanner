@@ -6,7 +6,7 @@ import {
     signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged 
 } from './firebase.js';
 
-// Imports para funcionalidades de Admin (se necessário)
+// Imports de segurança
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js"; 
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
@@ -22,17 +22,15 @@ const firebaseConfig = {
 
 createApp({
     setup() {
-        // PWA Service Worker
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('./sw.js').catch(err => console.log('Erro PWA:', err));
         }
 
-        // --- ESTADOS GERAIS ---
+        // --- ESTADOS ---
         const user = ref(null);
         const userRole = ref('user');
         const userStatus = ref('trial');
         const daysRemaining = ref(30);
-        
         const authLoading = ref(false);
         const authForm = reactive({ email: '', password: '' });
         
@@ -40,13 +38,12 @@ createApp({
         const isDark = ref(false);
         const dashboardFilter = ref('month');
         
-        // --- ESTADOS DE ABAS E FILTRO ---
         const currentTab = ref('pending'); 
         const historyFilter = reactive({ start: '', end: '' });
         const historyList = ref([]); 
         const isLoadingHistory = ref(false);
 
-        // --- BUSCA DE CLIENTE (NOVO) ---
+        // --- BUSCA CLIENTE ---
         const clientSearchTerm = ref('');
         const filteredClientsSearch = computed(() => {
             if (clientSearchTerm.value.length < 3) return [];
@@ -67,7 +64,6 @@ createApp({
             clientSearchTerm.value = '';
         };
 
-        // --- EDIÇÃO E DADOS ---
         const isEditing = ref(false);
         const editingId = ref(null);
         const currentReceipt = ref(null);
@@ -96,11 +92,10 @@ createApp({
             return client ? client.name : 'Desconhecido';
         };
 
-        // --- AUTH & SEGURANÇA ---
+        // --- AUTH ---
         onMounted(() => {
             onAuthStateChanged(auth, async (u) => {
                 if (u) {
-                    // Verificação de Segurança (Conta Deletada?)
                     const userDocRef = doc(db, "users", u.uid);
                     const userDoc = await getDoc(userDocRef);
 
@@ -116,17 +111,12 @@ createApp({
                     userRole.value = data.role || 'user';
                     userStatus.value = data.status || 'trial';
                     
-                    // Lógica Trial 30 Dias
                     if (userRole.value !== 'admin' && userStatus.value !== 'active') {
                         const createdAt = new Date(data.createdAt || new Date());
                         const now = new Date();
                         const diffDays = Math.ceil(Math.abs(now - createdAt) / (1000 * 60 * 60 * 24)); 
                         daysRemaining.value = 30 - diffDays;
-
-                        if (daysRemaining.value <= 0) {
-                            view.value = 'expired_plan';
-                            return; 
-                        }
+                        if (daysRemaining.value <= 0) { view.value = 'expired_plan'; return; }
                     }
 
                     if(data.companyConfig) Object.assign(company, data.companyConfig);
@@ -137,11 +127,7 @@ createApp({
                 }
             });
 
-            if(localStorage.getItem('pp_dark') === 'true') { 
-                isDark.value = true; 
-                document.documentElement.classList.add('dark'); 
-            }
-            
+            if(localStorage.getItem('pp_dark') === 'true') { isDark.value = true; document.documentElement.classList.add('dark'); }
             const today = new Date(); 
             const lastMonth = new Date(); 
             lastMonth.setDate(today.getDate() - 30);
@@ -151,67 +137,34 @@ createApp({
 
         const handleLogin = async () => {
             authLoading.value = true;
-            try { 
-                await signInWithEmailAndPassword(auth, authForm.email, authForm.password); 
-            } catch (error) { 
-                Swal.fire('Erro', 'Dados incorretos', 'error'); 
-            } finally { 
-                authLoading.value = false; 
-            }
+            try { await signInWithEmailAndPassword(auth, authForm.email, authForm.password); } 
+            catch (error) { Swal.fire('Erro', 'Dados incorretos', 'error'); } 
+            finally { authLoading.value = false; }
         };
 
-        const logout = async () => { 
-            await signOut(auth); 
-            view.value='dashboard'; 
-        };
+        const logout = async () => { await signOut(auth); view.value='dashboard'; };
 
-        // --- SYNC DATA ---
+        // --- SYNC ---
         let unsubscribeListeners = [];
         const syncData = () => {
-            unsubscribeListeners.forEach(unsub => unsub()); 
-            unsubscribeListeners = [];
+            unsubscribeListeners.forEach(unsub => unsub()); unsubscribeListeners = [];
             const myId = user.value.uid; 
-
-            unsubscribeListeners.push(onSnapshot(query(collection(db, "clients"), where("userId", "==", myId)), (snap) => { 
-                clients.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
-            }));
-            
-            unsubscribeListeners.push(onSnapshot(query(collection(db, "services"), where("userId", "==", myId)), (snap) => { 
-                services.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
-            }));
-            
-            unsubscribeListeners.push(onSnapshot(query(collection(db, "expenses"), where("userId", "==", myId)), (snap) => { 
-                expenses.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
-            }));
-
+            unsubscribeListeners.push(onSnapshot(query(collection(db, "clients"), where("userId", "==", myId)), (snap) => { clients.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); }));
+            unsubscribeListeners.push(onSnapshot(query(collection(db, "services"), where("userId", "==", myId)), (snap) => { services.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); }));
+            unsubscribeListeners.push(onSnapshot(query(collection(db, "expenses"), where("userId", "==", myId)), (snap) => { expenses.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); }));
             const qApps = query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "pending"));
-            unsubscribeListeners.push(onSnapshot(qApps, (snap) => { 
-                pendingAppointments.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
-            }));
+            unsubscribeListeners.push(onSnapshot(qApps, (snap) => { pendingAppointments.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); }));
         };
 
-        // --- BUSCA HISTÓRICO ---
         const searchHistory = async () => {
             if(!historyFilter.start || !historyFilter.end) return Swal.fire('Atenção', 'Selecione as datas', 'warning');
-            isLoadingHistory.value = true; 
-            historyList.value = [];
+            isLoadingHistory.value = true; historyList.value = [];
             try {
-                const q = query(
-                    collection(db, "appointments"), 
-                    where("userId", "==", user.value.uid), 
-                    where("status", "==", currentTab.value), 
-                    where("date", ">=", historyFilter.start), 
-                    where("date", "<=", historyFilter.end)
-                );
+                const q = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("status", "==", currentTab.value), where("date", ">=", historyFilter.start), where("date", "<=", historyFilter.end));
                 const querySnapshot = await getDocs(q);
                 historyList.value = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 if(historyList.value.length === 0) Swal.fire('Info', 'Nenhum registro encontrado.', 'info');
-            } catch (error) { 
-                console.error(error); 
-                Swal.fire('Erro', 'Verifique console.', 'error'); 
-            } finally { 
-                isLoadingHistory.value = false; 
-            }
+            } catch (error) { console.error(error); Swal.fire('Erro', 'Verifique console.', 'error'); } finally { isLoadingHistory.value = false; }
         };
 
         // --- COMPUTED ---
@@ -229,21 +182,13 @@ createApp({
         const totalServices = computed(() => tempApp.selectedServices.reduce((s,i) => s + i.price, 0));
         const finalBalance = computed(() => totalServices.value - (tempApp.details.entryFee || 0));
 
-        // --- AÇÕES CRUD ---
+        // --- AÇÕES ---
         const saveAppointment = async () => {
             const total = tempApp.selectedServices.reduce((sum, i) => sum + i.price, 0);
             const appData = { ...JSON.parse(JSON.stringify(tempApp)), totalServices: total, entryFee: tempApp.details.entryFee, finalBalance: total - tempApp.details.entryFee, userId: user.value.uid };
-            if(isEditing.value && editingId.value) { 
-                await updateDoc(doc(db, "appointments", editingId.value), appData); 
-                Swal.fire({icon:'success', title:'Atualizado', timer:1000}); 
-            } else { 
-                appData.status = 'pending'; 
-                appData.checklist = [{text:'Confirmar Equipe', done:false},{text:'Separar Materiais', done:false}]; 
-                await addDoc(collection(db, "appointments"), appData); 
-                Swal.fire({icon:'success', title:'Agendado!', timer:1000}); 
-            }
-            view.value = 'appointments_list'; 
-            currentTab.value = 'pending';
+            if(isEditing.value && editingId.value) { await updateDoc(doc(db, "appointments", editingId.value), appData); Swal.fire({icon:'success', title:'Atualizado', timer:1000}); } 
+            else { appData.status = 'pending'; appData.checklist = [{text:'Confirmar Equipe', done:false},{text:'Separar Materiais', done:false}]; await addDoc(collection(db, "appointments"), appData); Swal.fire({icon:'success', title:'Agendado!', timer:1000}); }
+            view.value = 'appointments_list'; currentTab.value = 'pending';
         };
 
         const changeStatus = async (app, status) => { 
@@ -259,31 +204,27 @@ createApp({
         const deleteExpense = async (id) => { await deleteDoc(doc(db, "expenses", id)); };
         
         const startNewSchedule = () => { 
-            isEditing.value=false; 
-            editingId.value=null; 
-            clientSearchTerm.value = ''; // Limpa busca
+            isEditing.value=false; editingId.value=null; clientSearchTerm.value = ''; 
             Object.assign(tempApp, {clientId: '', date: '', time: '', location: { bairro: '', cidade: '', numero: '' }, details: { colors: '', entryFee: 0 }, selectedServices: [] }); 
             view.value='schedule'; 
         };
-        
         const editAppointment = (app) => { 
-            isEditing.value=true; 
-            editingId.value=app.id; 
-            clientSearchTerm.value = ''; // Limpa busca
+            isEditing.value=true; editingId.value=app.id; clientSearchTerm.value = ''; 
             Object.assign(tempApp, JSON.parse(JSON.stringify(app))); 
             view.value='schedule'; 
         };
-        
         const showReceipt = (app) => { currentReceipt.value = app; view.value = 'receipt'; };
 
-        // --- MODAIS CORRIGIDOS (SEM ERRO DE SINTAXE) ---
+        // --- MODAIS COM CONCATENAÇÃO SEGURA (SEM CRASES) ---
         const openClientModal = async (c) => { 
-            // Usando backticks corretamente para template literals
-            const htmlContent = `
-                <input id="n" class="swal2-input" value="${c?.name || ''}" placeholder="Nome">
-                <input id="p" class="swal2-input" value="${c?.phone || ''}" placeholder="Telefone">
-                <input id="cpf" class="swal2-input" value="${c?.cpf || ''}" placeholder="CPF">
-            `;
+            const nameVal = c && c.name ? c.name : '';
+            const phoneVal = c && c.phone ? c.phone : '';
+            const cpfVal = c && c.cpf ? c.cpf : '';
+            
+            // HTML em string simples para evitar SyntaxError
+            const htmlContent = '<input id="n" class="swal2-input" value="' + nameVal + '" placeholder="Nome">' +
+                                '<input id="p" class="swal2-input" value="' + phoneVal + '" placeholder="Telefone">' +
+                                '<input id="cpf" class="swal2-input" value="' + cpfVal + '" placeholder="CPF">';
 
             const { value: vals } = await Swal.fire({ 
                 title: c ? 'Editar Cliente' : 'Novo Cliente', 
@@ -291,22 +232,17 @@ createApp({
                 showCancelButton: true,
                 confirmButtonText: 'Salvar',
                 cancelButtonText: 'Cancelar',
-                preConfirm: () => {
-                    return [
-                        document.getElementById('n').value,
-                        document.getElementById('p').value, 
-                        document.getElementById('cpf').value
-                    ]
-                }
+                preConfirm: () => [
+                    document.getElementById('n').value,
+                    document.getElementById('p').value, 
+                    document.getElementById('cpf').value
+                ]
             });
 
             if (vals) { 
                 const d = { name: vals[0], phone: vals[1], cpf: vals[2], userId: user.value.uid }; 
-                if (c) {
-                    await updateDoc(doc(db, "clients", c.id), d); 
-                } else {
-                    await addDoc(collection(db, "clients"), d); 
-                }
+                if (c) await updateDoc(doc(db, "clients", c.id), d); 
+                else await addDoc(collection(db, "clients"), d); 
                 Swal.fire('Salvo', '', 'success'); 
             } 
         };
@@ -318,31 +254,27 @@ createApp({
         };
 
         const openServiceModal = async (s) => { 
-            const htmlContent = `
-                <input id="d" class="swal2-input" value="${s?.description || ''}" placeholder="Descrição">
-                <input id="p" type="number" class="swal2-input" value="${s?.price || ''}" placeholder="Preço (R$)">
-            `;
+            const descVal = s && s.description ? s.description : '';
+            const priceVal = s && s.price ? s.price : '';
+
+            const htmlContent = '<input id="d" class="swal2-input" value="' + descVal + '" placeholder="Descrição">' +
+                                '<input id="p" type="number" class="swal2-input" value="' + priceVal + '" placeholder="Preço (R$)">';
 
             const { value: v } = await Swal.fire({
                 title: s ? 'Editar Serviço' : 'Novo Serviço',
                 html: htmlContent,
                 showCancelButton: true,
                 confirmButtonText: 'Salvar',
-                preConfirm: () => {
-                    return [
-                        document.getElementById('d').value,
-                        document.getElementById('p').value
-                    ]
-                }
+                preConfirm: () => [
+                    document.getElementById('d').value,
+                    document.getElementById('p').value
+                ]
             });
 
             if (v) { 
                 const d = { description: v[0], price: Number(v[1]), userId: user.value.uid }; 
-                if (s) {
-                    await updateDoc(doc(db, "services", s.id), d); 
-                } else {
-                    await addDoc(collection(db, "services"), d); 
-                }
+                if (s) await updateDoc(doc(db, "services", s.id), d); 
+                else await addDoc(collection(db, "services"), d); 
             }
         };
 
@@ -350,15 +282,57 @@ createApp({
         
         const downloadReceiptImage = () => { html2canvas(document.getElementById('receipt-capture-area'),{scale:2}).then(c=>{const l=document.createElement('a');l.download='Recibo.png';l.href=c.toDataURL();l.click();}); };
         
-        const generateContractPDF = () => { const { jsPDF } = window.jspdf; const doc = new jsPDF(); const app = currentReceipt.value; const cli = clients.value.find(c => c.id === app.clientId) || {name: 'N/A', cpf: '', phone: ''}; const margin = 20; let y = 20; const pageWidth = doc.internal.pageSize.getWidth(); const maxTextWidth = pageWidth - (margin * 2); doc.setFontSize(14); doc.setFont("helvetica", "bold"); doc.text("CONTRATO DE PRESTAÇÃO DE SERVIÇOS", pageWidth / 2, y, { align: "center" }); y += 15; doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.text("IDENTIFICAÇÃO DAS PARTES", margin, y); y += 6; doc.setFont("helvetica", "normal"); const txtContratada = `CONTRATADA: ${company.fantasia || 'Empresa'}, Razão Social: ${company.razao || ''}, CNPJ: ${company.cnpj || 'N/A'}, Endereço: ${company.rua || ''} - ${company.cidade || ''}.`; const txtContratante = `CONTRATANTE: ${cli.name}, CPF: ${cli.cpf || 'N/A'}, Telefone: ${cli.phone || 'N/A'}.`; doc.text(doc.splitTextToSize(txtContratada, maxTextWidth), margin, y); y += 20; doc.text(doc.splitTextToSize(txtContratante, maxTextWidth), margin, y); y += 20; doc.text(`OBJETO: Evento dia ${formatDate(app.date)} às ${app.time}. Local: ${app.location.bairro}.`, margin, y); y += 10; app.selectedServices.forEach(s => { doc.text(`- ${s.description}: ${formatCurrency(s.price)}`, margin, y); y += 6; }); y += 10; const entry = app.entryFee || app.details?.entryFee || 0; doc.text(`TOTAL: ${formatCurrency(app.totalServices)} | ENTRADA: ${formatCurrency(entry)} | RESTANTE: ${formatCurrency(app.finalBalance)}`, margin, y); doc.save("Contrato.pdf"); };
+        // --- PDF COM CONCATENAÇÃO SEGURA ---
+        const generateContractPDF = () => { 
+            const { jsPDF } = window.jspdf; 
+            const doc = new jsPDF(); 
+            const app = currentReceipt.value; 
+            const cli = clients.value.find(c => c.id === app.clientId) || {name: 'N/A', cpf: '', phone: ''}; 
+            const margin = 20; 
+            let y = 20; 
+            const pageWidth = doc.internal.pageSize.getWidth(); 
+            const maxTextWidth = pageWidth - (margin * 2); 
+            
+            doc.setFontSize(14); doc.setFont("helvetica", "bold"); 
+            doc.text("CONTRATO DE PRESTAÇÃO DE SERVIÇOS", pageWidth / 2, y, { align: "center" }); 
+            y += 15; 
+            
+            doc.setFontSize(10); doc.setFont("helvetica", "bold"); 
+            doc.text("IDENTIFICAÇÃO DAS PARTES", margin, y); 
+            y += 6; doc.setFont("helvetica", "normal");
+            
+            const compName = company.fantasia || 'Empresa';
+            const compRazao = company.razao || '';
+            const compCnpj = company.cnpj || 'N/A';
+            const compEnd = (company.rua || '') + ' - ' + (company.cidade || '');
+            
+            const txtContratada = 'CONTRATADA: ' + compName + ', Razão Social: ' + compRazao + ', CNPJ: ' + compCnpj + ', Endereço: ' + compEnd + '.';
+            const txtContratante = 'CONTRATANTE: ' + cli.name + ', CPF: ' + (cli.cpf || 'N/A') + ', Telefone: ' + (cli.phone || 'N/A') + '.';
+            
+            doc.text(doc.splitTextToSize(txtContratada, maxTextWidth), margin, y); y += 20; 
+            doc.text(doc.splitTextToSize(txtContratante, maxTextWidth), margin, y); y += 20;
+            
+            const txtObjeto = 'OBJETO: Evento dia ' + formatDate(app.date) + ' às ' + app.time + '. Local: ' + app.location.bairro + '.';
+            doc.text(txtObjeto, margin, y); y += 10;
+            
+            app.selectedServices.forEach(s => { 
+                doc.text('- ' + s.description + ': ' + formatCurrency(s.price), margin, y); 
+                y += 6; 
+            }); 
+            y += 10;
+            
+            const entry = app.entryFee || app.details?.entryFee || 0;
+            const txtTotal = 'TOTAL: ' + formatCurrency(app.totalServices) + ' | ENTRADA: ' + formatCurrency(entry) + ' | RESTANTE: ' + formatCurrency(app.finalBalance);
+            doc.text(txtTotal, margin, y);
+            
+            doc.save("Contrato.pdf"); 
+        };
         
         const handleLogoUpload = (e) => { const f = e.target.files[0]; if(f){ const r = new FileReader(); r.onload=x=>{ company.logo=x.target.result; saveCompany(); }; r.readAsDataURL(f); } };
         const saveCompany = async () => { localStorage.setItem('pp_company', JSON.stringify(company)); if(user.value) await updateDoc(doc(db,"users",user.value.uid), {companyConfig:company}); Swal.fire('Salvo','','success'); view.value='catalog_hub'; };
-        
         const addTask = (app) => { if(!newTaskText.value[app.id]) return; app.checklist.push({text:newTaskText.value[app.id], done:false}); newTaskText.value[app.id]=''; updateAppInFirebase(app); };
         const removeTask = (app, i) => { app.checklist.splice(i, 1); updateAppInFirebase(app); };
         const checklistProgress = (app) => { if(!app.checklist?.length) return 0; return Math.round((app.checklist.filter(t=>t.done).length/app.checklist.length)*100); };
-        
         const addServiceToApp = () => { if(tempServiceSelect.value) { tempApp.selectedServices.push({...tempServiceSelect.value}); tempServiceSelect.value = ''; } };
         const removeServiceFromApp = (i) => tempApp.selectedServices.splice(i,1);
         const toggleDarkMode = () => { isDark.value = !isDark.value; if(isDark.value) document.documentElement.classList.add('dark'); else document.documentElement.classList.remove('dark'); localStorage.setItem('pp_dark', isDark.value); };
@@ -378,7 +352,6 @@ createApp({
             addServiceToApp, removeServiceFromApp, handleLogoUpload, saveCompany,
             showReceipt, downloadReceiptImage, generateContractPDF, 
             getClientName, formatCurrency, formatDate, getDay, getMonth, statusText, statusClass,
-            // NOVOS:
             clientSearchTerm, filteredClientsSearch, selectClientFromSearch, clearClientSelection
         };
     }
