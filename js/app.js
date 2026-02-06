@@ -6,7 +6,7 @@ import {
     signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged 
 } from './firebase.js';
 
-// Import necessário caso você ainda use alguma função de admin neste arquivo
+// Import necessário para o Admin (caso ainda exista código residual, mantemos por segurança)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js"; 
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
@@ -22,12 +22,12 @@ const firebaseConfig = {
 
 createApp({
     setup() {
-        // PWA Service Worker
+        // PWA
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('./sw.js').catch(err => console.log('Erro PWA:', err));
         }
 
-        // --- ESTADOS ---
+        // --- ESTADOS GERAIS ---
         const user = ref(null);
         const userRole = ref('user');
         const userStatus = ref('trial');
@@ -45,6 +45,28 @@ createApp({
         const historyFilter = reactive({ start: '', end: '' });
         const historyList = ref([]); 
         const isLoadingHistory = ref(false);
+
+        // --- NOVOS ESTADOS PARA BUSCA DE CLIENTE ---
+        const clientSearchTerm = ref('');
+        const filteredClientsSearch = computed(() => {
+            if (clientSearchTerm.value.length < 3) return [];
+            const term = clientSearchTerm.value.toLowerCase();
+            return clients.value.filter(c => 
+                c.name.toLowerCase().includes(term) || 
+                (c.phone && c.phone.includes(term))
+            );
+        });
+
+        const selectClientFromSearch = (client) => {
+            tempApp.clientId = client.id;
+            clientSearchTerm.value = ''; 
+        };
+
+        const clearClientSelection = () => {
+            tempApp.clientId = '';
+            clientSearchTerm.value = '';
+        };
+        // ---------------------------------------------
 
         const isEditing = ref(false);
         const editingId = ref(null);
@@ -79,29 +101,23 @@ createApp({
         onMounted(() => {
             onAuthStateChanged(auth, async (u) => {
                 if (u) {
-                    // 1. SEGURANÇA: Verifica se o usuário ainda existe no banco
+                    // Verifica se o usuário ainda existe no banco (Bloqueio "Renatinha")
                     const userDocRef = doc(db, "users", u.uid);
                     const userDoc = await getDoc(userDocRef);
 
                     if (!userDoc.exists()) {
-                        // Se não existe (foi deletado pelo Admin), expulsa!
                         await signOut(auth);
                         user.value = null;
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Acesso Negado',
-                            text: 'Sua conta foi removida ou desativada.'
-                        });
+                        Swal.fire({ icon: 'error', title: 'Acesso Revogado', text: 'Sua conta foi removida pelo administrador.' });
                         return;
                     }
 
-                    // 2. Se existe, carrega os dados
                     user.value = u;
                     const data = userDoc.data();
                     userRole.value = data.role || 'user';
                     userStatus.value = data.status || 'trial';
                     
-                    // 3. Verifica Trial (30 dias)
+                    // Lógica 30 Dias Trial
                     if (userRole.value !== 'admin' && userStatus.value !== 'active') {
                         const createdAt = new Date(data.createdAt || new Date());
                         const now = new Date();
@@ -110,14 +126,11 @@ createApp({
 
                         if (daysRemaining.value <= 0) {
                             view.value = 'expired_plan';
-                            return; // Bloqueia carregamento de dados
+                            return; 
                         }
                     }
 
-                    // 4. Carrega Config da Empresa
                     if(data.companyConfig) Object.assign(company, data.companyConfig);
-                    
-                    // 5. Inicia Sincronização
                     syncData();
                 } else {
                     user.value = null;
@@ -130,7 +143,6 @@ createApp({
                 document.documentElement.classList.add('dark'); 
             }
             
-            // Define filtro padrão de datas
             const today = new Date(); 
             const lastMonth = new Date(); 
             lastMonth.setDate(today.getDate() - 30);
@@ -162,22 +174,18 @@ createApp({
             
             const myId = user.value.uid; 
 
-            // Clientes
             unsubscribeListeners.push(onSnapshot(query(collection(db, "clients"), where("userId", "==", myId)), (snap) => { 
                 clients.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
             }));
             
-            // Serviços
             unsubscribeListeners.push(onSnapshot(query(collection(db, "services"), where("userId", "==", myId)), (snap) => { 
                 services.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
             }));
             
-            // Despesas
             unsubscribeListeners.push(onSnapshot(query(collection(db, "expenses"), where("userId", "==", myId)), (snap) => { 
                 expenses.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
             }));
 
-            // Agendamentos (Só Pendentes em tempo real)
             const qApps = query(
                 collection(db, "appointments"), 
                 where("userId", "==", myId),
@@ -212,7 +220,7 @@ createApp({
             }
         };
 
-        // --- COMPUTED ---
+        // --- COMPUTED KPI & FILTROS ---
         const filteredListAppointments = computed(() => { 
             let list = currentTab.value === 'pending' ? pendingAppointments.value : historyList.value;
             return [...list].sort((a,b) => new Date(a.date) - new Date(b.date)); 
@@ -252,39 +260,37 @@ createApp({
             }
         };
 
-        // --- NOVOS ESTADOS PARA BUSCA DE CLIENTE ---
-        const clientSearchTerm = ref('');
-        
-        // Filtra clientes apenas se digitar 3 ou mais letras
-        const filteredClientsSearch = computed(() => {
-            if (clientSearchTerm.value.length < 3) return [];
-            const term = clientSearchTerm.value.toLowerCase();
-            return clients.value.filter(c => 
-                c.name.toLowerCase().includes(term) || 
-                (c.phone && c.phone.includes(term)) // Busca também por telefone se quiser
-            );
-        });
-
-        // Função ao clicar em um nome da lista
-        const selectClientFromSearch = (client) => {
-            tempApp.clientId = client.id;
-            clientSearchTerm.value = ''; // Limpa a busca
-        };
-
-        // Função para remover o cliente selecionado e buscar outro
-        const clearClientSelection = () => {
-            tempApp.clientId = '';
-            clientSearchTerm.value = '';
-        };
-
-        // Helpers
         const updateAppInFirebase = async (app) => { await updateDoc(doc(db, "appointments", app.id), { checklist: app.checklist }); };
         const addExpense = async () => { if(!newExpense.description) return; await addDoc(collection(db, "expenses"), {...newExpense, userId: user.value.uid}); Object.assign(newExpense, {description: '', value: ''}); Swal.fire({icon:'success', title:'Registrado', timer:1000}); };
         const deleteExpense = async (id) => { await deleteDoc(doc(db, "expenses", id)); };
-        const startNewSchedule = () => { isEditing.value=false; editingId.value=null; Object.assign(tempApp, {clientId: '', date: '', time: '', location: { bairro: '', cidade: '', numero: '' }, details: { colors: '', entryFee: 0 }, selectedServices: [] }); view.value='schedule';clientSearchTerm.value = ''; };
-        const editAppointment = (app) => { isEditing.value=true; editingId.value=app.id; Object.assign(tempApp, JSON.parse(JSON.stringify(app))); view.value='schedule'; };
+        
+        const startNewSchedule = () => { 
+            isEditing.value=false; 
+            editingId.value=null; 
+            // Limpa cliente e busca
+            clientSearchTerm.value = ''; 
+            Object.assign(tempApp, {clientId: '', date: '', time: '', location: { bairro: '', cidade: '', numero: '' }, details: { colors: '', entryFee: 0 }, selectedServices: [] }); 
+            view.value='schedule'; 
+        };
+        
+        const editAppointment = (app) => { 
+            isEditing.value=true; 
+            editingId.value=app.id; 
+            clientSearchTerm.value = ''; // Limpa busca
+            Object.assign(tempApp, JSON.parse(JSON.stringify(app))); 
+            view.value='schedule'; 
+        };
+        
         const showReceipt = (app) => { currentReceipt.value = app; view.value = 'receipt'; };
-        const openClientModal = async (c) => { const { value: vals } = await Swal.fire({ title: c?'Editar':'Novo', html: `<input id="n" class="swal2-input" value="${c?.name||''}" placeholder="Nome"><input id="p" class="swal2-input" value="${c?.phone||''}" placeholder="Telefone"><input id="cpf" class="swal2-input" value="${c?.cpf||''}" placeholder="CPF">`, preConfirm:()=>[document.getElementById('n').value,document.getElementById('p').value, document.getElementById('cpf').value] }); if(vals) { const d={name:vals[0], phone:vals[1], cpf:vals[2], userId:user.value.uid}; if(c) await updateDoc(doc(db,"clients",c.id),d); else await addDoc(collection(db,"clients"),d); Swal.fire('Salvo','','success'); } };
+        const openClientModal = async (c) => { 
+            const { value: vals } = await Swal.fire({ title: c?'Editar':'Novo', html: `<input id="n" class="swal2-input" value="${c?.name||''}" placeholder="Nome"><input id="p" class="swal2-input" value="${c?.phone||''}" placeholder="Telefone"><input id="cpf" class="swal2-input" value="${c?.cpf||''}" placeholder="CPF">`, preConfirm:()=>[document.getElementById('n').value,document.getElementById('p').value, document.getElementById('cpf').value] });
+            if(vals) { 
+                const d={name:vals[0], phone:vals[1], cpf:vals[2], userId:user.value.uid}; 
+                if(c) await updateDoc(doc(db,"clients",c.id),d); 
+                else await addDoc(collection(db,"clients"),d); 
+                Swal.fire('Salvo','','success'); 
+            } 
+        };
         const deleteClient = async (id) => { if((await Swal.fire({title:'Excluir?',showCancelButton:true})).isConfirmed) await deleteDoc(doc(db,"clients",id)); };
         const openServiceModal = async (s) => { const {value:v}=await Swal.fire({html:`<input id="d" class="swal2-input" value="${s?.description||''}"><input id="p" type="number" class="swal2-input" value="${s?.price||''}">`,preConfirm:()=>[document.getElementById('d').value,document.getElementById('p').value]}); if(v){ const d={description:v[0],price:Number(v[1]),userId:user.value.uid}; if(s)await updateDoc(doc(db,"services",s.id),d); else await addDoc(collection(db,"services"),d); }};
         const deleteService = async (id) => { await deleteDoc(doc(db,"services",id)); };
@@ -300,7 +306,6 @@ createApp({
         const toggleDarkMode = () => { isDark.value = !isDark.value; if(isDark.value) document.documentElement.classList.add('dark'); else document.documentElement.classList.remove('dark'); localStorage.setItem('pp_dark', isDark.value); };
 
         return {
-            clientSearchTerm, filteredClientsSearch, selectClientFromSearch, clearClientSelection,
             user, userRole, userStatus, daysRemaining, authForm, authLoading, view, isDark, dashboardFilter, 
             clients, services, appointments: pendingAppointments, expenses, company,
             tempApp, tempServiceSelect, newExpense, currentReceipt, 
@@ -314,7 +319,9 @@ createApp({
             addTask, removeTask, checklistProgress,
             addServiceToApp, removeServiceFromApp, handleLogoUpload, saveCompany,
             showReceipt, downloadReceiptImage, generateContractPDF, 
-            getClientName, formatCurrency, formatDate, getDay, getMonth, statusText, statusClass
+            getClientName, formatCurrency, formatDate, getDay, getMonth, statusText, statusClass,
+            // NOVOS:
+            clientSearchTerm, filteredClientsSearch, selectClientFromSearch, clearClientSelection
         };
     }
 }).mount('#app');
