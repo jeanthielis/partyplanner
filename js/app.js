@@ -34,7 +34,7 @@ createApp({
         const authForm = reactive({ email: '', password: '' });
         
         const view = ref('dashboard');
-        const catalogView = ref('company'); // 'company', 'clients', 'services'
+        const catalogView = ref('company'); // Abas do Catálogo
         const isDark = ref(false);
         const dashboardFilter = ref('month');
         
@@ -43,7 +43,7 @@ createApp({
         const historyList = ref([]); 
         const isLoadingHistory = ref(false);
 
-        // --- BUSCA INTELIGENTE ---
+        // --- BUSCA INTELIGENTE DE CLIENTES ---
         const clientSearchTerm = ref('');
         const filteredClientsSearch = computed(() => {
             if (clientSearchTerm.value.length < 3) return [];
@@ -143,15 +143,16 @@ createApp({
             } catch (error) { console.error(error); Swal.fire('Erro', 'Verifique console.', 'error'); } finally { isLoadingHistory.value = false; }
         };
 
-        // --- KPIS ATUALIZADOS ---
+        // --- KPIS ---
         const filteredListAppointments = computed(() => { 
             let list = currentTab.value === 'pending' ? pendingAppointments.value : historyList.value;
             return [...list].sort((a,b) => new Date(a.date) - new Date(b.date)); 
         });
         const kpiRevenue = computed(() => pendingAppointments.value.reduce((acc, a) => acc + (a.totalServices || 0), 0));
         const kpiExpenses = computed(() => expenses.value.reduce((acc, e) => acc + (e.value || 0), 0));
-        const kpiProfit = computed(() => kpiRevenue.value - kpiExpenses.value); // Lucro = Receita - Despesas
+        const kpiProfit = computed(() => kpiRevenue.value - kpiExpenses.value); 
         const kpiReceivables = computed(() => pendingAppointments.value.reduce((acc, a) => acc + (a.finalBalance || 0), 0));
+        const pendingCount = computed(() => pendingAppointments.value.length);
         
         const next7DaysApps = computed(() => { 
             const t = new Date(); t.setHours(0,0,0,0); const w = new Date(t); w.setDate(t.getDate() + 7); 
@@ -170,8 +171,13 @@ createApp({
         };
 
         const changeStatus = async (app, status) => { 
-            await updateDoc(doc(db, "appointments", app.id), { status: status });
-            if(currentTab.value !== 'pending') { const idx = historyList.value.findIndex(x => x.id === app.id); if(idx !== -1) historyList.value[idx].status = status; }
+            const action = status === 'concluded' ? 'Concluir' : 'Cancelar';
+            const { isConfirmed } = await Swal.fire({ title: action + '?', text: 'Deseja marcar como ' + action + '?', icon: 'question', showCancelButton: true });
+            if(isConfirmed) {
+                await updateDoc(doc(db, "appointments", app.id), { status: status });
+                if(currentTab.value !== 'pending') { const idx = historyList.value.findIndex(x => x.id === app.id); if(idx !== -1) historyList.value[idx].status = status; }
+                Swal.fire('Feito!', '', 'success');
+            }
         };
 
         const updateAppInFirebase = async (app) => { await updateDoc(doc(db, "appointments", app.id), { checklist: app.checklist }); };
@@ -199,115 +205,45 @@ createApp({
         const deleteService = async (id) => { await deleteDoc(doc(db,"services",id)); };
         const downloadReceiptImage = () => { html2canvas(document.getElementById('receipt-capture-area'),{scale:2}).then(c=>{const l=document.createElement('a');l.download='Recibo.png';l.href=c.toDataURL();l.click();}); };
         
-        // PDF
-        // --- FUNÇÃO DE CONTRATO PROFISSIONAL ---
+        // CONTRATO PROFISSIONAL
         const generateContractPDF = () => { 
-            const { jsPDF } = window.jspdf; 
-            const doc = new jsPDF({ format: 'a4', unit: 'mm' }); 
-            const app = currentReceipt.value; 
-            const cli = clients.value.find(c => c.id === app.clientId) || {name: '....................', cpf: '....................', phone: '....................'}; 
-            
-            // Configurações de Fonte e Margem
-            const margin = 20; 
-            const pageWidth = 210; 
-            const maxLineWidth = pageWidth - (margin * 2);
-            let y = 20; 
+            const { jsPDF } = window.jspdf; const doc = new jsPDF(); const app = currentReceipt.value; 
+            const cli = clients.value.find(c => c.id === app.clientId) || {name: '....................', cpf: '....................', phone: ''}; 
+            const margin = 20; const pageWidth = 210; const maxLineWidth = pageWidth - (margin * 2); let y = 20; 
 
-            // --- 1. CABEÇALHO ---
-            if (company.logo) {
-                try {
-                    doc.addImage(company.logo, 'JPEG', margin, y, 25, 25); // Logo Quadrado
-                } catch (e) { console.log('Erro imagem', e); }
-            }
+            if (company.logo) { try { doc.addImage(company.logo, 'JPEG', margin, y, 25, 25); } catch (e) {} }
             
-            doc.setFont("times", "bold"); 
-            doc.setFontSize(16); 
-            doc.text("CONTRATO DE PRESTAÇÃO DE SERVIÇOS", pageWidth / 2, y + 10, { align: "center" }); 
-            doc.setFontSize(10); 
-            doc.text("DE DECORAÇÃO E EVENTOS", pageWidth / 2, y + 16, { align: "center" }); 
-            y += 35;
+            doc.setFont("times", "bold"); doc.setFontSize(16); doc.text("CONTRATO DE PRESTAÇÃO DE SERVIÇOS", pageWidth / 2, y + 10, { align: "center" }); 
+            doc.setFontSize(10); doc.text("DE DECORAÇÃO E EVENTOS", pageWidth / 2, y + 16, { align: "center" }); y += 35;
 
-            // --- 2. IDENTIFICAÇÃO DAS PARTES ---
-            doc.setFontSize(10);
-            doc.setFont("times", "normal");
-            
-            const cName = company.fantasia || 'A CONTRATADA';
-            const cCnpj = company.cnpj || '....................';
-            const cEnd = (company.rua || '') + ' - ' + (company.cidade || '');
-            
-            // Texto corrido das partes
-            const txtPartes = 'IDENTIFICAÇÃO DAS PARTES\n\n' +
-                'CONTRATADA: ' + cName + ', inscrita no CNPJ sob nº ' + cCnpj + ', com sede em ' + cEnd + '.\n\n' +
-                'CONTRATANTE: ' + cli.name + ', CPF nº ' + (cli.cpf || '....................') + ', Telefone: ' + (cli.phone || '....................') + '.';
-            
-            doc.text(doc.splitTextToSize(txtPartes, maxLineWidth), margin, y);
-            y += 35;
+            doc.setFontSize(10); doc.setFont("times", "normal");
+            const cName = company.fantasia || 'A CONTRATADA'; const cCnpj = company.cnpj || '....................'; const cEnd = (company.rua || '') + ' - ' + (company.cidade || '');
+            const txtPartes = 'IDENTIFICAÇÃO DAS PARTES\n\nCONTRATADA: ' + cName + ', inscrita no CNPJ sob nº ' + cCnpj + ', com sede em ' + cEnd + '.\n\nCONTRATANTE: ' + cli.name + ', CPF nº ' + (cli.cpf || '....................') + ', Telefone: ' + (cli.phone || '....................') + '.';
+            doc.text(doc.splitTextToSize(txtPartes, maxLineWidth), margin, y); y += 35;
 
-            // --- 3. CLÁUSULAS ---
-            doc.setFont("times", "bold");
-            doc.text("CLÁUSULA 1ª - DO OBJETO", margin, y);
-            y += 6;
-            doc.setFont("times", "normal");
-            
-            const txtObjeto = 'O presente contrato tem como objeto a prestação de serviços de decoração e ornamentação para o evento a ser realizado na data de ' + formatDate(app.date) + ', com início às ' + app.time + ' horas, no local: ' + (app.location.bairro || 'A definir') + ' (' + (app.location.rua || '') + ' ' + (app.location.numero || '') + ').';
-            doc.text(doc.splitTextToSize(txtObjeto, maxLineWidth), margin, y);
-            y += 20;
+            doc.setFont("times", "bold"); doc.text("CLÁUSULA 1ª - DO OBJETO", margin, y); y += 6; doc.setFont("times", "normal");
+            const txtObjeto = 'O presente contrato tem como objeto a prestação de serviços de decoração para o evento em ' + formatDate(app.date) + ', às ' + app.time + ' horas, no local: ' + (app.location.bairro || 'A definir') + '.';
+            doc.text(doc.splitTextToSize(txtObjeto, maxLineWidth), margin, y); y += 20;
 
-            doc.setFont("times", "bold");
-            doc.text("CLÁUSULA 2ª - DOS ITENS CONTRATADOS", margin, y);
-            y += 6;
-            doc.setFont("times", "normal");
-            
-            let servicosTexto = 'A CONTRATADA compromete-se a fornecer os seguintes itens:\n';
-            app.selectedServices.forEach(s => { 
-                servicosTexto += '• ' + s.description + ' (' + formatCurrency(s.price) + ')\n'; 
-            });
-            doc.text(doc.splitTextToSize(servicosTexto, maxLineWidth), margin, y);
-            // Calcula altura dinâmica dos serviços
-            y += (app.selectedServices.length * 5) + 10;
+            doc.setFont("times", "bold"); doc.text("CLÁUSULA 2ª - DOS ITENS CONTRATADOS", margin, y); y += 6; doc.setFont("times", "normal");
+            let servicosTexto = 'A CONTRATADA fornecerá:\n'; app.selectedServices.forEach(s => { servicosTexto += '• ' + s.description + ' (' + formatCurrency(s.price) + ')\n'; });
+            doc.text(doc.splitTextToSize(servicosTexto, maxLineWidth), margin, y); y += (app.selectedServices.length * 5) + 10;
 
-            doc.setFont("times", "bold");
-            doc.text("CLÁUSULA 3ª - DO VALOR E PAGAMENTO", margin, y);
-            y += 6;
-            doc.setFont("times", "normal");
-
+            doc.setFont("times", "bold"); doc.text("CLÁUSULA 3ª - DO VALOR E PAGAMENTO", margin, y); y += 6; doc.setFont("times", "normal");
             const entry = app.entryFee || app.details?.entryFee || 0;
-            const txtValor = 'Pelos serviços prestados, o CONTRATANTE pagará a quantia total de ' + formatCurrency(app.totalServices) + '. ' +
-                'Foi realizado um adiantamento (sinal) de ' + formatCurrency(entry) + '. ' +
-                'O valor restante de ' + formatCurrency(app.finalBalance) + ' deverá ser quitado até a data do evento.';
-            doc.text(doc.splitTextToSize(txtValor, maxLineWidth), margin, y);
-            y += 20;
+            const txtValor = 'Valor total: ' + formatCurrency(app.totalServices) + '. Sinal pago: ' + formatCurrency(entry) + '. Restante: ' + formatCurrency(app.finalBalance) + ' a ser quitado até a data do evento.';
+            doc.text(doc.splitTextToSize(txtValor, maxLineWidth), margin, y); y += 20;
 
-            doc.setFont("times", "bold");
-            doc.text("CLÁUSULA 4ª - DO CANCELAMENTO", margin, y);
-            y += 6;
-            doc.setFont("times", "normal");
-            const txtCancel = 'Em caso de desistência por parte do CONTRATANTE:\n' +
-                'a) Com mais de 30 dias de antecedência: devolução de 50% do sinal.\n' +
-                'b) Com menos de 30 dias: não haverá devolução do sinal (custos operacionais).\n' +
-                'c) O não pagamento do saldo restante até a data do evento autoriza a não execução do serviço.';
-            doc.text(doc.splitTextToSize(txtCancel, maxLineWidth), margin, y);
-            y += 25;
+            doc.setFont("times", "bold"); doc.text("CLÁUSULA 4ª - DO CANCELAMENTO", margin, y); y += 6; doc.setFont("times", "normal");
+            const txtCancel = 'Cancelamento com menos de 30 dias implica na perda do sinal para cobrir custos operacionais.';
+            doc.text(doc.splitTextToSize(txtCancel, maxLineWidth), margin, y); y += 25;
 
-            // --- 4. ASSINATURAS ---
-            // Verifica se precisa de nova página
             if (y > 240) { doc.addPage(); y = 40; } else { y += 20; }
+            doc.text( (company.cidade || 'Local') + ', ' + new Date().toLocaleDateString('pt-BR') + '.', margin, y); y += 25;
 
-            const dataHoje = new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
-            doc.text( (company.cidade || 'Local') + ', ' + dataHoje + '.', margin, y);
-            y += 25;
-
-            // Linhas de assinatura
-            doc.setLineWidth(0.5);
-            doc.line(margin, y, 90, y); // Linha 1
-            doc.line(110, y, 190, y); // Linha 2
-            y += 5;
-
-            doc.setFontSize(8);
-            doc.text("CONTRATADA", margin + 20, y);
-            doc.text("CONTRATANTE", 135, y);
-            
-            doc.save("Contrato_" + cli.name.split(' ')[0] + ".pdf"); 
+            doc.setLineWidth(0.5); doc.line(margin, y, 90, y); doc.line(110, y, 190, y); y += 5;
+            doc.setFontSize(8); doc.text("CONTRATADA", margin + 20, y); doc.text("CONTRATANTE", 135, y);
+            doc.save("Contrato.pdf"); 
         };
         
         const handleLogoUpload = (e) => { const f = e.target.files[0]; if(f){ const r = new FileReader(); r.onload=x=>{ company.logo=x.target.result; saveCompany(); }; r.readAsDataURL(f); } };
@@ -319,20 +255,16 @@ createApp({
         const removeServiceFromApp = (i) => tempApp.selectedServices.splice(i,1);
         const toggleDarkMode = () => { isDark.value = !isDark.value; if(isDark.value) document.documentElement.classList.add('dark'); else document.documentElement.classList.remove('dark'); localStorage.setItem('pp_dark', isDark.value); };
 
-        // --- TROCAR SENHA ---
         const handleChangePassword = async () => {
-            const html = '<input id="currentPass" type="password" class="swal2-input" placeholder="Senha Atual">' +
-                         '<input id="newPass" type="password" class="swal2-input" placeholder="Nova Senha">';
+            const html = '<input id="currentPass" type="password" class="swal2-input" placeholder="Senha Atual">' + '<input id="newPass" type="password" class="swal2-input" placeholder="Nova Senha">';
             const { value: formValues } = await Swal.fire({ title: 'Alterar Senha', html: html, showCancelButton: true, confirmButtonText: 'Alterar', preConfirm: () => { const c = document.getElementById('currentPass').value; const n = document.getElementById('newPass').value; if (!c || !n) { Swal.showValidationMessage('Preencha os dois campos'); } return [c, n]; } });
-
             if (formValues) {
-                const [currentPass, newPass] = formValues;
                 try {
-                    const credential = EmailAuthProvider.credential(user.value.email, currentPass);
+                    const credential = EmailAuthProvider.credential(user.value.email, formValues[0]);
                     await reauthenticateWithCredential(user.value, credential);
-                    await updatePassword(user.value, newPass);
+                    await updatePassword(user.value, formValues[1]);
                     Swal.fire('Sucesso!', 'Senha alterada.', 'success');
-                } catch (error) { Swal.fire('Erro', 'Senha atual incorreta ou nova senha fraca.', 'error'); }
+                } catch (error) { Swal.fire('Erro', 'Senha incorreta.', 'error'); }
             }
         };
 
@@ -341,7 +273,7 @@ createApp({
             clients, services, appointments: pendingAppointments, expenses, company,
             tempApp, tempServiceSelect, newExpense, currentReceipt, 
             isEditing, newTaskText, 
-            kpiRevenue, kpiExpenses, kpiReceivables, kpiProfit, next7DaysApps, 
+            kpiRevenue, kpiExpenses, kpiReceivables, kpiProfit, next7DaysApps, pendingCount,
             filteredListAppointments, totalServices, finalBalance,
             currentTab, historyFilter, searchHistory, isLoadingHistory, 
             handleLogin, logout, toggleDarkMode,
