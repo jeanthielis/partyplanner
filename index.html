@@ -115,11 +115,28 @@
                     <h2 class="font-bold text-xl dark:text-white">Minha Agenda</h2>
                 </div>
 
-                <div class="flex gap-2 mb-4 bg-gray-200 dark:bg-gray-700 p-1 rounded-xl">
-                    <button @click="currentTab = 'pending'" :class="currentTab === 'pending' ? 'bg-white dark:bg-darkcard shadow text-primary' : 'text-gray-500 dark:text-gray-400'" class="flex-1 py-2 rounded-lg text-xs font-bold">Pendentes</button>
-                    <button @click="currentTab = 'concluded'" :class="currentTab === 'concluded' ? 'bg-white dark:bg-darkcard shadow text-primary' : 'text-gray-500 dark:text-gray-400'" class="flex-1 py-2 rounded-lg text-xs font-bold">Concluídos</button>
-                    <button @click="currentTab = 'cancelled'" :class="currentTab === 'cancelled' ? 'bg-white dark:bg-darkcard shadow text-primary' : 'text-gray-500 dark:text-gray-400'" class="flex-1 py-2 rounded-lg text-xs font-bold">Cancelados</button>
-                </div>
+                <div class="flex gap-2 mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+    
+    <button @click="editAppointment(app)" class="flex-1 py-2 bg-gray-50 dark:bg-gray-700 rounded-lg text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100">
+        Editar
+    </button>
+    
+    <button @click="showReceipt(app)" class="flex-1 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-100">
+        Recibo
+    </button>
+
+    <template v-if="app.status === 'pending'">
+        
+        <button @click="changeStatus(app, 'concluded')" class="w-10 h-9 rounded-lg bg-green-100 dark:bg-green-900/30 text-green-600 flex items-center justify-center hover:bg-green-200 transition" title="Concluir Festa">
+            <i class="fa-solid fa-check"></i>
+        </button>
+
+        <button @click="changeStatus(app, 'cancelled')" class="w-10 h-9 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 flex items-center justify-center hover:bg-red-200 transition" title="Cancelar Festa">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+        
+    </template>
+</div>
 
                 <div v-for="app in filteredListAppointments" :key="app.id" class="bg-white dark:bg-darkcard p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 relative mb-4">
                     <div class="flex justify-between items-start mb-2">

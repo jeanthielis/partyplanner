@@ -200,19 +200,114 @@ createApp({
         const downloadReceiptImage = () => { html2canvas(document.getElementById('receipt-capture-area'),{scale:2}).then(c=>{const l=document.createElement('a');l.download='Recibo.png';l.href=c.toDataURL();l.click();}); };
         
         // PDF
+        // --- FUNÇÃO DE CONTRATO PROFISSIONAL ---
         const generateContractPDF = () => { 
-            const { jsPDF } = window.jspdf; const doc = new jsPDF(); const app = currentReceipt.value; 
-            const cli = clients.value.find(c => c.id === app.clientId) || {name: 'N/A', cpf: '', phone: ''}; 
-            const margin = 20; let y = 20; const pageWidth = doc.internal.pageSize.getWidth(); const maxTextWidth = pageWidth - (margin * 2);
-            doc.setFontSize(14); doc.setFont("helvetica", "bold"); doc.text("CONTRATO DE PRESTAÇÃO DE SERVIÇOS", pageWidth / 2, y, { align: "center" }); y += 15;
-            doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.text("IDENTIFICAÇÃO DAS PARTES", margin, y); y += 6; doc.setFont("helvetica", "normal");
+            const { jsPDF } = window.jspdf; 
+            const doc = new jsPDF({ format: 'a4', unit: 'mm' }); 
+            const app = currentReceipt.value; 
+            const cli = clients.value.find(c => c.id === app.clientId) || {name: '....................', cpf: '....................', phone: '....................'}; 
             
-            const t1 = 'CONTRATADA: ' + (company.fantasia||'Empresa') + ', CNPJ: ' + (company.cnpj||'N/A') + '.';
-            const t2 = 'CONTRATANTE: ' + cli.name + ', CPF: ' + (cli.cpf||'N/A') + '.';
-            doc.text(doc.splitTextToSize(t1, maxTextWidth), margin, y); y += 20; doc.text(doc.splitTextToSize(t2, maxTextWidth), margin, y); y += 20;
-            doc.text('OBJETO: Evento dia ' + formatDate(app.date) + ' às ' + app.time, margin, y); y += 10;
-            app.selectedServices.forEach(s => { doc.text('- ' + s.description + ': ' + formatCurrency(s.price), margin, y); y += 6; }); y += 10;
-            doc.text('TOTAL: ' + formatCurrency(app.totalServices) + ' | RESTANTE: ' + formatCurrency(app.finalBalance), margin, y); doc.save("Contrato.pdf"); 
+            // Configurações de Fonte e Margem
+            const margin = 20; 
+            const pageWidth = 210; 
+            const maxLineWidth = pageWidth - (margin * 2);
+            let y = 20; 
+
+            // --- 1. CABEÇALHO ---
+            if (company.logo) {
+                try {
+                    doc.addImage(company.logo, 'JPEG', margin, y, 25, 25); // Logo Quadrado
+                } catch (e) { console.log('Erro imagem', e); }
+            }
+            
+            doc.setFont("times", "bold"); 
+            doc.setFontSize(16); 
+            doc.text("CONTRATO DE PRESTAÇÃO DE SERVIÇOS", pageWidth / 2, y + 10, { align: "center" }); 
+            doc.setFontSize(10); 
+            doc.text("DE DECORAÇÃO E EVENTOS", pageWidth / 2, y + 16, { align: "center" }); 
+            y += 35;
+
+            // --- 2. IDENTIFICAÇÃO DAS PARTES ---
+            doc.setFontSize(10);
+            doc.setFont("times", "normal");
+            
+            const cName = company.fantasia || 'A CONTRATADA';
+            const cCnpj = company.cnpj || '....................';
+            const cEnd = (company.rua || '') + ' - ' + (company.cidade || '');
+            
+            // Texto corrido das partes
+            const txtPartes = 'IDENTIFICAÇÃO DAS PARTES\n\n' +
+                'CONTRATADA: ' + cName + ', inscrita no CNPJ sob nº ' + cCnpj + ', com sede em ' + cEnd + '.\n\n' +
+                'CONTRATANTE: ' + cli.name + ', CPF nº ' + (cli.cpf || '....................') + ', Telefone: ' + (cli.phone || '....................') + '.';
+            
+            doc.text(doc.splitTextToSize(txtPartes, maxLineWidth), margin, y);
+            y += 35;
+
+            // --- 3. CLÁUSULAS ---
+            doc.setFont("times", "bold");
+            doc.text("CLÁUSULA 1ª - DO OBJETO", margin, y);
+            y += 6;
+            doc.setFont("times", "normal");
+            
+            const txtObjeto = 'O presente contrato tem como objeto a prestação de serviços de decoração e ornamentação para o evento a ser realizado na data de ' + formatDate(app.date) + ', com início às ' + app.time + ' horas, no local: ' + (app.location.bairro || 'A definir') + ' (' + (app.location.rua || '') + ' ' + (app.location.numero || '') + ').';
+            doc.text(doc.splitTextToSize(txtObjeto, maxLineWidth), margin, y);
+            y += 20;
+
+            doc.setFont("times", "bold");
+            doc.text("CLÁUSULA 2ª - DOS ITENS CONTRATADOS", margin, y);
+            y += 6;
+            doc.setFont("times", "normal");
+            
+            let servicosTexto = 'A CONTRATADA compromete-se a fornecer os seguintes itens:\n';
+            app.selectedServices.forEach(s => { 
+                servicosTexto += '• ' + s.description + ' (' + formatCurrency(s.price) + ')\n'; 
+            });
+            doc.text(doc.splitTextToSize(servicosTexto, maxLineWidth), margin, y);
+            // Calcula altura dinâmica dos serviços
+            y += (app.selectedServices.length * 5) + 10;
+
+            doc.setFont("times", "bold");
+            doc.text("CLÁUSULA 3ª - DO VALOR E PAGAMENTO", margin, y);
+            y += 6;
+            doc.setFont("times", "normal");
+
+            const entry = app.entryFee || app.details?.entryFee || 0;
+            const txtValor = 'Pelos serviços prestados, o CONTRATANTE pagará a quantia total de ' + formatCurrency(app.totalServices) + '. ' +
+                'Foi realizado um adiantamento (sinal) de ' + formatCurrency(entry) + '. ' +
+                'O valor restante de ' + formatCurrency(app.finalBalance) + ' deverá ser quitado até a data do evento.';
+            doc.text(doc.splitTextToSize(txtValor, maxLineWidth), margin, y);
+            y += 20;
+
+            doc.setFont("times", "bold");
+            doc.text("CLÁUSULA 4ª - DO CANCELAMENTO", margin, y);
+            y += 6;
+            doc.setFont("times", "normal");
+            const txtCancel = 'Em caso de desistência por parte do CONTRATANTE:\n' +
+                'a) Com mais de 30 dias de antecedência: devolução de 50% do sinal.\n' +
+                'b) Com menos de 30 dias: não haverá devolução do sinal (custos operacionais).\n' +
+                'c) O não pagamento do saldo restante até a data do evento autoriza a não execução do serviço.';
+            doc.text(doc.splitTextToSize(txtCancel, maxLineWidth), margin, y);
+            y += 25;
+
+            // --- 4. ASSINATURAS ---
+            // Verifica se precisa de nova página
+            if (y > 240) { doc.addPage(); y = 40; } else { y += 20; }
+
+            const dataHoje = new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
+            doc.text( (company.cidade || 'Local') + ', ' + dataHoje + '.', margin, y);
+            y += 25;
+
+            // Linhas de assinatura
+            doc.setLineWidth(0.5);
+            doc.line(margin, y, 90, y); // Linha 1
+            doc.line(110, y, 190, y); // Linha 2
+            y += 5;
+
+            doc.setFontSize(8);
+            doc.text("CONTRATADA", margin + 20, y);
+            doc.text("CONTRATANTE", 135, y);
+            
+            doc.save("Contrato_" + cli.name.split(' ')[0] + ".pdf"); 
         };
         
         const handleLogoUpload = (e) => { const f = e.target.files[0]; if(f){ const r = new FileReader(); r.onload=x=>{ company.logo=x.target.result; saveCompany(); }; r.readAsDataURL(f); } };
