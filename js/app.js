@@ -252,11 +252,36 @@ createApp({
             }
         };
 
+        // --- NOVOS ESTADOS PARA BUSCA DE CLIENTE ---
+        const clientSearchTerm = ref('');
+        
+        // Filtra clientes apenas se digitar 3 ou mais letras
+        const filteredClientsSearch = computed(() => {
+            if (clientSearchTerm.value.length < 3) return [];
+            const term = clientSearchTerm.value.toLowerCase();
+            return clients.value.filter(c => 
+                c.name.toLowerCase().includes(term) || 
+                (c.phone && c.phone.includes(term)) // Busca também por telefone se quiser
+            );
+        });
+
+        // Função ao clicar em um nome da lista
+        const selectClientFromSearch = (client) => {
+            tempApp.clientId = client.id;
+            clientSearchTerm.value = ''; // Limpa a busca
+        };
+
+        // Função para remover o cliente selecionado e buscar outro
+        const clearClientSelection = () => {
+            tempApp.clientId = '';
+            clientSearchTerm.value = '';
+        };
+
         // Helpers
         const updateAppInFirebase = async (app) => { await updateDoc(doc(db, "appointments", app.id), { checklist: app.checklist }); };
         const addExpense = async () => { if(!newExpense.description) return; await addDoc(collection(db, "expenses"), {...newExpense, userId: user.value.uid}); Object.assign(newExpense, {description: '', value: ''}); Swal.fire({icon:'success', title:'Registrado', timer:1000}); };
         const deleteExpense = async (id) => { await deleteDoc(doc(db, "expenses", id)); };
-        const startNewSchedule = () => { isEditing.value=false; editingId.value=null; Object.assign(tempApp, {clientId: '', date: '', time: '', location: { bairro: '', cidade: '', numero: '' }, details: { colors: '', entryFee: 0 }, selectedServices: [] }); view.value='schedule'; };
+        const startNewSchedule = () => { isEditing.value=false; editingId.value=null; Object.assign(tempApp, {clientId: '', date: '', time: '', location: { bairro: '', cidade: '', numero: '' }, details: { colors: '', entryFee: 0 }, selectedServices: [] }); view.value='schedule';clientSearchTerm.value = ''; };
         const editAppointment = (app) => { isEditing.value=true; editingId.value=app.id; Object.assign(tempApp, JSON.parse(JSON.stringify(app))); view.value='schedule'; };
         const showReceipt = (app) => { currentReceipt.value = app; view.value = 'receipt'; };
         const openClientModal = async (c) => { const { value: vals } = await Swal.fire({ title: c?'Editar':'Novo', html: `<input id="n" class="swal2-input" value="${c?.name||''}" placeholder="Nome"><input id="p" class="swal2-input" value="${c?.phone||''}" placeholder="Telefone"><input id="cpf" class="swal2-input" value="${c?.cpf||''}" placeholder="CPF">`, preConfirm:()=>[document.getElementById('n').value,document.getElementById('p').value, document.getElementById('cpf').value] }); if(vals) { const d={name:vals[0], phone:vals[1], cpf:vals[2], userId:user.value.uid}; if(c) await updateDoc(doc(db,"clients",c.id),d); else await addDoc(collection(db,"clients"),d); Swal.fire('Salvo','','success'); } };
@@ -275,6 +300,7 @@ createApp({
         const toggleDarkMode = () => { isDark.value = !isDark.value; if(isDark.value) document.documentElement.classList.add('dark'); else document.documentElement.classList.remove('dark'); localStorage.setItem('pp_dark', isDark.value); };
 
         return {
+            clientSearchTerm, filteredClientsSearch, selectClientFromSearch, clearClientSelection,
             user, userRole, userStatus, daysRemaining, authForm, authLoading, view, isDark, dashboardFilter, 
             clients, services, appointments: pendingAppointments, expenses, company,
             tempApp, tempServiceSelect, newExpense, currentReceipt, 
