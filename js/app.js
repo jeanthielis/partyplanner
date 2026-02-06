@@ -18,28 +18,27 @@ createApp({
         const authForm = reactive({ email: '', password: '' });
         
         const view = ref('dashboard');
-        const catalogView = ref('company'); // company, clients, services, expenses
+        const catalogView = ref('company'); 
         const isDark = ref(false);
         
         // --- DADOS ---
-        const services = ref([]); // Serviços continuam automáticos (são poucos)
-        const pendingAppointments = ref([]); // Apenas pendentes automáticos
-        const historyList = ref([]); // Histórico sob demanda
+        const services = ref([]); 
+        const pendingAppointments = ref([]); 
+        const historyList = ref([]); 
+        const expensesList = ref([]); 
+        const catalogClientsList = ref([]); 
+        const scheduleClientsList = ref([]); 
         
-        // --- LISTAS SOB DEMANDA (Economia de Banco) ---
-        const expensesList = ref([]); // Lista de despesas filtrada
-        const catalogClientsList = ref([]); // Lista de clientes do catálogo filtrada
-        const scheduleClientsList = ref([]); // Lista de busca para o agendamento
-        
-        // Cache local para nomes de clientes (evita ler o banco repetidamente)
+        // Cache local para nomes de clientes
         const clientCache = reactive({}); 
+        const clients = ref([]); // Lista interna para uso do cache
 
         // --- FILTROS ---
         const currentTab = ref('pending'); 
         const historyFilter = reactive({ start: '', end: '' });
         const expensesFilter = reactive({ start: new Date().toISOString().split('T')[0], end: new Date().toISOString().split('T')[0] });
         const catalogClientSearch = ref('');
-        const clientSearchTerm = ref(''); // Input da tela de agendamento
+        const clientSearchTerm = ref(''); 
         const isLoadingHistory = ref(false);
 
         // --- FORMULÁRIOS ---
@@ -60,11 +59,10 @@ createApp({
         const statusText = (s) => s === 'concluded' ? 'Concluída' : (s === 'cancelled' ? 'Cancelada' : 'Pendente');
         const statusClass = (s) => s === 'concluded' ? 'bg-green-100 text-green-600' : (s === 'cancelled' ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-600');
 
-        // --- RESOLUÇÃO DE NOMES (CACHE INTELIGENTE) ---
+        // --- RESOLUÇÃO DE NOMES (CACHE) ---
         const resolveClientName = (id) => {
             if (!id) return '...';
             if (clientCache[id]) return clientCache[id].name;
-            // Se não tiver no cache, busca no banco silenciosamente
             fetchClientToCache(id);
             return 'Carregando...';
         };
@@ -73,24 +71,17 @@ createApp({
         const getClientPhone = (id) => clientCache[id] ? clientCache[id].phone : '';
 
         const fetchClientToCache = async (id) => {
-            if (clientCache[id] || !id) return; // Já tem ou inválido
+            if (clientCache[id] || !id) return;
             try {
                 const docSnap = await getDoc(doc(db, "clients", id));
-                if (docSnap.exists()) {
-                    clientCache[id] = docSnap.data();
-                } else {
-                    clientCache[id] = { name: 'Excluído', phone: '-' };
-                }
+                if (docSnap.exists()) clientCache[id] = docSnap.data();
+                else clientCache[id] = { name: 'Excluído', phone: '-' };
             } catch (e) { console.error(e); }
         };
 
-        // Observa agendamentos para carregar nomes faltantes
-        watch(pendingAppointments, (newApps) => {
-            newApps.forEach(app => fetchClientToCache(app.clientId));
-        }, { deep: true });
-        
-        watch(historyList, (newApps) => {
-            newApps.forEach(app => fetchClientToCache(app.clientId));
+        watch([pendingAppointments, historyList], ([newPending, newHistory]) => {
+            if(newPending) newPending.forEach(app => fetchClientToCache(app.clientId));
+            if(newHistory) newHistory.forEach(app => fetchClientToCache(app.clientId));
         }, { deep: true });
 
         // --- AUTH & SYNC ---
@@ -120,7 +111,6 @@ createApp({
             });
             if(localStorage.getItem('pp_dark') === 'true') { isDark.value = true; document.documentElement.classList.add('dark'); }
             
-            // Datas padrão filtro histórico
             const t = new Date(); const lm = new Date(); lm.setDate(t.getDate() - 30);
             historyFilter.end = t.toISOString().split('T')[0]; historyFilter.start = lm.toISOString().split('T')[0];
         });
@@ -134,97 +124,105 @@ createApp({
 
         const logout = async () => { await signOut(auth); window.location.href = "index.html"; };
 
-        // --- SINCRONIZAÇÃO LEVE (Apenas Serviços e Pendências) ---
+        // --- SYNC ---
         let unsubscribeListeners = [];
         const syncData = () => {
             unsubscribeListeners.forEach(unsub => unsub()); unsubscribeListeners = [];
             const myId = user.value.uid; 
             
-            // 1. Serviços (Leve)
+            // Serviços
             unsubscribeListeners.push(onSnapshot(query(collection(db, "services"), where("userId", "==", myId)), (snap) => { 
                 services.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
             }));
 
-            // 2. Agendamentos Pendentes (Para o Dashboard funcionar)
+            // Agendamentos Pendentes (Automático)
             const qApps = query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "pending"));
             unsubscribeListeners.push(onSnapshot(qApps, (snap) => { 
                 pendingAppointments.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
             }));
-            // NOTA: Clientes e Despesas foram removidos daqui para economizar recursos
         };
 
-        // --- AÇÕES DE BUSCA NO BANCO (ECONOMIA DE RECURSOS) ---
+        // --- BUSCAS COM FILTRO NO CLIENTE (CORREÇÃO DE ERRO) ---
 
-        // 1. Busca Despesas por Data
-        const searchExpenses = async () => {
-            if(!expensesFilter.start || !expensesFilter.end) return Swal.fire('Data', 'Selecione o período', 'info');
+        // 1. Busca Histórico (Concluídas/Canceladas)
+        const searchHistory = async () => {
+            if(!historyFilter.start || !historyFilter.end) return Swal.fire('Atenção', 'Selecione as datas', 'warning');
+            isLoadingHistory.value = true; historyList.value = [];
             
-            const q = query(
-                collection(db, "expenses"), 
-                where("userId", "==", user.value.uid),
-                where("date", ">=", expensesFilter.start),
-                where("date", "<=", expensesFilter.end),
-                orderBy("date", "desc")
-            );
-            
-            const snap = await getDocs(q);
-            expensesList.value = snap.docs.map(d => ({id: d.id, ...d.data()}));
-            if(expensesList.value.length === 0) Swal.fire('Vazio', 'Nenhuma despesa no período.', 'info');
-        };
+            try {
+                // CORREÇÃO: Baixa tudo do usuário e filtra no JS para evitar erro de Index do Firestore
+                const q = query(collection(db, "appointments"), where("userId", "==", user.value.uid));
+                const snap = await getDocs(q);
+                
+                const allApps = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                
+                // Filtra na memória (Rápido e sem erro)
+                historyList.value = allApps.filter(app => 
+                    app.status === currentTab.value && 
+                    app.date >= historyFilter.start && 
+                    app.date <= historyFilter.end
+                );
 
-        // 2. Busca Clientes para o Catálogo
-        const searchCatalogClients = async () => {
-            if(catalogClientSearch.value.length < 3) return Swal.fire('Ops', 'Digite pelo menos 3 letras ou CPF', 'info');
-            
-            const term = catalogClientSearch.value;
-            // Busca simples: startAt/endAt simula "começa com"
-            const q = query(
-                collection(db, "clients"),
-                where("userId", "==", user.value.uid),
-                where("name", ">=", term),
-                where("name", "<=", term + '\uf8ff')
-            );
-
-            const snap = await getDocs(q);
-            catalogClientsList.value = snap.docs.map(d => ({id: d.id, ...d.data()}));
-            
-            if(catalogClientsList.value.length === 0) {
-                 // Tenta buscar por CPF se não achou por nome
-                 const qCpf = query(collection(db, "clients"), where("userId", "==", user.value.uid), where("cpf", "==", term));
-                 const snapCpf = await getDocs(qCpf);
-                 catalogClientsList.value = snapCpf.docs.map(d => ({id: d.id, ...d.data()}));
-                 if(catalogClientsList.value.length === 0) Swal.fire('Não encontrado', 'Nenhum cliente com este nome/CPF.', 'info');
+                if(historyList.value.length === 0) Swal.fire('Info', 'Nenhum registro encontrado.', 'info');
+            } catch (error) { 
+                console.error(error); 
+                Swal.fire('Erro', 'Tente novamente.', 'error'); 
+            } finally { 
+                isLoadingHistory.value = false; 
             }
         };
 
-        // 3. Busca Clientes para o Agendamento (Ao digitar no input)
-        // Observa o input e busca no banco se tiver mais de 3 chars
+        // 2. Busca Despesas
+        const searchExpenses = async () => {
+            if(!expensesFilter.start || !expensesFilter.end) return Swal.fire('Data', 'Selecione o período', 'info');
+            
+            try {
+                // CORREÇÃO: Filtro JS
+                const q = query(collection(db, "expenses"), where("userId", "==", user.value.uid));
+                const snap = await getDocs(q);
+                const allExpenses = snap.docs.map(d => ({id: d.id, ...d.data()}));
+
+                expensesList.value = allExpenses.filter(e => e.date >= expensesFilter.start && e.date <= expensesFilter.end);
+                expensesList.value.sort((a,b) => new Date(b.date) - new Date(a.date));
+
+                if(expensesList.value.length === 0) Swal.fire('Vazio', 'Nenhuma despesa no período.', 'info');
+            } catch(e) { console.error(e); }
+        };
+
+        // 3. Busca Clientes Catálogo
+        const searchCatalogClients = async () => {
+            if(catalogClientSearch.value.length < 3) return Swal.fire('Ops', 'Digite pelo menos 3 letras ou CPF', 'info');
+            const term = catalogClientSearch.value.toLowerCase();
+            
+            // Busca um lote maior e filtra (Para suportar "contém" e CPF misturado)
+            const q = query(collection(db, "clients"), where("userId", "==", user.value.uid));
+            const snap = await getDocs(q);
+            const allClients = snap.docs.map(d => ({id: d.id, ...d.data()}));
+
+            catalogClientsList.value = allClients.filter(c => 
+                (c.name && c.name.toLowerCase().includes(term)) || 
+                (c.cpf && c.cpf.includes(term))
+            );
+            
+            if(catalogClientsList.value.length === 0) Swal.fire('Não encontrado', 'Nenhum cliente com este nome/CPF.', 'info');
+        };
+
+        // 4. Busca Clientes Agendamento (Input)
         watch(clientSearchTerm, async (newVal) => {
             if(newVal.length >= 3) {
-                const q = query(
-                    collection(db, "clients"),
-                    where("userId", "==", user.value.uid),
-                    where("name", ">=", newVal),
-                    where("name", "<=", newVal + '\uf8ff')
-                );
+                const term = newVal.toLowerCase();
+                const q = query(collection(db, "clients"), where("userId", "==", user.value.uid));
                 const snap = await getDocs(q);
-                scheduleClientsList.value = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                const all = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                
+                scheduleClientsList.value = all.filter(c => 
+                    (c.name && c.name.toLowerCase().includes(term)) || 
+                    (c.phone && c.phone.includes(term))
+                );
             } else {
                 scheduleClientsList.value = [];
             }
         });
-
-        // 4. Busca Histórico de Agendamentos
-        const searchHistory = async () => {
-            if(!historyFilter.start || !historyFilter.end) return Swal.fire('Atenção', 'Selecione as datas', 'warning');
-            isLoadingHistory.value = true; historyList.value = [];
-            try {
-                const q = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("status", "==", currentTab.value), where("date", ">=", historyFilter.start), where("date", "<=", historyFilter.end));
-                const querySnapshot = await getDocs(q);
-                historyList.value = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                if(historyList.value.length === 0) Swal.fire('Info', 'Nenhum registro encontrado.', 'info');
-            } catch (error) { console.error(error); Swal.fire('Erro', 'Verifique console.', 'error'); } finally { isLoadingHistory.value = false; }
-        };
 
         // --- COMPUTED ---
         const filteredListAppointments = computed(() => { 
@@ -232,7 +230,6 @@ createApp({
             return [...list].sort((a,b) => new Date(a.date) - new Date(b.date)); 
         });
         
-        // KPIS (Nota: O KPI de despesas agora soma apenas o que está CARREGADO na lista filtrada, ou 0 se não filtrou. Isso é o correto para performance)
         const kpiRevenue = computed(() => pendingAppointments.value.reduce((acc, a) => acc + (a.totalServices || 0), 0));
         const kpiExpenses = computed(() => expensesList.value.reduce((acc, e) => acc + (e.value || 0), 0)); 
         const kpiProfit = computed(() => kpiRevenue.value - kpiExpenses.value); 
@@ -246,10 +243,9 @@ createApp({
         const totalServices = computed(() => tempApp.selectedServices.reduce((s,i) => s + i.price, 0));
         const finalBalance = computed(() => totalServices.value - (tempApp.details.entryFee || 0));
 
-        // Use scheduleClientsList para o dropdown da agenda
         const filteredClientsSearch = computed(() => scheduleClientsList.value);
 
-        // --- AÇÕES CRUD ---
+        // --- ACTIONS ---
         const saveAppointment = async () => {
             const total = tempApp.selectedServices.reduce((sum, i) => sum + i.price, 0);
             const appData = { ...JSON.parse(JSON.stringify(tempApp)), totalServices: total, entryFee: tempApp.details.entryFee, finalBalance: total - tempApp.details.entryFee, userId: user.value.uid };
@@ -263,18 +259,19 @@ createApp({
             const { isConfirmed } = await Swal.fire({ title: action + '?', text: 'Deseja marcar como ' + action + '?', icon: 'question', showCancelButton: true });
             if(isConfirmed) {
                 await updateDoc(doc(db, "appointments", app.id), { status: status });
-                if(currentTab.value !== 'pending') { const idx = historyList.value.findIndex(x => x.id === app.id); if(idx !== -1) historyList.value[idx].status = status; }
+                // Atualiza lista local se for histórico
+                const idx = historyList.value.findIndex(x => x.id === app.id); 
+                if(idx !== -1) historyList.value.splice(idx, 1); // Remove da lista atual visualmente
+                
                 Swal.fire('Feito!', '', 'success');
             }
         };
 
         const updateAppInFirebase = async (app) => { await updateDoc(doc(db, "appointments", app.id), { checklist: app.checklist }); };
         
-        // Despesas agora adiciona e insere na lista local se estiver visivel
         const addExpense = async () => { 
             if(!newExpense.description) return; 
             const docRef = await addDoc(collection(db, "expenses"), {...newExpense, userId: user.value.uid}); 
-            // Adiciona na lista local para feedback imediato
             expensesList.value.unshift({id: docRef.id, ...newExpense});
             Object.assign(newExpense, {description: '', value: ''}); 
             Swal.fire({icon:'success', title:'Registrado', timer:1000}); 
@@ -290,7 +287,6 @@ createApp({
         const selectClientFromSearch = (client) => { tempApp.clientId = client.id; clientSearchTerm.value = ''; clientCache[client.id] = client; };
         const clearClientSelection = () => { tempApp.clientId = ''; clientSearchTerm.value = ''; };
 
-        // MODAIS COM HTML SIMPLES
         const openClientModal = async (c) => { 
             const n = c && c.name ? c.name : ''; const p = c && c.phone ? c.phone : ''; const cpf = c && c.cpf ? c.cpf : '';
             const html = '<input id="n" class="swal2-input" value="' + n + '" placeholder="Nome">' + '<input id="p" class="swal2-input" value="' + p + '" placeholder="Telefone">' + '<input id="cpf" class="swal2-input" value="' + cpf + '" placeholder="CPF">';
@@ -306,7 +302,6 @@ createApp({
             if (v) { const data = { description: v[0], price: Number(v[1]), userId: user.value.uid }; if (s) await updateDoc(doc(db, "services", s.id), data); else await addDoc(collection(db, "services"), data); }
         };
         const deleteService = async (id) => { await deleteDoc(doc(db,"services",id)); };
-        
         const downloadReceiptImage = () => { html2canvas(document.getElementById('receipt-capture-area'),{scale:2}).then(c=>{const l=document.createElement('a');l.download='Recibo.png';l.href=c.toDataURL();l.click();}); };
         
         const generateContractPDF = () => { 
