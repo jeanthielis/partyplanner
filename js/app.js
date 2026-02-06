@@ -1,31 +1,15 @@
-const { createApp, ref, computed, reactive, onMounted } = Vue;
+const { createApp, ref, computed, reactive, onMounted, watch } = Vue;
 
 import { 
     db, auth, 
-    collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDocs, query, where, setDoc, getDoc,
+    collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDocs, query, where, setDoc, getDoc, orderBy,
     signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged,
     updatePassword, reauthenticateWithCredential, EmailAuthProvider 
 } from './firebase.js';
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js"; 
-import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-
-const firebaseConfig = {
-    apiKey: "AIzaSyAhHRcZwrzD36oEFaeQzD1Fd-685YRAxBA",
-    authDomain: "partyplanner-3f352.firebaseapp.com",
-    projectId: "partyplanner-3f352",
-    storageBucket: "partyplanner-3f352.firebasestorage.app",
-    messagingSenderId: "748641483081",
-    appId: "1:748641483081:web:dec19c31c9e58d9040c298",
-    measurementId: "G-YVYD6MEXC1"
-};
-
 createApp({
     setup() {
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./sw.js').catch(err => console.log('Erro PWA:', err));
-        }
-
+        // --- ESTADOS GERAIS ---
         const user = ref(null);
         const userRole = ref('user');
         const userStatus = ref('trial');
@@ -34,54 +18,82 @@ createApp({
         const authForm = reactive({ email: '', password: '' });
         
         const view = ref('dashboard');
-        const catalogView = ref('company'); // Abas do Catálogo
+        const catalogView = ref('company'); // company, clients, services, expenses
         const isDark = ref(false);
-        const dashboardFilter = ref('month');
         
+        // --- DADOS ---
+        const services = ref([]); // Serviços continuam automáticos (são poucos)
+        const pendingAppointments = ref([]); // Apenas pendentes automáticos
+        const historyList = ref([]); // Histórico sob demanda
+        
+        // --- LISTAS SOB DEMANDA (Economia de Banco) ---
+        const expensesList = ref([]); // Lista de despesas filtrada
+        const catalogClientsList = ref([]); // Lista de clientes do catálogo filtrada
+        const scheduleClientsList = ref([]); // Lista de busca para o agendamento
+        
+        // Cache local para nomes de clientes (evita ler o banco repetidamente)
+        const clientCache = reactive({}); 
+
+        // --- FILTROS ---
         const currentTab = ref('pending'); 
         const historyFilter = reactive({ start: '', end: '' });
-        const historyList = ref([]); 
+        const expensesFilter = reactive({ start: new Date().toISOString().split('T')[0], end: new Date().toISOString().split('T')[0] });
+        const catalogClientSearch = ref('');
+        const clientSearchTerm = ref(''); // Input da tela de agendamento
         const isLoadingHistory = ref(false);
 
-        // --- BUSCA INTELIGENTE DE CLIENTES ---
-        const clientSearchTerm = ref('');
-        const filteredClientsSearch = computed(() => {
-            if (clientSearchTerm.value.length < 3) return [];
-            const term = clientSearchTerm.value.toLowerCase();
-            return clients.value.filter(c => 
-                c.name.toLowerCase().includes(term) || 
-                (c.phone && c.phone.includes(term))
-            );
-        });
-        const selectClientFromSearch = (client) => { tempApp.clientId = client.id; clientSearchTerm.value = ''; };
-        const clearClientSelection = () => { tempApp.clientId = ''; clientSearchTerm.value = ''; };
-
-        const isEditing = ref(false);
-        const editingId = ref(null);
-        const currentReceipt = ref(null);
-        const newTaskText = ref({});
-
-        const clients = ref([]);
-        const services = ref([]);
-        const pendingAppointments = ref([]); 
-        const expenses = ref([]);
+        // --- FORMULÁRIOS ---
         const company = reactive({ fantasia: '', logo: '', cnpj: '', razao: '', cidade: '', rua: '', estado: '' });
-        
         const tempApp = reactive({ clientId: '', date: '', time: '', location: { bairro: '', cidade: '', numero: '' }, details: { colors: '', entryFee: 0 }, selectedServices: [] });
         const tempServiceSelect = ref('');
         const newExpense = reactive({ description: '', value: '', date: new Date().toISOString().split('T')[0] });
+        const currentReceipt = ref(null);
+        const isEditing = ref(false);
+        const editingId = ref(null);
+        const newTaskText = ref({});
 
-        // UTILS
+        // --- UTILS ---
         const formatCurrency = (v) => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v||0);
         const formatDate = (d) => d ? d.split('-').reverse().join('/') : '';
         const getDay = (d) => d ? d.split('-')[2] : '';
         const getMonth = (d) => ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'][parseInt(d.split('-')[1])-1];
         const statusText = (s) => s === 'concluded' ? 'Concluída' : (s === 'cancelled' ? 'Cancelada' : 'Pendente');
         const statusClass = (s) => s === 'concluded' ? 'bg-green-100 text-green-600' : (s === 'cancelled' ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-600');
-        const getClientName = (id) => { const c = clients.value.find(x => x.id === id); return c ? c.name : 'Desconhecido'; };
-        const getClientPhone = (id) => { const c = clients.value.find(x => x.id === id); return c ? c.phone : ''; };
 
-        // AUTH
+        // --- RESOLUÇÃO DE NOMES (CACHE INTELIGENTE) ---
+        const resolveClientName = (id) => {
+            if (!id) return '...';
+            if (clientCache[id]) return clientCache[id].name;
+            // Se não tiver no cache, busca no banco silenciosamente
+            fetchClientToCache(id);
+            return 'Carregando...';
+        };
+
+        const getClientName = (id) => resolveClientName(id);
+        const getClientPhone = (id) => clientCache[id] ? clientCache[id].phone : '';
+
+        const fetchClientToCache = async (id) => {
+            if (clientCache[id] || !id) return; // Já tem ou inválido
+            try {
+                const docSnap = await getDoc(doc(db, "clients", id));
+                if (docSnap.exists()) {
+                    clientCache[id] = docSnap.data();
+                } else {
+                    clientCache[id] = { name: 'Excluído', phone: '-' };
+                }
+            } catch (e) { console.error(e); }
+        };
+
+        // Observa agendamentos para carregar nomes faltantes
+        watch(pendingAppointments, (newApps) => {
+            newApps.forEach(app => fetchClientToCache(app.clientId));
+        }, { deep: true });
+        
+        watch(historyList, (newApps) => {
+            newApps.forEach(app => fetchClientToCache(app.clientId));
+        }, { deep: true });
+
+        // --- AUTH & SYNC ---
         onMounted(() => {
             onAuthStateChanged(auth, async (u) => {
                 if (u) {
@@ -104,10 +116,11 @@ createApp({
                     syncData();
                 } else {
                     user.value = null;
-                    clients.value=[]; services.value=[]; pendingAppointments.value=[]; expenses.value=[];
                 }
             });
             if(localStorage.getItem('pp_dark') === 'true') { isDark.value = true; document.documentElement.classList.add('dark'); }
+            
+            // Datas padrão filtro histórico
             const t = new Date(); const lm = new Date(); lm.setDate(t.getDate() - 30);
             historyFilter.end = t.toISOString().split('T')[0]; historyFilter.start = lm.toISOString().split('T')[0];
         });
@@ -121,17 +134,87 @@ createApp({
 
         const logout = async () => { await signOut(auth); window.location.href = "index.html"; };
 
+        // --- SINCRONIZAÇÃO LEVE (Apenas Serviços e Pendências) ---
         let unsubscribeListeners = [];
         const syncData = () => {
             unsubscribeListeners.forEach(unsub => unsub()); unsubscribeListeners = [];
             const myId = user.value.uid; 
-            unsubscribeListeners.push(onSnapshot(query(collection(db, "clients"), where("userId", "==", myId)), (snap) => { clients.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); }));
-            unsubscribeListeners.push(onSnapshot(query(collection(db, "services"), where("userId", "==", myId)), (snap) => { services.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); }));
-            unsubscribeListeners.push(onSnapshot(query(collection(db, "expenses"), where("userId", "==", myId)), (snap) => { expenses.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); }));
+            
+            // 1. Serviços (Leve)
+            unsubscribeListeners.push(onSnapshot(query(collection(db, "services"), where("userId", "==", myId)), (snap) => { 
+                services.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
+            }));
+
+            // 2. Agendamentos Pendentes (Para o Dashboard funcionar)
             const qApps = query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "pending"));
-            unsubscribeListeners.push(onSnapshot(qApps, (snap) => { pendingAppointments.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); }));
+            unsubscribeListeners.push(onSnapshot(qApps, (snap) => { 
+                pendingAppointments.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
+            }));
+            // NOTA: Clientes e Despesas foram removidos daqui para economizar recursos
         };
 
+        // --- AÇÕES DE BUSCA NO BANCO (ECONOMIA DE RECURSOS) ---
+
+        // 1. Busca Despesas por Data
+        const searchExpenses = async () => {
+            if(!expensesFilter.start || !expensesFilter.end) return Swal.fire('Data', 'Selecione o período', 'info');
+            
+            const q = query(
+                collection(db, "expenses"), 
+                where("userId", "==", user.value.uid),
+                where("date", ">=", expensesFilter.start),
+                where("date", "<=", expensesFilter.end),
+                orderBy("date", "desc")
+            );
+            
+            const snap = await getDocs(q);
+            expensesList.value = snap.docs.map(d => ({id: d.id, ...d.data()}));
+            if(expensesList.value.length === 0) Swal.fire('Vazio', 'Nenhuma despesa no período.', 'info');
+        };
+
+        // 2. Busca Clientes para o Catálogo
+        const searchCatalogClients = async () => {
+            if(catalogClientSearch.value.length < 3) return Swal.fire('Ops', 'Digite pelo menos 3 letras ou CPF', 'info');
+            
+            const term = catalogClientSearch.value;
+            // Busca simples: startAt/endAt simula "começa com"
+            const q = query(
+                collection(db, "clients"),
+                where("userId", "==", user.value.uid),
+                where("name", ">=", term),
+                where("name", "<=", term + '\uf8ff')
+            );
+
+            const snap = await getDocs(q);
+            catalogClientsList.value = snap.docs.map(d => ({id: d.id, ...d.data()}));
+            
+            if(catalogClientsList.value.length === 0) {
+                 // Tenta buscar por CPF se não achou por nome
+                 const qCpf = query(collection(db, "clients"), where("userId", "==", user.value.uid), where("cpf", "==", term));
+                 const snapCpf = await getDocs(qCpf);
+                 catalogClientsList.value = snapCpf.docs.map(d => ({id: d.id, ...d.data()}));
+                 if(catalogClientsList.value.length === 0) Swal.fire('Não encontrado', 'Nenhum cliente com este nome/CPF.', 'info');
+            }
+        };
+
+        // 3. Busca Clientes para o Agendamento (Ao digitar no input)
+        // Observa o input e busca no banco se tiver mais de 3 chars
+        watch(clientSearchTerm, async (newVal) => {
+            if(newVal.length >= 3) {
+                const q = query(
+                    collection(db, "clients"),
+                    where("userId", "==", user.value.uid),
+                    where("name", ">=", newVal),
+                    where("name", "<=", newVal + '\uf8ff')
+                );
+                const snap = await getDocs(q);
+                scheduleClientsList.value = snap.docs.map(d => ({id: d.id, ...d.data()}));
+            } else {
+                scheduleClientsList.value = [];
+            }
+        });
+
+        // 4. Busca Histórico de Agendamentos
         const searchHistory = async () => {
             if(!historyFilter.start || !historyFilter.end) return Swal.fire('Atenção', 'Selecione as datas', 'warning');
             isLoadingHistory.value = true; historyList.value = [];
@@ -143,13 +226,15 @@ createApp({
             } catch (error) { console.error(error); Swal.fire('Erro', 'Verifique console.', 'error'); } finally { isLoadingHistory.value = false; }
         };
 
-        // --- KPIS ---
+        // --- COMPUTED ---
         const filteredListAppointments = computed(() => { 
             let list = currentTab.value === 'pending' ? pendingAppointments.value : historyList.value;
             return [...list].sort((a,b) => new Date(a.date) - new Date(b.date)); 
         });
+        
+        // KPIS (Nota: O KPI de despesas agora soma apenas o que está CARREGADO na lista filtrada, ou 0 se não filtrou. Isso é o correto para performance)
         const kpiRevenue = computed(() => pendingAppointments.value.reduce((acc, a) => acc + (a.totalServices || 0), 0));
-        const kpiExpenses = computed(() => expenses.value.reduce((acc, e) => acc + (e.value || 0), 0));
+        const kpiExpenses = computed(() => expensesList.value.reduce((acc, e) => acc + (e.value || 0), 0)); 
         const kpiProfit = computed(() => kpiRevenue.value - kpiExpenses.value); 
         const kpiReceivables = computed(() => pendingAppointments.value.reduce((acc, a) => acc + (a.finalBalance || 0), 0));
         const pendingCount = computed(() => pendingAppointments.value.length);
@@ -161,7 +246,10 @@ createApp({
         const totalServices = computed(() => tempApp.selectedServices.reduce((s,i) => s + i.price, 0));
         const finalBalance = computed(() => totalServices.value - (tempApp.details.entryFee || 0));
 
-        // ACTIONS
+        // Use scheduleClientsList para o dropdown da agenda
+        const filteredClientsSearch = computed(() => scheduleClientsList.value);
+
+        // --- AÇÕES CRUD ---
         const saveAppointment = async () => {
             const total = tempApp.selectedServices.reduce((sum, i) => sum + i.price, 0);
             const appData = { ...JSON.parse(JSON.stringify(tempApp)), totalServices: total, entryFee: tempApp.details.entryFee, finalBalance: total - tempApp.details.entryFee, userId: user.value.uid };
@@ -181,21 +269,36 @@ createApp({
         };
 
         const updateAppInFirebase = async (app) => { await updateDoc(doc(db, "appointments", app.id), { checklist: app.checklist }); };
-        const addExpense = async () => { if(!newExpense.description) return; await addDoc(collection(db, "expenses"), {...newExpense, userId: user.value.uid}); Object.assign(newExpense, {description: '', value: ''}); Swal.fire({icon:'success', title:'Registrado', timer:1000}); };
-        const deleteExpense = async (id) => { await deleteDoc(doc(db, "expenses", id)); };
+        
+        // Despesas agora adiciona e insere na lista local se estiver visivel
+        const addExpense = async () => { 
+            if(!newExpense.description) return; 
+            const docRef = await addDoc(collection(db, "expenses"), {...newExpense, userId: user.value.uid}); 
+            // Adiciona na lista local para feedback imediato
+            expensesList.value.unshift({id: docRef.id, ...newExpense});
+            Object.assign(newExpense, {description: '', value: ''}); 
+            Swal.fire({icon:'success', title:'Registrado', timer:1000}); 
+        };
+        const deleteExpense = async (id) => { 
+            await deleteDoc(doc(db, "expenses", id)); 
+            expensesList.value = expensesList.value.filter(e => e.id !== id);
+        };
         
         const startNewSchedule = () => { isEditing.value=false; editingId.value=null; clientSearchTerm.value = ''; Object.assign(tempApp, {clientId: '', date: '', time: '', location: { bairro: '', cidade: '', numero: '' }, details: { colors: '', entryFee: 0 }, selectedServices: [] }); view.value='schedule'; };
-        const editAppointment = (app) => { isEditing.value=true; editingId.value=app.id; clientSearchTerm.value = ''; Object.assign(tempApp, JSON.parse(JSON.stringify(app))); view.value='schedule'; };
-        const showReceipt = (app) => { currentReceipt.value = app; view.value = 'receipt'; };
+        const editAppointment = (app) => { isEditing.value=true; editingId.value=app.id; clientSearchTerm.value = ''; fetchClientToCache(app.clientId); Object.assign(tempApp, JSON.parse(JSON.stringify(app))); view.value='schedule'; };
+        const showReceipt = (app) => { currentReceipt.value = app; fetchClientToCache(app.clientId); view.value = 'receipt'; };
+        const selectClientFromSearch = (client) => { tempApp.clientId = client.id; clientSearchTerm.value = ''; clientCache[client.id] = client; };
+        const clearClientSelection = () => { tempApp.clientId = ''; clientSearchTerm.value = ''; };
 
-        // MODAIS
+        // MODAIS COM HTML SIMPLES
         const openClientModal = async (c) => { 
             const n = c && c.name ? c.name : ''; const p = c && c.phone ? c.phone : ''; const cpf = c && c.cpf ? c.cpf : '';
             const html = '<input id="n" class="swal2-input" value="' + n + '" placeholder="Nome">' + '<input id="p" class="swal2-input" value="' + p + '" placeholder="Telefone">' + '<input id="cpf" class="swal2-input" value="' + cpf + '" placeholder="CPF">';
             const { value: vals } = await Swal.fire({ title: c ? 'Editar Cliente' : 'Novo Cliente', html: html, showCancelButton: true, confirmButtonText: 'Salvar', preConfirm: () => [ document.getElementById('n').value, document.getElementById('p').value, document.getElementById('cpf').value ] });
             if (vals) { const d = { name: vals[0], phone: vals[1], cpf: vals[2], userId: user.value.uid }; if (c) await updateDoc(doc(db, "clients", c.id), d); else await addDoc(collection(db, "clients"), d); Swal.fire('Salvo', '', 'success'); } 
         };
-        const deleteClient = async (id) => { if ((await Swal.fire({ title: 'Excluir?', showCancelButton: true })).isConfirmed) { await deleteDoc(doc(db, "clients", id)); } };
+        const deleteClient = async (id) => { if ((await Swal.fire({ title: 'Excluir?', showCancelButton: true })).isConfirmed) { await deleteDoc(doc(db, "clients", id)); catalogClientsList.value = catalogClientsList.value.filter(x => x.id !== id); } };
+        
         const openServiceModal = async (s) => { 
             const d = s && s.description ? s.description : ''; const p = s && s.price ? s.price : '';
             const html = '<input id="d" class="swal2-input" value="' + d + '" placeholder="Descrição">' + '<input id="p" type="number" class="swal2-input" value="' + p + '" placeholder="Preço (R$)">';
@@ -203,16 +306,15 @@ createApp({
             if (v) { const data = { description: v[0], price: Number(v[1]), userId: user.value.uid }; if (s) await updateDoc(doc(db, "services", s.id), data); else await addDoc(collection(db, "services"), data); }
         };
         const deleteService = async (id) => { await deleteDoc(doc(db,"services",id)); };
+        
         const downloadReceiptImage = () => { html2canvas(document.getElementById('receipt-capture-area'),{scale:2}).then(c=>{const l=document.createElement('a');l.download='Recibo.png';l.href=c.toDataURL();l.click();}); };
         
-        // CONTRATO PROFISSIONAL
         const generateContractPDF = () => { 
             const { jsPDF } = window.jspdf; const doc = new jsPDF(); const app = currentReceipt.value; 
-            const cli = clients.value.find(c => c.id === app.clientId) || {name: '....................', cpf: '....................', phone: ''}; 
+            const cli = clientCache[app.clientId] || {name: '....................', cpf: '....................', phone: ''}; 
             const margin = 20; const pageWidth = 210; const maxLineWidth = pageWidth - (margin * 2); let y = 20; 
 
             if (company.logo) { try { doc.addImage(company.logo, 'JPEG', margin, y, 25, 25); } catch (e) {} }
-            
             doc.setFont("times", "bold"); doc.setFontSize(16); doc.text("CONTRATO DE PRESTAÇÃO DE SERVIÇOS", pageWidth / 2, y + 10, { align: "center" }); 
             doc.setFontSize(10); doc.text("DE DECORAÇÃO E EVENTOS", pageWidth / 2, y + 16, { align: "center" }); y += 35;
 
@@ -269,13 +371,13 @@ createApp({
         };
 
         return {
-            user, userRole, userStatus, daysRemaining, authForm, authLoading, view, catalogView, isDark, dashboardFilter, 
-            clients, services, appointments: pendingAppointments, expenses, company,
+            user, userRole, userStatus, daysRemaining, authForm, authLoading, view, catalogView, isDark, 
+            services, appointments: pendingAppointments, expensesList, catalogClientsList, company,
             tempApp, tempServiceSelect, newExpense, currentReceipt, 
             isEditing, newTaskText, 
             kpiRevenue, kpiExpenses, kpiReceivables, kpiProfit, next7DaysApps, pendingCount,
             filteredListAppointments, totalServices, finalBalance,
-            currentTab, historyFilter, searchHistory, isLoadingHistory, 
+            currentTab, historyFilter, searchHistory, isLoadingHistory, expensesFilter,
             handleLogin, logout, toggleDarkMode,
             startNewSchedule, editAppointment, saveAppointment, changeStatus, addExpense, deleteExpense, 
             openClientModal, deleteClient, openServiceModal, deleteService,
@@ -284,7 +386,7 @@ createApp({
             showReceipt, downloadReceiptImage, generateContractPDF, 
             getClientName, getClientPhone, formatCurrency, formatDate, getDay, getMonth, statusText, statusClass,
             clientSearchTerm, filteredClientsSearch, selectClientFromSearch, clearClientSelection,
-            handleChangePassword
+            handleChangePassword, searchExpenses, searchCatalogClients, catalogClientSearch
         };
     }
 }).mount('#app');
