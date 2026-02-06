@@ -380,18 +380,17 @@
             </main>
 
             <main v-if="view === 'catalog_hub'" class="flex-1 p-6 overflow-y-auto pb-24 animate-fade">
-                <div class="mb-6">
-                    <h2 class="font-bold text-xl dark:text-white mb-4">Configuração da Empresa</h2>
-                    <div class="bg-white dark:bg-darkcard p-4 rounded-xl shadow-sm space-y-3">
-                        <input v-model="company.fantasia" placeholder="Nome Fantasia" class="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                        <input v-model="company.razao" placeholder="Razão Social" class="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                        <input v-model="company.cnpj" placeholder="CNPJ" class="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                        <div class="grid grid-cols-2 gap-2">
-                            <input v-model="company.cidade" placeholder="Cidade" class="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                            <input v-model="company.rua" placeholder="Rua/Bairro" class="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                        </div>
-                        <button @click="saveCompany" class="w-full bg-primary text-white py-2 rounded font-bold">Salvar Dados</button>
-                    </div>
+                <div class="bg-white dark:bg-darkcard p-4 rounded-xl shadow-sm space-y-3">
+    <input v-model="company.fantasia" placeholder="Nome Fantasia" class="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+    <div class="grid grid-cols-2 gap-2">
+       </div>
+
+    <button @click="saveCompany" class="w-full bg-primary text-white py-2 rounded font-bold">Salvar Dados</button>
+    
+    <button @click="handleChangePassword" class="w-full bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 py-2 rounded font-bold text-sm mt-2 hover:bg-gray-300 dark:hover:bg-gray-600 transition">
+        <i class="fa-solid fa-lock mr-2"></i> Alterar Senha de Acesso
+    </button>
+</div>
                 </div>
 
                 <div class="mb-6">
