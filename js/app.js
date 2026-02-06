@@ -151,7 +151,7 @@ createApp({
 
         const logout = async () => { 
             await signOut(auth); 
-            view.value='dashboard'; 
+            view.value='index.html'; 
         };
 
         // --- SINCRONIZAÇÃO DE DADOS ---
