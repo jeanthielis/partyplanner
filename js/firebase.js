@@ -1,30 +1,20 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 
-// AQUI ESTAVA O PROBLEMA: Adicionei 'getDoc' na lista abaixo
 import { 
-    getFirestore, 
-    collection, 
-    addDoc, 
-    onSnapshot, 
-    doc, 
-    updateDoc, 
-    deleteDoc, 
-    setDoc, 
-    getDocs, 
-    getDoc, // <--- Adicionado
-    query, 
-    where, 
-    orderBy 
+    getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, setDoc, getDocs, getDoc, query, where, orderBy 
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-// Adicionei também 'sendPasswordResetEmail' para o admin
+// AQUI ESTÃO AS NOVAS IMPORTAÇÕES (updatePassword, reauthenticateWithCredential, EmailAuthProvider)
 import { 
     getAuth, 
     signInWithEmailAndPassword, 
     createUserWithEmailAndPassword, 
     signOut, 
     onAuthStateChanged,
-    sendPasswordResetEmail 
+    sendPasswordResetEmail,
+    updatePassword,
+    reauthenticateWithCredential,
+    EmailAuthProvider
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -41,25 +31,9 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-// E AQUI TAMBÉM: Exportando tudo para o app.js usar
 export { 
-    db, 
-    auth, 
-    collection, 
-    addDoc, 
-    onSnapshot, 
-    doc, 
-    updateDoc, 
-    deleteDoc, 
-    setDoc, 
-    getDocs, 
-    getDoc, // <--- O app.js precisa disso exportado aqui
-    query, 
-    where, 
-    orderBy,
-    signInWithEmailAndPassword, 
-    createUserWithEmailAndPassword, 
-    signOut, 
-    onAuthStateChanged,
-    sendPasswordResetEmail
+    db, auth, 
+    collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, setDoc, getDocs, getDoc, query, where, orderBy,
+    signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail,
+    updatePassword, reauthenticateWithCredential, EmailAuthProvider // <--- Exportando as novas funções
 };
