@@ -6,7 +6,6 @@ import {
     signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged 
 } from './firebase.js';
 
-// Imports de segurança
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js"; 
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
@@ -22,11 +21,11 @@ const firebaseConfig = {
 
 createApp({
     setup() {
+        // Tenta registrar o SW, mas ignora erros silenciosamente
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./sw.js').catch(err => console.log('Erro PWA:', err));
+            navigator.serviceWorker.register('./sw.js').catch(err => console.log(err));
         }
 
-        // --- ESTADOS ---
         const user = ref(null);
         const userRole = ref('user');
         const userStatus = ref('trial');
@@ -43,7 +42,6 @@ createApp({
         const historyList = ref([]); 
         const isLoadingHistory = ref(false);
 
-        // --- BUSCA CLIENTE ---
         const clientSearchTerm = ref('');
         const filteredClientsSearch = computed(() => {
             if (clientSearchTerm.value.length < 3) return [];
@@ -79,7 +77,6 @@ createApp({
         const tempServiceSelect = ref('');
         const newExpense = reactive({ description: '', value: '', date: new Date().toISOString().split('T')[0] });
 
-        // --- UTILS ---
         const formatCurrency = (v) => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v||0);
         const formatDate = (d) => d ? d.split('-').reverse().join('/') : '';
         const getDay = (d) => d ? d.split('-')[2] : '';
@@ -92,7 +89,6 @@ createApp({
             return client ? client.name : 'Desconhecido';
         };
 
-        // --- AUTH ---
         onMounted(() => {
             onAuthStateChanged(auth, async (u) => {
                 if (u) {
@@ -102,7 +98,7 @@ createApp({
                     if (!userDoc.exists()) {
                         await signOut(auth);
                         user.value = null;
-                        Swal.fire({ icon: 'error', title: 'Acesso Revogado', text: 'Sua conta foi removida pelo administrador.' });
+                        Swal.fire({ icon: 'error', title: 'Acesso Revogado', text: 'Conta removida.' });
                         return;
                     }
 
@@ -128,6 +124,7 @@ createApp({
             });
 
             if(localStorage.getItem('pp_dark') === 'true') { isDark.value = true; document.documentElement.classList.add('dark'); }
+            
             const today = new Date(); 
             const lastMonth = new Date(); 
             lastMonth.setDate(today.getDate() - 30);
@@ -144,7 +141,6 @@ createApp({
 
         const logout = async () => { await signOut(auth); view.value='dashboard'; };
 
-        // --- SYNC ---
         let unsubscribeListeners = [];
         const syncData = () => {
             unsubscribeListeners.forEach(unsub => unsub()); unsubscribeListeners = [];
@@ -167,7 +163,6 @@ createApp({
             } catch (error) { console.error(error); Swal.fire('Erro', 'Verifique console.', 'error'); } finally { isLoadingHistory.value = false; }
         };
 
-        // --- COMPUTED ---
         const filteredListAppointments = computed(() => { 
             let list = currentTab.value === 'pending' ? pendingAppointments.value : historyList.value;
             return [...list].sort((a,b) => new Date(a.date) - new Date(b.date)); 
@@ -182,7 +177,6 @@ createApp({
         const totalServices = computed(() => tempApp.selectedServices.reduce((s,i) => s + i.price, 0));
         const finalBalance = computed(() => totalServices.value - (tempApp.details.entryFee || 0));
 
-        // --- AÇÕES ---
         const saveAppointment = async () => {
             const total = tempApp.selectedServices.reduce((sum, i) => sum + i.price, 0);
             const appData = { ...JSON.parse(JSON.stringify(tempApp)), totalServices: total, entryFee: tempApp.details.entryFee, finalBalance: total - tempApp.details.entryFee, userId: user.value.uid };
@@ -193,139 +187,84 @@ createApp({
 
         const changeStatus = async (app, status) => { 
             await updateDoc(doc(db, "appointments", app.id), { status: status });
-            if(currentTab.value !== 'pending') { 
-                const idx = historyList.value.findIndex(x => x.id === app.id); 
-                if(idx !== -1) historyList.value[idx].status = status; 
-            }
+            if(currentTab.value !== 'pending') { const idx = historyList.value.findIndex(x => x.id === app.id); if(idx !== -1) historyList.value[idx].status = status; }
         };
 
         const updateAppInFirebase = async (app) => { await updateDoc(doc(db, "appointments", app.id), { checklist: app.checklist }); };
         const addExpense = async () => { if(!newExpense.description) return; await addDoc(collection(db, "expenses"), {...newExpense, userId: user.value.uid}); Object.assign(newExpense, {description: '', value: ''}); Swal.fire({icon:'success', title:'Registrado', timer:1000}); };
         const deleteExpense = async (id) => { await deleteDoc(doc(db, "expenses", id)); };
         
-        const startNewSchedule = () => { 
-            isEditing.value=false; editingId.value=null; clientSearchTerm.value = ''; 
-            Object.assign(tempApp, {clientId: '', date: '', time: '', location: { bairro: '', cidade: '', numero: '' }, details: { colors: '', entryFee: 0 }, selectedServices: [] }); 
-            view.value='schedule'; 
-        };
-        const editAppointment = (app) => { 
-            isEditing.value=true; editingId.value=app.id; clientSearchTerm.value = ''; 
-            Object.assign(tempApp, JSON.parse(JSON.stringify(app))); 
-            view.value='schedule'; 
-        };
+        const startNewSchedule = () => { isEditing.value=false; editingId.value=null; clientSearchTerm.value = ''; Object.assign(tempApp, {clientId: '', date: '', time: '', location: { bairro: '', cidade: '', numero: '' }, details: { colors: '', entryFee: 0 }, selectedServices: [] }); view.value='schedule'; };
+        const editAppointment = (app) => { isEditing.value=true; editingId.value=app.id; clientSearchTerm.value = ''; Object.assign(tempApp, JSON.parse(JSON.stringify(app))); view.value='schedule'; };
         const showReceipt = (app) => { currentReceipt.value = app; view.value = 'receipt'; };
 
-        // --- MODAIS COM CONCATENAÇÃO SEGURA (SEM CRASES) ---
+        // MODAIS COM HTML PURO (SEM TEMPLATE LITERALS)
         const openClientModal = async (c) => { 
-            const nameVal = c && c.name ? c.name : '';
-            const phoneVal = c && c.phone ? c.phone : '';
-            const cpfVal = c && c.cpf ? c.cpf : '';
+            const n = c && c.name ? c.name : '';
+            const p = c && c.phone ? c.phone : '';
+            const cpf = c && c.cpf ? c.cpf : '';
             
-            // HTML em string simples para evitar SyntaxError
-            const htmlContent = '<input id="n" class="swal2-input" value="' + nameVal + '" placeholder="Nome">' +
-                                '<input id="p" class="swal2-input" value="' + phoneVal + '" placeholder="Telefone">' +
-                                '<input id="cpf" class="swal2-input" value="' + cpfVal + '" placeholder="CPF">';
+            // CONCATENAÇÃO SIMPLES
+            const html = '<input id="n" class="swal2-input" value="' + n + '" placeholder="Nome">' +
+                         '<input id="p" class="swal2-input" value="' + p + '" placeholder="Telefone">' +
+                         '<input id="cpf" class="swal2-input" value="' + cpf + '" placeholder="CPF">';
 
             const { value: vals } = await Swal.fire({ 
                 title: c ? 'Editar Cliente' : 'Novo Cliente', 
-                html: htmlContent, 
+                html: html, 
                 showCancelButton: true,
                 confirmButtonText: 'Salvar',
-                cancelButtonText: 'Cancelar',
-                preConfirm: () => [
-                    document.getElementById('n').value,
-                    document.getElementById('p').value, 
-                    document.getElementById('cpf').value
-                ]
+                preConfirm: () => [ document.getElementById('n').value, document.getElementById('p').value, document.getElementById('cpf').value ]
             });
-
             if (vals) { 
                 const d = { name: vals[0], phone: vals[1], cpf: vals[2], userId: user.value.uid }; 
-                if (c) await updateDoc(doc(db, "clients", c.id), d); 
-                else await addDoc(collection(db, "clients"), d); 
+                if (c) await updateDoc(doc(db, "clients", c.id), d); else await addDoc(collection(db, "clients"), d); 
                 Swal.fire('Salvo', '', 'success'); 
             } 
         };
 
-        const deleteClient = async (id) => { 
-            if ((await Swal.fire({ title: 'Excluir?', showCancelButton: true })).isConfirmed) {
-                await deleteDoc(doc(db, "clients", id)); 
-            }
-        };
+        const deleteClient = async (id) => { if ((await Swal.fire({ title: 'Excluir?', showCancelButton: true })).isConfirmed) { await deleteDoc(doc(db, "clients", id)); } };
 
         const openServiceModal = async (s) => { 
-            const descVal = s && s.description ? s.description : '';
-            const priceVal = s && s.price ? s.price : '';
+            const d = s && s.description ? s.description : '';
+            const p = s && s.price ? s.price : '';
+            const html = '<input id="d" class="swal2-input" value="' + d + '" placeholder="Descrição">' +
+                         '<input id="p" type="number" class="swal2-input" value="' + p + '" placeholder="Preço (R$)">';
 
-            const htmlContent = '<input id="d" class="swal2-input" value="' + descVal + '" placeholder="Descrição">' +
-                                '<input id="p" type="number" class="swal2-input" value="' + priceVal + '" placeholder="Preço (R$)">';
-
-            const { value: v } = await Swal.fire({
-                title: s ? 'Editar Serviço' : 'Novo Serviço',
-                html: htmlContent,
-                showCancelButton: true,
-                confirmButtonText: 'Salvar',
-                preConfirm: () => [
-                    document.getElementById('d').value,
-                    document.getElementById('p').value
-                ]
-            });
-
-            if (v) { 
-                const d = { description: v[0], price: Number(v[1]), userId: user.value.uid }; 
-                if (s) await updateDoc(doc(db, "services", s.id), d); 
-                else await addDoc(collection(db, "services"), d); 
-            }
+            const { value: v } = await Swal.fire({ title: s ? 'Editar Serviço' : 'Novo Serviço', html: html, showCancelButton: true, confirmButtonText: 'Salvar', preConfirm: () => [ document.getElementById('d').value, document.getElementById('p').value ] });
+            if (v) { const data = { description: v[0], price: Number(v[1]), userId: user.value.uid }; if (s) await updateDoc(doc(db, "services", s.id), data); else await addDoc(collection(db, "services"), data); }
         };
 
         const deleteService = async (id) => { await deleteDoc(doc(db,"services",id)); };
-        
         const downloadReceiptImage = () => { html2canvas(document.getElementById('receipt-capture-area'),{scale:2}).then(c=>{const l=document.createElement('a');l.download='Recibo.png';l.href=c.toDataURL();l.click();}); };
         
-        // --- PDF COM CONCATENAÇÃO SEGURA ---
+        // PDF COM CONCATENAÇÃO SIMPLES
         const generateContractPDF = () => { 
-            const { jsPDF } = window.jspdf; 
-            const doc = new jsPDF(); 
-            const app = currentReceipt.value; 
+            const { jsPDF } = window.jspdf; const doc = new jsPDF(); const app = currentReceipt.value; 
             const cli = clients.value.find(c => c.id === app.clientId) || {name: 'N/A', cpf: '', phone: ''}; 
-            const margin = 20; 
-            let y = 20; 
-            const pageWidth = doc.internal.pageSize.getWidth(); 
-            const maxTextWidth = pageWidth - (margin * 2); 
+            const margin = 20; let y = 20; const pageWidth = doc.internal.pageSize.getWidth(); const maxTextWidth = pageWidth - (margin * 2);
+            doc.setFontSize(14); doc.setFont("helvetica", "bold"); doc.text("CONTRATO DE PRESTAÇÃO DE SERVIÇOS", pageWidth / 2, y, { align: "center" }); y += 15;
+            doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.text("IDENTIFICAÇÃO DAS PARTES", margin, y); y += 6; doc.setFont("helvetica", "normal");
             
-            doc.setFontSize(14); doc.setFont("helvetica", "bold"); 
-            doc.text("CONTRATO DE PRESTAÇÃO DE SERVIÇOS", pageWidth / 2, y, { align: "center" }); 
-            y += 15; 
+            const cName = company.fantasia || 'Empresa';
+            const cRazao = company.razao || '';
+            const cCnpj = company.cnpj || 'N/A';
+            const cEnd = (company.rua || '') + ' - ' + (company.cidade || '');
             
-            doc.setFontSize(10); doc.setFont("helvetica", "bold"); 
-            doc.text("IDENTIFICAÇÃO DAS PARTES", margin, y); 
-            y += 6; doc.setFont("helvetica", "normal");
+            const t1 = 'CONTRATADA: ' + cName + ', Razão Social: ' + cRazao + ', CNPJ: ' + cCnpj + ', Endereço: ' + cEnd + '.';
+            const t2 = 'CONTRATANTE: ' + cli.name + ', CPF: ' + (cli.cpf || 'N/A') + ', Telefone: ' + (cli.phone || 'N/A') + '.';
             
-            const compName = company.fantasia || 'Empresa';
-            const compRazao = company.razao || '';
-            const compCnpj = company.cnpj || 'N/A';
-            const compEnd = (company.rua || '') + ' - ' + (company.cidade || '');
+            doc.text(doc.splitTextToSize(t1, maxTextWidth), margin, y); y += 20; 
+            doc.text(doc.splitTextToSize(t2, maxTextWidth), margin, y); y += 20;
             
-            const txtContratada = 'CONTRATADA: ' + compName + ', Razão Social: ' + compRazao + ', CNPJ: ' + compCnpj + ', Endereço: ' + compEnd + '.';
-            const txtContratante = 'CONTRATANTE: ' + cli.name + ', CPF: ' + (cli.cpf || 'N/A') + ', Telefone: ' + (cli.phone || 'N/A') + '.';
+            const t3 = 'OBJETO: Evento dia ' + formatDate(app.date) + ' às ' + app.time + '. Local: ' + app.location.bairro + '.';
+            doc.text(t3, margin, y); y += 10;
             
-            doc.text(doc.splitTextToSize(txtContratada, maxTextWidth), margin, y); y += 20; 
-            doc.text(doc.splitTextToSize(txtContratante, maxTextWidth), margin, y); y += 20;
-            
-            const txtObjeto = 'OBJETO: Evento dia ' + formatDate(app.date) + ' às ' + app.time + '. Local: ' + app.location.bairro + '.';
-            doc.text(txtObjeto, margin, y); y += 10;
-            
-            app.selectedServices.forEach(s => { 
-                doc.text('- ' + s.description + ': ' + formatCurrency(s.price), margin, y); 
-                y += 6; 
-            }); 
-            y += 10;
+            app.selectedServices.forEach(s => { doc.text('- ' + s.description + ': ' + formatCurrency(s.price), margin, y); y += 6; }); y += 10;
             
             const entry = app.entryFee || app.details?.entryFee || 0;
-            const txtTotal = 'TOTAL: ' + formatCurrency(app.totalServices) + ' | ENTRADA: ' + formatCurrency(entry) + ' | RESTANTE: ' + formatCurrency(app.finalBalance);
-            doc.text(txtTotal, margin, y);
-            
-            doc.save("Contrato.pdf"); 
+            const total = 'TOTAL: ' + formatCurrency(app.totalServices) + ' | ENTRADA: ' + formatCurrency(entry) + ' | RESTANTE: ' + formatCurrency(app.finalBalance);
+            doc.text(total, margin, y); doc.save("Contrato.pdf"); 
         };
         
         const handleLogoUpload = (e) => { const f = e.target.files[0]; if(f){ const r = new FileReader(); r.onload=x=>{ company.logo=x.target.result; saveCompany(); }; r.readAsDataURL(f); } };
