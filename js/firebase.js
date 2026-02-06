@@ -4,7 +4,6 @@ import {
     getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, setDoc, getDocs, getDoc, query, where, orderBy 
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-// AQUI ESTÃO AS NOVAS IMPORTAÇÕES (updatePassword, reauthenticateWithCredential, EmailAuthProvider)
 import { 
     getAuth, 
     signInWithEmailAndPassword, 
@@ -12,9 +11,9 @@ import {
     signOut, 
     onAuthStateChanged,
     sendPasswordResetEmail,
-    updatePassword,
-    reauthenticateWithCredential,
-    EmailAuthProvider
+    updatePassword, // Nova
+    reauthenticateWithCredential, // Nova
+    EmailAuthProvider // Nova
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -35,5 +34,5 @@ export {
     db, auth, 
     collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, setDoc, getDocs, getDoc, query, where, orderBy,
     signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail,
-    updatePassword, reauthenticateWithCredential, EmailAuthProvider // <--- Exportando as novas funções
+    updatePassword, reauthenticateWithCredential, EmailAuthProvider
 };
