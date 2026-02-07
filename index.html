@@ -108,6 +108,20 @@
                 </header>
 
                 <div class="flex-1 overflow-y-auto p-4 pb-24 md:pb-6 md:p-8 w-full md:max-w-7xl md:mx-auto">
+                    <div v-if="userStatus === 'trial' && daysRemaining <= 30" class="mb-6 mx-auto w-full max-w-4xl bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 p-4 rounded-r-lg shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 animate-fade">
+                        <div class="flex items-center gap-4">
+                            <div class="bg-yellow-100 dark:bg-yellow-900/40 p-3 rounded-full text-yellow-600 dark:text-yellow-400">
+                                <i class="fa-solid fa-stopwatch text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="font-bold text-yellow-800 dark:text-yellow-200">Período de Teste Gratuito</p>
+                                <p class="text-sm text-yellow-700 dark:text-yellow-300">Restam <span class="font-black text-lg">{{ daysRemaining }}</span> dias para expirar o acesso.</p>
+                            </div>
+                        </div>
+                        <a href="https://wa.me/55SEU_NUMERO_AQUI?text=Olá, quero assinar o plano Pro!" target="_blank" class="w-full sm:w-auto text-center px-6 py-2 bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-bold rounded-lg transition shadow-sm text-sm">
+                            Assinar Agora
+                        </a>
+                    </div>
 
                     <main v-if="view === 'dashboard'" class="space-y-6 animate-fade">
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
