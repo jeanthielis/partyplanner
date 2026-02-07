@@ -44,7 +44,6 @@ createApp({
         // --- FORMULÁRIOS ---
         const company = reactive({ fantasia: '', logo: '', cnpj: '', razao: '', cidade: '', rua: '', estado: '' });
         
-        // MODIFICAÇÃO: Adicionado 'balloonColors' em 'details' e 'notes' no objeto raiz
         const tempApp = reactive({ 
             clientId: '', 
             date: '', 
@@ -58,6 +57,9 @@ createApp({
         const tempServiceSelect = ref('');
         const newExpense = reactive({ description: '', value: '', date: new Date().toISOString().split('T')[0] });
         const currentReceipt = ref(null);
+        const selectedAppointment = ref(null); // Para a tela de detalhes
+        const detailTaskInput = ref(''); // Input de nova tarefa na tela de detalhes
+        
         const isEditing = ref(false);
         const editingId = ref(null);
         const newTaskText = ref({});
@@ -150,89 +152,58 @@ createApp({
             const qApps = query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "pending"));
             unsubscribeListeners.push(onSnapshot(qApps, (snap) => { 
                 pendingAppointments.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
+                // Se a tela de detalhes estiver aberta, atualizar o objeto em tempo real
+                if(view.value === 'appointment_details' && selectedAppointment.value) {
+                    const updated = pendingAppointments.value.find(a => a.id === selectedAppointment.value.id);
+                    if(updated) selectedAppointment.value = updated;
+                }
             }));
         };
 
-        // --- BUSCAS COM FILTRO NO CLIENTE (CORREÇÃO DE ERRO) ---
-
-        // 1. Busca Histórico (Concluídas/Canceladas)
+        // --- BUSCAS COM FILTRO NO CLIENTE ---
         const searchHistory = async () => {
             if(!historyFilter.start || !historyFilter.end) return Swal.fire('Atenção', 'Selecione as datas', 'warning');
             isLoadingHistory.value = true; historyList.value = [];
             
             try {
-                // CORREÇÃO: Baixa tudo do usuário e filtra no JS para evitar erro de Index do Firestore
                 const q = query(collection(db, "appointments"), where("userId", "==", user.value.uid));
                 const snap = await getDocs(q);
-                
                 const allApps = snap.docs.map(d => ({id: d.id, ...d.data()}));
-                
-                // Filtra na memória (Rápido e sem erro)
-                historyList.value = allApps.filter(app => 
-                    app.status === currentTab.value && 
-                    app.date >= historyFilter.start && 
-                    app.date <= historyFilter.end
-                );
-
+                historyList.value = allApps.filter(app => app.status === currentTab.value && app.date >= historyFilter.start && app.date <= historyFilter.end);
                 if(historyList.value.length === 0) Swal.fire('Info', 'Nenhum registro encontrado.', 'info');
-            } catch (error) { 
-                console.error(error); 
-                Swal.fire('Erro', 'Tente novamente.', 'error'); 
-            } finally { 
-                isLoadingHistory.value = false; 
-            }
+            } catch (error) { console.error(error); Swal.fire('Erro', 'Tente novamente.', 'error'); } finally { isLoadingHistory.value = false; }
         };
 
-        // 2. Busca Despesas
         const searchExpenses = async () => {
             if(!expensesFilter.start || !expensesFilter.end) return Swal.fire('Data', 'Selecione o período', 'info');
-            
             try {
-                // CORREÇÃO: Filtro JS
                 const q = query(collection(db, "expenses"), where("userId", "==", user.value.uid));
                 const snap = await getDocs(q);
                 const allExpenses = snap.docs.map(d => ({id: d.id, ...d.data()}));
-
                 expensesList.value = allExpenses.filter(e => e.date >= expensesFilter.start && e.date <= expensesFilter.end);
                 expensesList.value.sort((a,b) => new Date(b.date) - new Date(a.date));
-
                 if(expensesList.value.length === 0) Swal.fire('Vazio', 'Nenhuma despesa no período.', 'info');
             } catch(e) { console.error(e); }
         };
 
-        // 3. Busca Clientes Catálogo
         const searchCatalogClients = async () => {
             if(catalogClientSearch.value.length < 3) return Swal.fire('Ops', 'Digite pelo menos 3 letras ou CPF', 'info');
             const term = catalogClientSearch.value.toLowerCase();
-            
-            // Busca um lote maior e filtra (Para suportar "contém" e CPF misturado)
             const q = query(collection(db, "clients"), where("userId", "==", user.value.uid));
             const snap = await getDocs(q);
             const allClients = snap.docs.map(d => ({id: d.id, ...d.data()}));
-
-            catalogClientsList.value = allClients.filter(c => 
-                (c.name && c.name.toLowerCase().includes(term)) || 
-                (c.cpf && c.cpf.includes(term))
-            );
-            
+            catalogClientsList.value = allClients.filter(c => (c.name && c.name.toLowerCase().includes(term)) || (c.cpf && c.cpf.includes(term)));
             if(catalogClientsList.value.length === 0) Swal.fire('Não encontrado', 'Nenhum cliente com este nome/CPF.', 'info');
         };
 
-        // 4. Busca Clientes Agendamento (Input)
         watch(clientSearchTerm, async (newVal) => {
             if(newVal.length >= 3) {
                 const term = newVal.toLowerCase();
                 const q = query(collection(db, "clients"), where("userId", "==", user.value.uid));
                 const snap = await getDocs(q);
                 const all = snap.docs.map(d => ({id: d.id, ...d.data()}));
-                
-                scheduleClientsList.value = all.filter(c => 
-                    (c.name && c.name.toLowerCase().includes(term)) || 
-                    (c.phone && c.phone.includes(term))
-                );
-            } else {
-                scheduleClientsList.value = [];
-            }
+                scheduleClientsList.value = all.filter(c => (c.name && c.name.toLowerCase().includes(term)) || (c.phone && c.phone.includes(term)));
+            } else { scheduleClientsList.value = []; }
         });
 
         // --- COMPUTED ---
@@ -253,24 +224,14 @@ createApp({
         });
         const totalServices = computed(() => tempApp.selectedServices.reduce((s,i) => s + i.price, 0));
         const finalBalance = computed(() => totalServices.value - (tempApp.details.entryFee || 0));
-
         const filteredClientsSearch = computed(() => scheduleClientsList.value);
 
         // --- ACTIONS ---
         const saveAppointment = async () => {
             const total = tempApp.selectedServices.reduce((sum, i) => sum + i.price, 0);
-            
-            // MODIFICAÇÃO: Incluindo 'notes' e estrutura correta no objeto salvo
-            const appData = { 
-                ...JSON.parse(JSON.stringify(tempApp)), 
-                totalServices: total, 
-                entryFee: tempApp.details.entryFee, 
-                finalBalance: total - tempApp.details.entryFee, 
-                userId: user.value.uid 
-            };
-            
+            const appData = { ...JSON.parse(JSON.stringify(tempApp)), totalServices: total, entryFee: tempApp.details.entryFee, finalBalance: total - tempApp.details.entryFee, userId: user.value.uid };
             if(isEditing.value && editingId.value) { await updateDoc(doc(db, "appointments", editingId.value), appData); Swal.fire({icon:'success', title:'Atualizado', timer:1000}); } 
-            else { appData.status = 'pending'; appData.checklist = [{text:'Confirmar Equipe', done:false},{text:'Separar Materiais', done:false}]; await addDoc(collection(db, "appointments"), appData); Swal.fire({icon:'success', title:'Agendado!', timer:1000}); }
+            else { appData.status = 'pending'; appData.checklist = [{text:'Separar Materiais', done:false}]; await addDoc(collection(db, "appointments"), appData); Swal.fire({icon:'success', title:'Agendado!', timer:1000}); }
             view.value = 'appointments_list'; currentTab.value = 'pending';
         };
 
@@ -279,16 +240,50 @@ createApp({
             const { isConfirmed } = await Swal.fire({ title: action + '?', text: 'Deseja marcar como ' + action + '?', icon: 'question', showCancelButton: true });
             if(isConfirmed) {
                 await updateDoc(doc(db, "appointments", app.id), { status: status });
-                // Atualiza lista local se for histórico
                 const idx = historyList.value.findIndex(x => x.id === app.id); 
-                if(idx !== -1) historyList.value.splice(idx, 1); // Remove da lista atual visualmente
-                
+                if(idx !== -1) historyList.value.splice(idx, 1);
                 Swal.fire('Feito!', '', 'success');
             }
         };
 
         const updateAppInFirebase = async (app) => { await updateDoc(doc(db, "appointments", app.id), { checklist: app.checklist }); };
         
+        // --- FUNÇÕES DA NOVA TELA DE DETALHES ---
+        const openDetails = (app) => {
+            fetchClientToCache(app.clientId);
+            selectedAppointment.value = app;
+            // Garante que o checklist seja um array para não dar erro
+            if (!selectedAppointment.value.checklist) selectedAppointment.value.checklist = [];
+            detailTaskInput.value = '';
+            view.value = 'appointment_details';
+        };
+
+        const saveTaskInDetail = async () => {
+            if (!detailTaskInput.value.trim() || !selectedAppointment.value) return;
+            const newTask = { text: detailTaskInput.value, done: false };
+            
+            // Atualiza localmente
+            if (!selectedAppointment.value.checklist) selectedAppointment.value.checklist = [];
+            selectedAppointment.value.checklist.push(newTask);
+            
+            // Salva no banco
+            await updateAppInFirebase(selectedAppointment.value);
+            detailTaskInput.value = ''; // Limpa input
+        };
+
+        const toggleTaskDone = async (index) => {
+            if (!selectedAppointment.value) return;
+            const task = selectedAppointment.value.checklist[index];
+            task.done = !task.done; // O v-model do checkbox já faz isso visualmente, mas garantimos aqui
+            await updateAppInFirebase(selectedAppointment.value);
+        };
+
+        const deleteTaskInDetail = async (index) => {
+            if (!selectedAppointment.value) return;
+            selectedAppointment.value.checklist.splice(index, 1);
+            await updateAppInFirebase(selectedAppointment.value);
+        };
+
         const addExpense = async () => { 
             if(!newExpense.description) return; 
             const docRef = await addDoc(collection(db, "expenses"), {...newExpense, userId: user.value.uid}); 
@@ -302,34 +297,21 @@ createApp({
         };
         
         const startNewSchedule = () => { 
-            isEditing.value=false; 
-            editingId.value=null; 
-            clientSearchTerm.value = ''; 
-            // MODIFICAÇÃO: Resetando também os campos novos
+            isEditing.value=false; editingId.value=null; clientSearchTerm.value = ''; 
             Object.assign(tempApp, {
-                clientId: '', 
-                date: '', 
-                time: '', 
-                location: { bairro: '', cidade: '', numero: '' }, 
-                details: { balloonColors: '', entryFee: 0 }, 
-                notes: '', 
-                selectedServices: [] 
+                clientId: '', date: '', time: '', location: { bairro: '', cidade: '', numero: '' }, 
+                details: { balloonColors: '', entryFee: 0 }, notes: '', selectedServices: [] 
             }); 
             view.value='schedule'; 
         };
 
         const editAppointment = (app) => { 
-            isEditing.value=true; 
-            editingId.value=app.id; 
-            clientSearchTerm.value = ''; 
+            isEditing.value=true; editingId.value=app.id; clientSearchTerm.value = ''; 
             fetchClientToCache(app.clientId); 
-            
-            // MODIFICAÇÃO: Garantindo que campos antigos não quebrem se não existirem
             const dataToLoad = JSON.parse(JSON.stringify(app));
             if(!dataToLoad.details) dataToLoad.details = { balloonColors: '', entryFee: 0 };
             if(!dataToLoad.details.balloonColors) dataToLoad.details.balloonColors = '';
             if(!dataToLoad.notes) dataToLoad.notes = '';
-
             Object.assign(tempApp, dataToLoad); 
             view.value='schedule'; 
         };
@@ -432,7 +414,9 @@ createApp({
             showReceipt, downloadReceiptImage, generateContractPDF, 
             getClientName, getClientPhone, formatCurrency, formatDate, getDay, getMonth, statusText, statusClass,
             clientSearchTerm, filteredClientsSearch, selectClientFromSearch, clearClientSelection,
-            handleChangePassword, searchExpenses, searchCatalogClients, catalogClientSearch
+            handleChangePassword, searchExpenses, searchCatalogClients, catalogClientSearch,
+            // NOVOS EXPORTS
+            selectedAppointment, detailTaskInput, openDetails, saveTaskInDetail, toggleTaskDone, deleteTaskInDetail
         };
     }
 }).mount('#app');
