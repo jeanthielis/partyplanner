@@ -159,6 +159,12 @@
                         <span v-for="s in app.selectedServices" class="mr-2">• {{ s.description }}</span>
                     </div>
 
+                    <div v-if="app.details && app.details.balloonColors" class="mb-2 text-xs text-gray-600 dark:text-gray-300 bg-purple-50 dark:bg-gray-800 p-2 rounded-lg">
+                        <i class="fa-solid fa-palette text-primary mr-1"></i> <span class="font-bold">Balões:</span> {{ app.details.balloonColors }}
+                    </div>
+                    <div v-if="app.notes" class="mb-3 text-xs text-gray-500 dark:text-gray-400 italic border-l-2 border-gray-300 pl-2">
+                        "{{ app.notes }}"
+                    </div>
                     <div class="w-full bg-gray-100 dark:bg-gray-700 h-1.5 rounded-full mb-4 overflow-hidden">
                         <div class="bg-primary h-full transition-all duration-500" :style="'width: ' + checklistProgress(app) + '%'"></div>
                     </div>
@@ -224,7 +230,13 @@
                         </div>
                     </div>
 
-                    <div>
+                    <div class="space-y-3 pt-2 border-t dark:border-gray-700">
+                        <label class="block text-xs font-bold text-gray-500 uppercase">Detalhes Adicionais</label>
+                        <input v-model="tempApp.details.balloonColors" placeholder="Cores dos Balões" class="w-full p-3 rounded-xl bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 dark:text-white text-sm">
+                        <textarea v-model="tempApp.notes" placeholder="Observação / Notas" rows="2" class="w-full p-3 rounded-xl bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 dark:text-white text-sm"></textarea>
+                    </div>
+
+                    <div class="pt-2">
                         <div class="flex justify-between items-center mb-1">
                             <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">Serviços</label>
                              <button @click="openServiceModal(null)" class="text-primary text-xs font-bold hover:underline">+ Add Serviço</button>
