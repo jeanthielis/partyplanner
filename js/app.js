@@ -10,6 +10,7 @@ import {
 createApp({
     setup() {
         // --- ESTADOS GERAIS ---
+        
         const user = ref(null);
         const userRole = ref('user');
         const userStatus = ref('trial');
@@ -32,7 +33,57 @@ createApp({
         const historyList = ref([]); 
         const expensesList = ref([]); 
         const catalogClientsList = ref([]); 
-        const scheduleClientsList = ref([]); 
+        const scheduleClientsList = ref([]);
+
+        // ... (código anterior)
+        const expensesList = ref([]); 
+        
+        // --- NOVO: LÓGICA DO CALENDÁRIO ---
+        const calendarViewMode = ref('list'); // 'list' ou 'calendar'
+        const calendarCursor = ref(new Date()); // Data atual do calendário visual
+        
+        // Gera a grade do calendário
+        const calendarGrid = computed(() => {
+            const year = calendarCursor.value.getFullYear();
+            const month = calendarCursor.value.getMonth();
+            const firstDay = new Date(year, month, 1).getDay(); // 0 = Domingo
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const todayStr = new Date().toISOString().split('T')[0];
+
+            let grid = [];
+            // Espaços vazios antes do dia 1
+            for(let i=0; i<firstDay; i++) grid.push({ empty: true });
+            
+            // Dias do mês
+            for(let i=1; i<=daysInMonth; i++) {
+                const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+                
+                // Pega eventos deste dia (Pendentes e Concluídos carregados)
+                // Nota: O ideal é olhar os 'pendingAppointments'. 
+                // Se quiser ver histórico, teria que carregar tudo, mas vamos focar no futuro (pendentes).
+                const dayEvents = pendingAppointments.value.filter(a => a.date === dateStr);
+                
+                grid.push({ 
+                    date: dateStr, 
+                    day: i, 
+                    events: dayEvents, 
+                    isToday: dateStr === todayStr,
+                    empty: false 
+                });
+            }
+            return grid;
+        });
+
+        const calendarLabel = computed(() => {
+            return calendarCursor.value.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+        });
+
+        const moveCalendar = (offset) => {
+            const newDate = new Date(calendarCursor.value);
+            newDate.setMonth(newDate.getMonth() + offset);
+            calendarCursor.value = newDate;
+        };
+        // ...
         
         // Cache local para nomes de clientes
         const clientCache = reactive({}); 
@@ -617,7 +668,8 @@ createApp({
             selectedAppointment, detailTaskInput, openDetails, saveTaskInDetail, toggleTaskDone, deleteTaskInDetail,
             
             // --- NOVOS EXPORTS DO DASHBOARD ---
-            dashboardMonth, loadDashboardData, isLoadingDashboard
+            dashboardMonth, loadDashboardData, isLoadingDashboard,calendarViewMode, calendarCursor, calendarGrid, calendarLabel, moveCalendar
+            
         };
     }
 }).mount('#app');
