@@ -27,7 +27,6 @@
     <style>
         body { font-family: 'Segoe UI', sans-serif; -webkit-tap-highlight-color: transparent; }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
-        /* Estilo para Checkbox personalizado */
         .checkbox-wrapper input:checked + div { background-color: #8B5CF6; border-color: #8B5CF6; }
         .checkbox-wrapper input:checked + div svg { display: block; }
     </style>
@@ -108,6 +107,7 @@
                 </header>
 
                 <div class="flex-1 overflow-y-auto p-4 pb-24 md:pb-6 md:p-8 w-full md:max-w-7xl md:mx-auto">
+
                     <div v-if="userStatus === 'trial' && daysRemaining <= 30" class="mb-6 mx-auto w-full max-w-4xl bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 p-4 rounded-r-lg shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 animate-fade">
                         <div class="flex items-center gap-4">
                             <div class="bg-yellow-100 dark:bg-yellow-900/40 p-3 rounded-full text-yellow-600 dark:text-yellow-400">
@@ -118,12 +118,34 @@
                                 <p class="text-sm text-yellow-700 dark:text-yellow-300">Restam <span class="font-black text-lg">{{ daysRemaining }}</span> dias para expirar o acesso.</p>
                             </div>
                         </div>
-                        <a href="https://wa.me/5527981071336?text=Olá, quero assinar o plano Pro!" target="_blank" class="w-full sm:w-auto text-center px-6 py-2 bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-bold rounded-lg transition shadow-sm text-sm">
+                        <a href="https://wa.me/55SEU_NUMERO_AQUI?text=Olá, quero assinar o plano Pro!" target="_blank" class="w-full sm:w-auto text-center px-6 py-2 bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-bold rounded-lg transition shadow-sm text-sm">
                             Assinar Agora
                         </a>
                     </div>
 
                     <main v-if="view === 'dashboard'" class="space-y-6 animate-fade">
+                        
+                        <div class="flex items-center justify-between bg-white dark:bg-darkcard p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                            <div class="flex items-center gap-3">
+                                <div class="bg-purple-100 dark:bg-gray-700 p-2 rounded-lg text-primary">
+                                    <i class="fa-solid fa-calendar-days"></i>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-gray-400 font-bold uppercase">Período</p>
+                                    <p class="text-sm font-bold dark:text-white">Visão Mensal</p>
+                                </div>
+                            </div>
+                            <input 
+                                type="month" 
+                                v-model="dashboardMonth" 
+                                class="bg-gray-50 dark:bg-gray-800 border-none outline-none text-gray-700 dark:text-white font-bold rounded-lg p-2 text-sm focus:ring-2 focus:ring-primary cursor-pointer"
+                            >
+                        </div>
+                    
+                        <div v-if="isLoadingDashboard" class="text-center py-2 text-primary">
+                            <i class="fa-solid fa-circle-notch fa-spin"></i> Atualizando números...
+                        </div>
+
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                             <div class="bg-green-500 p-3 rounded-2xl text-white shadow relative">
                                 <p class="text-[10px] uppercase font-bold opacity-80">Receita Total</p>
@@ -270,7 +292,6 @@
                     </main>
 
                     <main v-if="view === 'appointment_details' && selectedAppointment" class="animate-fade bg-white dark:bg-darkbg rounded-3xl overflow-hidden shadow-lg border dark:border-gray-700">
-                        
                         <div class="sticky top-0 z-20 bg-white/95 dark:bg-darkbg/95 backdrop-blur shadow-sm p-4 flex items-center gap-3 border-b dark:border-gray-700">
                             <button @click="view = 'appointments_list'" class="w-8 h-8 rounded-full bg-gray-100 dark:bg-darkcard flex items-center justify-center"><i class="fa-solid fa-arrow-left"></i></button>
                             <div class="flex-1">
