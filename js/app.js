@@ -43,7 +43,18 @@ createApp({
 
         // --- FORMULÁRIOS ---
         const company = reactive({ fantasia: '', logo: '', cnpj: '', razao: '', cidade: '', rua: '', estado: '' });
-        const tempApp = reactive({ clientId: '', date: '', time: '', location: { bairro: '', cidade: '', numero: '' }, details: { colors: '', entryFee: 0 }, selectedServices: [] });
+        
+        // MODIFICAÇÃO: Adicionado 'balloonColors' em 'details' e 'notes' no objeto raiz
+        const tempApp = reactive({ 
+            clientId: '', 
+            date: '', 
+            time: '', 
+            location: { bairro: '', cidade: '', numero: '' }, 
+            details: { balloonColors: '', entryFee: 0 }, 
+            notes: '', 
+            selectedServices: [] 
+        });
+        
         const tempServiceSelect = ref('');
         const newExpense = reactive({ description: '', value: '', date: new Date().toISOString().split('T')[0] });
         const currentReceipt = ref(null);
@@ -248,7 +259,16 @@ createApp({
         // --- ACTIONS ---
         const saveAppointment = async () => {
             const total = tempApp.selectedServices.reduce((sum, i) => sum + i.price, 0);
-            const appData = { ...JSON.parse(JSON.stringify(tempApp)), totalServices: total, entryFee: tempApp.details.entryFee, finalBalance: total - tempApp.details.entryFee, userId: user.value.uid };
+            
+            // MODIFICAÇÃO: Incluindo 'notes' e estrutura correta no objeto salvo
+            const appData = { 
+                ...JSON.parse(JSON.stringify(tempApp)), 
+                totalServices: total, 
+                entryFee: tempApp.details.entryFee, 
+                finalBalance: total - tempApp.details.entryFee, 
+                userId: user.value.uid 
+            };
+            
             if(isEditing.value && editingId.value) { await updateDoc(doc(db, "appointments", editingId.value), appData); Swal.fire({icon:'success', title:'Atualizado', timer:1000}); } 
             else { appData.status = 'pending'; appData.checklist = [{text:'Confirmar Equipe', done:false},{text:'Separar Materiais', done:false}]; await addDoc(collection(db, "appointments"), appData); Swal.fire({icon:'success', title:'Agendado!', timer:1000}); }
             view.value = 'appointments_list'; currentTab.value = 'pending';
@@ -281,8 +301,39 @@ createApp({
             expensesList.value = expensesList.value.filter(e => e.id !== id);
         };
         
-        const startNewSchedule = () => { isEditing.value=false; editingId.value=null; clientSearchTerm.value = ''; Object.assign(tempApp, {clientId: '', date: '', time: '', location: { bairro: '', cidade: '', numero: '' }, details: { colors: '', entryFee: 0 }, selectedServices: [] }); view.value='schedule'; };
-        const editAppointment = (app) => { isEditing.value=true; editingId.value=app.id; clientSearchTerm.value = ''; fetchClientToCache(app.clientId); Object.assign(tempApp, JSON.parse(JSON.stringify(app))); view.value='schedule'; };
+        const startNewSchedule = () => { 
+            isEditing.value=false; 
+            editingId.value=null; 
+            clientSearchTerm.value = ''; 
+            // MODIFICAÇÃO: Resetando também os campos novos
+            Object.assign(tempApp, {
+                clientId: '', 
+                date: '', 
+                time: '', 
+                location: { bairro: '', cidade: '', numero: '' }, 
+                details: { balloonColors: '', entryFee: 0 }, 
+                notes: '', 
+                selectedServices: [] 
+            }); 
+            view.value='schedule'; 
+        };
+
+        const editAppointment = (app) => { 
+            isEditing.value=true; 
+            editingId.value=app.id; 
+            clientSearchTerm.value = ''; 
+            fetchClientToCache(app.clientId); 
+            
+            // MODIFICAÇÃO: Garantindo que campos antigos não quebrem se não existirem
+            const dataToLoad = JSON.parse(JSON.stringify(app));
+            if(!dataToLoad.details) dataToLoad.details = { balloonColors: '', entryFee: 0 };
+            if(!dataToLoad.details.balloonColors) dataToLoad.details.balloonColors = '';
+            if(!dataToLoad.notes) dataToLoad.notes = '';
+
+            Object.assign(tempApp, dataToLoad); 
+            view.value='schedule'; 
+        };
+
         const showReceipt = (app) => { currentReceipt.value = app; fetchClientToCache(app.clientId); view.value = 'receipt'; };
         const selectClientFromSearch = (client) => { tempApp.clientId = client.id; clientSearchTerm.value = ''; clientCache[client.id] = client; };
         const clearClientSelection = () => { tempApp.clientId = ''; clientSearchTerm.value = ''; };
