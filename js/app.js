@@ -10,7 +10,6 @@ import {
 createApp({
     setup() {
         // --- ESTADOS GERAIS ---
-        
         const user = ref(null);
         const userRole = ref('user');
         const userStatus = ref('trial');
@@ -31,18 +30,22 @@ createApp({
         const services = ref([]); 
         const pendingAppointments = ref([]); 
         const historyList = ref([]); 
-        const expensesList = ref([]); 
+        const expensesList = ref([]); // <--- ESTA LINHA SÓ PODE APARECER UMA VEZ
         const catalogClientsList = ref([]); 
-        const scheduleClientsList = ref([]);
+        const scheduleClientsList = ref([]); 
+        
+        // Cache local para nomes de clientes
+        const clientCache = reactive({}); 
+        const clients = ref([]); 
 
-        // ... (código anterior)
-        const expensesList = ref([]); 
-        
-        // --- NOVO: LÓGICA DO CALENDÁRIO ---
+        // --- LÓGICA DO CALENDÁRIO VISUAL (NOVO) ---
         const calendarViewMode = ref('list'); // 'list' ou 'calendar'
-        const calendarCursor = ref(new Date()); // Data atual do calendário visual
-        
-        // Gera a grade do calendário
+        const calendarCursor = ref(new Date());
+
+        const calendarLabel = computed(() => {
+            return calendarCursor.value.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+        });
+
         const calendarGrid = computed(() => {
             const year = calendarCursor.value.getFullYear();
             const month = calendarCursor.value.getMonth();
@@ -51,16 +54,13 @@ createApp({
             const todayStr = new Date().toISOString().split('T')[0];
 
             let grid = [];
-            // Espaços vazios antes do dia 1
+            // Espaços vazios
             for(let i=0; i<firstDay; i++) grid.push({ empty: true });
             
-            // Dias do mês
+            // Dias
             for(let i=1; i<=daysInMonth; i++) {
                 const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
-                
-                // Pega eventos deste dia (Pendentes e Concluídos carregados)
-                // Nota: O ideal é olhar os 'pendingAppointments'. 
-                // Se quiser ver histórico, teria que carregar tudo, mas vamos focar no futuro (pendentes).
+                // Mostra na bolinha eventos pendentes deste dia
                 const dayEvents = pendingAppointments.value.filter(a => a.date === dateStr);
                 
                 grid.push({ 
@@ -74,20 +74,11 @@ createApp({
             return grid;
         });
 
-        const calendarLabel = computed(() => {
-            return calendarCursor.value.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
-        });
-
         const moveCalendar = (offset) => {
             const newDate = new Date(calendarCursor.value);
             newDate.setMonth(newDate.getMonth() + offset);
             calendarCursor.value = newDate;
         };
-        // ...
-        
-        // Cache local para nomes de clientes
-        const clientCache = reactive({}); 
-        const clients = ref([]); 
 
         // --- FILTROS ---
         const currentTab = ref('pending'); 
@@ -206,9 +197,6 @@ createApp({
             const endStr = `${year}-${month}-${lastDay}`;
 
             try {
-                // Busca Agendamentos do Mês (Todos os status para calcular receita/receber corretamente, ou filtrar se preferir)
-                // Nota: Receita geralmente considera o que foi FECHADO (independente de status concluded/pending se já pagou sinal).
-                // Aqui vamos pegar todos que não estão cancelados para projeção.
                 const qApps = query(
                     collection(db, "appointments"), 
                     where("userId", "==", user.value.uid),
@@ -216,7 +204,6 @@ createApp({
                     where("date", "<=", endStr)
                 );
                 
-                // Busca Despesas do Mês
                 const qExp = query(
                     collection(db, "expenses"), 
                     where("userId", "==", user.value.uid),
@@ -226,7 +213,6 @@ createApp({
 
                 const [snapApps, snapExp] = await Promise.all([getDocs(qApps), getDocs(qExp)]);
 
-                // Filtramos cancelados fora do cálculo financeiro
                 dashboardData.appointments = snapApps.docs
                     .map(d => ({id: d.id, ...d.data()}))
                     .filter(app => app.status !== 'cancelled');
@@ -240,7 +226,6 @@ createApp({
             }
         };
 
-        // Recarrega se mudar o mês
         watch(dashboardMonth, () => { loadDashboardData(); });
 
         // --- SYNC (REALTIME PARA AGENDA) ---
@@ -262,9 +247,6 @@ createApp({
                     const updated = pendingAppointments.value.find(a => a.id === selectedAppointment.value.id);
                     if(updated) selectedAppointment.value = updated;
                 }
-                // Se estivermos no mês atual, pode ser legal recarregar o dashboard também, 
-                // mas para economizar leitura, deixamos o dashboard "on demand" ou manual.
-                // Se quiser auto-update do dashboard ao criar agendamento, chame loadDashboardData() aqui.
             }));
         };
 
@@ -319,7 +301,7 @@ createApp({
             return [...list].sort((a,b) => new Date(a.date) - new Date(b.date)); 
         });
         
-        // --- KPIS (AGORA BASEADOS NO MÊS SELECIONADO) ---
+        // --- KPIS ---
         const kpiRevenue = computed(() => dashboardData.appointments.reduce((acc, a) => acc + (a.totalServices || 0), 0));
         const kpiExpenses = computed(() => dashboardData.expenses.reduce((acc, e) => acc + (e.value || 0), 0)); 
         const kpiProfit = computed(() => kpiRevenue.value - kpiExpenses.value); 
@@ -341,7 +323,6 @@ createApp({
             if(isEditing.value && editingId.value) { await updateDoc(doc(db, "appointments", editingId.value), appData); Swal.fire({icon:'success', title:'Atualizado', timer:1000}); } 
             else { appData.status = 'pending'; appData.checklist = [{text:'Separar Materiais', done:false}]; await addDoc(collection(db, "appointments"), appData); Swal.fire({icon:'success', title:'Agendado!', timer:1000}); }
             
-            // Se a data do agendamento for no mês que estamos vendo no dashboard, recarrega o dashboard
             if(appData.date.startsWith(dashboardMonth.value)) loadDashboardData();
 
             view.value = 'appointments_list'; currentTab.value = 'pending';
@@ -354,7 +335,7 @@ createApp({
                 await updateDoc(doc(db, "appointments", app.id), { status: status });
                 const idx = historyList.value.findIndex(x => x.id === app.id); 
                 if(idx !== -1) historyList.value.splice(idx, 1);
-                loadDashboardData(); // Recarrega KPIs pois status mudou
+                loadDashboardData(); 
                 Swal.fire('Feito!', '', 'success');
             }
         };
@@ -396,16 +377,11 @@ createApp({
             if(!newExpense.description) return; 
             const docRef = await addDoc(collection(db, "expenses"), {...newExpense, userId: user.value.uid}); 
             expensesList.value.unshift({id: docRef.id, ...newExpense});
-            
-            // Se a despesa for no mês atual do dashboard, atualiza
             if(newExpense.date.startsWith(dashboardMonth.value)) loadDashboardData();
-
             Object.assign(newExpense, {description: '', value: ''}); 
             Swal.fire({icon:'success', title:'Registrado', timer:1000}); 
         };
         const deleteExpense = async (id) => { 
-            // Para deletar e atualizar o KPI, precisaríamos saber a data da despesa antes de deletar, 
-            // ou simplesmente recarregar o dashboard
             await deleteDoc(doc(db, "expenses", id)); 
             expensesList.value = expensesList.value.filter(e => e.id !== id);
             loadDashboardData();
@@ -458,178 +434,66 @@ createApp({
             const app = currentReceipt.value; 
             const cli = clientCache[app.clientId] || {name: '....................', cpf: '....................', phone: ''}; 
             
-            // CORES E CONFIGURAÇÕES
-            const primaryColor = [139, 92, 246]; // Roxo (Tailwind: #8B5CF6)
-            const lightGray = [243, 244, 246];   // Cinza Claro
-            const darkGray = [55, 65, 81];       // Cinza Escuro
-            
-            const pageWidth = 210; 
-            const margin = 20; 
-            let y = 0; 
+            const primaryColor = [139, 92, 246]; const lightGray = [243, 244, 246]; const darkGray = [55, 65, 81];
+            const pageWidth = 210; const margin = 20; let y = 0; 
 
-            // --- CABEÇALHO MODERNO ---
-            doc.setFillColor(...primaryColor);
-            doc.rect(0, 0, pageWidth, 40, 'F');
-            
-            if (company.logo) { 
-                try { 
-                    doc.setFillColor(255, 255, 255);
-                    doc.circle(margin + 10, 20, 12, 'F');
-                    doc.addImage(company.logo, 'JPEG', margin + 2, 12, 16, 16); 
-                } catch (e) {} 
-            }
+            doc.setFillColor(...primaryColor); doc.rect(0, 0, pageWidth, 40, 'F');
+            if (company.logo) { try { doc.setFillColor(255, 255, 255); doc.circle(margin + 10, 20, 12, 'F'); doc.addImage(company.logo, 'JPEG', margin + 2, 12, 16, 16); } catch (e) {} }
 
-            doc.setTextColor(255, 255, 255);
-            doc.setFont("helvetica", "bold"); 
-            doc.setFontSize(22); 
-            doc.text("CONTRATO DE SERVIÇOS", 190, 20, { align: "right" }); 
-            
-            doc.setFontSize(10); 
-            doc.setFont("helvetica", "normal");
-            doc.text("DECORAÇÃO E EVENTOS", 190, 26, { align: "right" }); 
-            doc.text("Doc. Nº " + app.id.slice(0, 6).toUpperCase(), 190, 32, { align: "right" }); 
+            doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(22); doc.text("CONTRATO DE SERVIÇOS", 190, 20, { align: "right" }); 
+            doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.text("DECORAÇÃO E EVENTOS", 190, 26, { align: "right" }); doc.text("Doc. Nº " + app.id.slice(0, 6).toUpperCase(), 190, 32, { align: "right" }); 
 
             y = 55;
+            doc.setTextColor(...darkGray); doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.text("IDENTIFICAÇÃO DAS PARTES", margin, y); y += 5;
 
-            // --- 1. IDENTIFICAÇÃO ---
-            doc.setTextColor(...darkGray);
-            doc.setFontSize(10);
-            doc.setFont("helvetica", "bold");
-            doc.text("IDENTIFICAÇÃO DAS PARTES", margin, y);
-            y += 5;
+            doc.setDrawColor(200, 200, 200); doc.setFillColor(...lightGray); doc.roundedRect(margin, y, 80, 40, 3, 3, 'FD');
+            doc.setFontSize(9); doc.setTextColor(100, 100, 100); doc.text("CONTRATADA", margin + 5, y + 8);
+            doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold"); doc.text(company.fantasia || 'Sua Empresa', margin + 5, y + 15);
+            doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.text("CNPJ: " + (company.cnpj || '...'), margin + 5, y + 22); doc.text((company.rua || '') + ', ' + (company.cidade || ''), margin + 5, y + 28);
 
-            // Caixa Contratada
-            doc.setDrawColor(200, 200, 200);
-            doc.setFillColor(...lightGray);
-            doc.roundedRect(margin, y, 80, 40, 3, 3, 'FD');
-            
-            doc.setFontSize(9);
-            doc.setTextColor(100, 100, 100); doc.text("CONTRATADA", margin + 5, y + 8);
-            doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold");
-            doc.text(company.fantasia || 'Sua Empresa', margin + 5, y + 15);
-            doc.setFont("helvetica", "normal"); doc.setFontSize(8);
-            doc.text("CNPJ: " + (company.cnpj || '...'), margin + 5, y + 22);
-            doc.text((company.rua || '') + ', ' + (company.cidade || ''), margin + 5, y + 28);
-
-            // Caixa Contratante
-            doc.setFillColor(255, 255, 255);
-            doc.roundedRect(margin + 85, y, 85, 40, 3, 3, 'FD');
-
-            doc.setFontSize(9);
-            doc.setTextColor(100, 100, 100); doc.text("CONTRATANTE", margin + 90, y + 8);
-            doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold");
-            doc.text(cli.name, margin + 90, y + 15);
-            doc.setFont("helvetica", "normal"); doc.setFontSize(8);
-            doc.text("CPF: " + (cli.cpf || 'Não informado'), margin + 90, y + 22);
-            doc.text("Tel: " + (cli.phone || 'Não informado'), margin + 90, y + 28);
-
+            doc.setFillColor(255, 255, 255); doc.roundedRect(margin + 85, y, 85, 40, 3, 3, 'FD');
+            doc.setFontSize(9); doc.setTextColor(100, 100, 100); doc.text("CONTRATANTE", margin + 90, y + 8);
+            doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold"); doc.text(cli.name, margin + 90, y + 15);
+            doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.text("CPF: " + (cli.cpf || 'Não informado'), margin + 90, y + 22); doc.text("Tel: " + (cli.phone || 'Não informado'), margin + 90, y + 28);
             y += 50;
 
-            // --- 2. DETALHES DO EVENTO ---
-            doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(...darkGray);
-            doc.text("DETALHES DO EVENTO", margin, y);
-            y += 2;
+            doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(...darkGray); doc.text("DETALHES DO EVENTO", margin, y); y += 2;
+            const eventData = [['Data do Evento', formatDate(app.date)], ['Horário', app.time + ' horas'], ['Local', (app.location.bairro || '') + ' - ' + (app.location.cidade || '')], ['Endereço', (app.location.rua || '') + ', ' + (app.location.numero || '')]];
 
-            const eventData = [
-                ['Data do Evento', formatDate(app.date)],
-                ['Horário', app.time + ' horas'],
-                ['Local', (app.location.bairro || '') + ' - ' + (app.location.cidade || '')],
-                ['Endereço', (app.location.rua || '') + ', ' + (app.location.numero || '')]
-            ];
-
-            doc.autoTable({
-                startY: y + 3,
-                head: [],
-                body: eventData,
-                theme: 'plain',
-                styles: { fontSize: 9, cellPadding: 1 },
-                columnStyles: { 0: { fontStyle: 'bold', cellWidth: 40 }, 1: { cellWidth: 'auto' } },
-                margin: { left: margin }
-            });
+            doc.autoTable({ startY: y + 3, head: [], body: eventData, theme: 'plain', styles: { fontSize: 9, cellPadding: 1 }, columnStyles: { 0: { fontStyle: 'bold', cellWidth: 40 }, 1: { cellWidth: 'auto' } }, margin: { left: margin } });
             y = doc.lastAutoTable.finalY + 10;
 
-            // --- 3. ITENS E ESPECIFICAÇÕES ---
-            doc.setFontSize(10); doc.setFont("helvetica", "bold");
-            doc.text("ITENS CONTRATADOS & ESPECIFICAÇÕES", margin, y);
-            
+            doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.text("ITENS CONTRATADOS & ESPECIFICAÇÕES", margin, y);
             let tableBody = app.selectedServices.map(s => [s.description, formatCurrency(s.price)]);
-            
-            if (app.details?.balloonColors) {
-                tableBody.push([{ content: 'Cores dos Balões: ' + app.details.balloonColors, colSpan: 2, styles: { fontStyle: 'italic', textColor: [139, 92, 246] } }]);
-            }
-            if (app.notes) {
-                tableBody.push([{ content: 'Obs: ' + app.notes, colSpan: 2, styles: { fontStyle: 'italic' } }]);
-            }
+            if (app.details?.balloonColors) tableBody.push([{ content: 'Cores dos Balões: ' + app.details.balloonColors, colSpan: 2, styles: { fontStyle: 'italic', textColor: [139, 92, 246] } }]);
+            if (app.notes) tableBody.push([{ content: 'Obs: ' + app.notes, colSpan: 2, styles: { fontStyle: 'italic' } }]);
 
-            doc.autoTable({
-                startY: y + 3,
-                head: [['Descrição do Serviço / Item', 'Valor']],
-                body: tableBody,
-                theme: 'striped',
-                headStyles: { fillColor: primaryColor, textColor: [255, 255, 255], fontStyle: 'bold' },
-                styles: { fontSize: 9, cellPadding: 3 },
-                columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 40, halign: 'right' } },
-                margin: { left: margin, right: margin }
-            });
+            doc.autoTable({ startY: y + 3, head: [['Descrição do Serviço / Item', 'Valor']], body: tableBody, theme: 'striped', headStyles: { fillColor: primaryColor, textColor: [255, 255, 255], fontStyle: 'bold' }, styles: { fontSize: 9, cellPadding: 3 }, columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 40, halign: 'right' } }, margin: { left: margin, right: margin } });
             y = doc.lastAutoTable.finalY + 10;
 
-            // --- 4. RESUMO FINANCEIRO ---
-            const entry = app.entryFee || app.details?.entryFee || 0;
-            const boxWidth = 70;
-            const boxX = pageWidth - margin - boxWidth;
-            
-            doc.setFillColor(...lightGray);
-            doc.rect(boxX, y, boxWidth, 26, 'F');
-            doc.setDrawColor(...primaryColor);
-            doc.line(boxX, y, boxX, y + 26); 
-
-            doc.setFontSize(9);
-            doc.setTextColor(100, 100, 100);
-            
-            doc.text("Valor Total:", boxX + 5, y + 7);
-            doc.text("Sinal Pago:", boxX + 5, y + 14);
-            doc.setFont("helvetica", "bold"); doc.setTextColor(...primaryColor);
-            doc.text("A Pagar (Restante):", boxX + 5, y + 21);
-
-            doc.setFont("helvetica", "normal"); doc.setTextColor(0,0,0);
-            doc.text(formatCurrency(app.totalServices), boxX + boxWidth - 5, y + 7, { align: "right" });
+            const entry = app.entryFee || app.details?.entryFee || 0; const boxWidth = 70; const boxX = pageWidth - margin - boxWidth;
+            doc.setFillColor(...lightGray); doc.rect(boxX, y, boxWidth, 26, 'F'); doc.setDrawColor(...primaryColor); doc.line(boxX, y, boxX, y + 26); 
+            doc.setFontSize(9); doc.setTextColor(100, 100, 100); doc.text("Valor Total:", boxX + 5, y + 7); doc.text("Sinal Pago:", boxX + 5, y + 14);
+            doc.setFont("helvetica", "bold"); doc.setTextColor(...primaryColor); doc.text("A Pagar (Restante):", boxX + 5, y + 21);
+            doc.setFont("helvetica", "normal"); doc.setTextColor(0,0,0); doc.text(formatCurrency(app.totalServices), boxX + boxWidth - 5, y + 7, { align: "right" });
             doc.text(formatCurrency(entry), boxX + boxWidth - 5, y + 14, { align: "right" });
-            doc.setFont("helvetica", "bold");
-            doc.text(formatCurrency(app.finalBalance), boxX + boxWidth - 5, y + 21, { align: "right" });
-
+            doc.setFont("helvetica", "bold"); doc.text(formatCurrency(app.finalBalance), boxX + boxWidth - 5, y + 21, { align: "right" });
             y += 35;
 
-            // --- 5. TERMOS LEGAIS ---
             doc.setFontSize(8); doc.setTextColor(100, 100, 100); doc.setFont("helvetica", "normal");
-            const terms = "TERMOS GERAIS: O cancelamento deste contrato com menos de 30 dias de antecedência implica na retenção do sinal pago para cobertura de custos operacionais e reserva de data. O pagamento restante deve ser quitado integralmente até a data do evento.";
-            const splitTerms = doc.splitTextToSize(terms, pageWidth - (margin * 2));
-            doc.text(splitTerms, margin, y);
-            y += 25;
-
+            doc.text(doc.splitTextToSize("TERMOS GERAIS: O cancelamento com menos de 30 dias implica retenção do sinal. Pagamento restante até a data do evento.", pageWidth - (margin * 2)), margin, y); y += 25;
             if (y > 250) { doc.addPage(); y = 40; }
 
-            doc.setDrawColor(150, 150, 150); doc.setLineWidth(0.5); doc.setLineDash([2, 2], 0);
-            
-            doc.line(margin, y, margin + 70, y);
-            doc.line(margin + 90, y, margin + 160, y);
-            
-            doc.setFontSize(8); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold");
-            doc.text("CONTRATADA", margin + 10, y + 5);
-            doc.text("CONTRATANTE", margin + 100, y + 5);
-            
-            doc.setFont("helvetica", "normal"); doc.setTextColor(150, 150, 150);
-            doc.text(new Date().toLocaleDateString('pt-BR'), margin, y + 15);
-
-            doc.setFontSize(7);
-            doc.text("Gerado digitalmente por PartyPlanner Pro", pageWidth / 2, 290, { align: "center" });
+            doc.setDrawColor(150, 150, 150); doc.setLineWidth(0.5); doc.setLineDash([2, 2], 0); doc.line(margin, y, margin + 70, y); doc.line(margin + 90, y, margin + 160, y);
+            doc.setFontSize(8); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold"); doc.text("CONTRATADA", margin + 10, y + 5); doc.text("CONTRATANTE", margin + 100, y + 5);
+            doc.setFont("helvetica", "normal"); doc.setTextColor(150, 150, 150); doc.text(new Date().toLocaleDateString('pt-BR'), margin, y + 15);
+            doc.setFontSize(7); doc.text("Gerado digitalmente por PartyPlanner Pro", pageWidth / 2, 290, { align: "center" });
 
             doc.save("Contrato_" + cli.name.split(' ')[0] + ".pdf"); 
         };
         
         const handleLogoUpload = (e) => { const f = e.target.files[0]; if(f){ const r = new FileReader(); r.onload=x=>{ company.logo=x.target.result; saveCompany(); }; r.readAsDataURL(f); } };
         const saveCompany = async () => { localStorage.setItem('pp_company', JSON.stringify(company)); if(user.value) await updateDoc(doc(db,"users",user.value.uid), {companyConfig:company}); Swal.fire('Salvo','','success'); };
-        const addTask = (app) => { if(!newTaskText.value[app.id]) return; app.checklist.push({text:newTaskText.value[app.id], done:false}); newTaskText.value[app.id]=''; updateAppInFirebase(app); };
-        const removeTask = (app, i) => { app.checklist.splice(i, 1); updateAppInFirebase(app); };
         const checklistProgress = (app) => { if(!app.checklist?.length) return 0; return Math.round((app.checklist.filter(t=>t.done).length/app.checklist.length)*100); };
         const addServiceToApp = () => { if(tempServiceSelect.value) { tempApp.selectedServices.push({...tempServiceSelect.value}); tempServiceSelect.value = ''; } };
         const removeServiceFromApp = (i) => tempApp.selectedServices.splice(i,1);
@@ -659,7 +523,7 @@ createApp({
             handleLogin, logout, toggleDarkMode,
             startNewSchedule, editAppointment, saveAppointment, changeStatus, addExpense, deleteExpense, 
             openClientModal, deleteClient, openServiceModal, deleteService,
-            addTask, removeTask, checklistProgress,
+            checklistProgress,
             addServiceToApp, removeServiceFromApp, handleLogoUpload, saveCompany,
             showReceipt, downloadReceiptImage, generateContractPDF, 
             getClientName, getClientPhone, formatCurrency, formatDate, getDay, getMonth, statusText, statusClass,
@@ -667,9 +531,9 @@ createApp({
             handleChangePassword, searchExpenses, searchCatalogClients, catalogClientSearch,
             selectedAppointment, detailTaskInput, openDetails, saveTaskInDetail, toggleTaskDone, deleteTaskInDetail,
             
-            // --- NOVOS EXPORTS DO DASHBOARD ---
-            dashboardMonth, loadDashboardData, isLoadingDashboard,calendarViewMode, calendarCursor, calendarGrid, calendarLabel, moveCalendar
-            
+            // --- EXPORTS DE DASHBOARD & CALENDAR ---
+            dashboardMonth, loadDashboardData, isLoadingDashboard,
+            calendarViewMode, calendarCursor, calendarGrid, calendarLabel, moveCalendar
         };
     }
 }).mount('#app');
