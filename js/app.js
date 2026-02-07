@@ -21,7 +21,12 @@ createApp({
         const catalogView = ref('company'); 
         const isDark = ref(false);
         
-        // --- DADOS ---
+        // --- DADOS DO DASHBOARD (MENSAL) ---
+        const dashboardMonth = ref(new Date().toISOString().slice(0, 7)); // YYYY-MM
+        const dashboardData = reactive({ appointments: [], expenses: [] });
+        const isLoadingDashboard = ref(false);
+
+        // --- DADOS DAS LISTAS ---
         const services = ref([]); 
         const pendingAppointments = ref([]); 
         const historyList = ref([]); 
@@ -31,7 +36,7 @@ createApp({
         
         // Cache local para nomes de clientes
         const clientCache = reactive({}); 
-        const clients = ref([]); // Lista interna para uso do cache
+        const clients = ref([]); 
 
         // --- FILTROS ---
         const currentTab = ref('pending'); 
@@ -57,8 +62,8 @@ createApp({
         const tempServiceSelect = ref('');
         const newExpense = reactive({ description: '', value: '', date: new Date().toISOString().split('T')[0] });
         const currentReceipt = ref(null);
-        const selectedAppointment = ref(null); // Para a tela de detalhes
-        const detailTaskInput = ref(''); // Input de nova tarefa na tela de detalhes
+        const selectedAppointment = ref(null);
+        const detailTaskInput = ref(''); 
         
         const isEditing = ref(false);
         const editingId = ref(null);
@@ -117,7 +122,9 @@ createApp({
                     }
 
                     if(data.companyConfig) Object.assign(company, data.companyConfig);
-                    syncData();
+                    
+                    syncData(); // Sync listas (Agenda)
+                    loadDashboardData(); // Carrega KPIs do mês atual
                 } else {
                     user.value = null;
                 }
@@ -137,7 +144,55 @@ createApp({
 
         const logout = async () => { await signOut(auth); window.location.href = "index.html"; };
 
-        // --- SYNC ---
+        // --- DASHBOARD DATA (KPIS MENSAIS) ---
+        const loadDashboardData = async () => {
+            if (!user.value) return;
+            isLoadingDashboard.value = true;
+            
+            const [year, month] = dashboardMonth.value.split('-');
+            const startStr = `${year}-${month}-01`;
+            const lastDay = new Date(year, month, 0).getDate();
+            const endStr = `${year}-${month}-${lastDay}`;
+
+            try {
+                // Busca Agendamentos do Mês (Todos os status para calcular receita/receber corretamente, ou filtrar se preferir)
+                // Nota: Receita geralmente considera o que foi FECHADO (independente de status concluded/pending se já pagou sinal).
+                // Aqui vamos pegar todos que não estão cancelados para projeção.
+                const qApps = query(
+                    collection(db, "appointments"), 
+                    where("userId", "==", user.value.uid),
+                    where("date", ">=", startStr),
+                    where("date", "<=", endStr)
+                );
+                
+                // Busca Despesas do Mês
+                const qExp = query(
+                    collection(db, "expenses"), 
+                    where("userId", "==", user.value.uid),
+                    where("date", ">=", startStr),
+                    where("date", "<=", endStr)
+                );
+
+                const [snapApps, snapExp] = await Promise.all([getDocs(qApps), getDocs(qExp)]);
+
+                // Filtramos cancelados fora do cálculo financeiro
+                dashboardData.appointments = snapApps.docs
+                    .map(d => ({id: d.id, ...d.data()}))
+                    .filter(app => app.status !== 'cancelled');
+                
+                dashboardData.expenses = snapExp.docs.map(d => ({id: d.id, ...d.data()}));
+
+            } catch (e) {
+                console.error("Erro ao carregar dashboard:", e);
+            } finally {
+                isLoadingDashboard.value = false;
+            }
+        };
+
+        // Recarrega se mudar o mês
+        watch(dashboardMonth, () => { loadDashboardData(); });
+
+        // --- SYNC (REALTIME PARA AGENDA) ---
         let unsubscribeListeners = [];
         const syncData = () => {
             unsubscribeListeners.forEach(unsub => unsub()); unsubscribeListeners = [];
@@ -148,23 +203,24 @@ createApp({
                 services.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
             }));
 
-            // Agendamentos Pendentes (Automático)
+            // Agendamentos Pendentes (Automático para Lista e Notificação)
             const qApps = query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "pending"));
             unsubscribeListeners.push(onSnapshot(qApps, (snap) => { 
                 pendingAppointments.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
-                // Se a tela de detalhes estiver aberta, atualizar o objeto em tempo real
                 if(view.value === 'appointment_details' && selectedAppointment.value) {
                     const updated = pendingAppointments.value.find(a => a.id === selectedAppointment.value.id);
                     if(updated) selectedAppointment.value = updated;
                 }
+                // Se estivermos no mês atual, pode ser legal recarregar o dashboard também, 
+                // mas para economizar leitura, deixamos o dashboard "on demand" ou manual.
+                // Se quiser auto-update do dashboard ao criar agendamento, chame loadDashboardData() aqui.
             }));
         };
 
-        // --- BUSCAS COM FILTRO NO CLIENTE ---
+        // --- BUSCAS E COMPUTEDS ---
         const searchHistory = async () => {
             if(!historyFilter.start || !historyFilter.end) return Swal.fire('Atenção', 'Selecione as datas', 'warning');
             isLoadingHistory.value = true; historyList.value = [];
-            
             try {
                 const q = query(collection(db, "appointments"), where("userId", "==", user.value.uid));
                 const snap = await getDocs(q);
@@ -206,18 +262,19 @@ createApp({
             } else { scheduleClientsList.value = []; }
         });
 
-        // --- COMPUTED ---
+        // --- COMPUTEDS GERAIS ---
         const filteredListAppointments = computed(() => { 
             let list = currentTab.value === 'pending' ? pendingAppointments.value : historyList.value;
             return [...list].sort((a,b) => new Date(a.date) - new Date(b.date)); 
         });
         
-        const kpiRevenue = computed(() => pendingAppointments.value.reduce((acc, a) => acc + (a.totalServices || 0), 0));
-        const kpiExpenses = computed(() => expensesList.value.reduce((acc, e) => acc + (e.value || 0), 0)); 
+        // --- KPIS (AGORA BASEADOS NO MÊS SELECIONADO) ---
+        const kpiRevenue = computed(() => dashboardData.appointments.reduce((acc, a) => acc + (a.totalServices || 0), 0));
+        const kpiExpenses = computed(() => dashboardData.expenses.reduce((acc, e) => acc + (e.value || 0), 0)); 
         const kpiProfit = computed(() => kpiRevenue.value - kpiExpenses.value); 
-        const kpiReceivables = computed(() => pendingAppointments.value.reduce((acc, a) => acc + (a.finalBalance || 0), 0));
-        const pendingCount = computed(() => pendingAppointments.value.length);
+        const kpiReceivables = computed(() => dashboardData.appointments.reduce((acc, a) => acc + (a.finalBalance || 0), 0));
         
+        const pendingCount = computed(() => pendingAppointments.value.length);
         const next7DaysApps = computed(() => { 
             const t = new Date(); t.setHours(0,0,0,0); const w = new Date(t); w.setDate(t.getDate() + 7); 
             return pendingAppointments.value.filter(a => { return new Date(a.date) >= t && new Date(a.date) <= w; }).sort((a,b) => new Date(a.date) - new Date(b.date));
@@ -232,6 +289,10 @@ createApp({
             const appData = { ...JSON.parse(JSON.stringify(tempApp)), totalServices: total, entryFee: tempApp.details.entryFee, finalBalance: total - tempApp.details.entryFee, userId: user.value.uid };
             if(isEditing.value && editingId.value) { await updateDoc(doc(db, "appointments", editingId.value), appData); Swal.fire({icon:'success', title:'Atualizado', timer:1000}); } 
             else { appData.status = 'pending'; appData.checklist = [{text:'Separar Materiais', done:false}]; await addDoc(collection(db, "appointments"), appData); Swal.fire({icon:'success', title:'Agendado!', timer:1000}); }
+            
+            // Se a data do agendamento for no mês que estamos vendo no dashboard, recarrega o dashboard
+            if(appData.date.startsWith(dashboardMonth.value)) loadDashboardData();
+
             view.value = 'appointments_list'; currentTab.value = 'pending';
         };
 
@@ -242,6 +303,7 @@ createApp({
                 await updateDoc(doc(db, "appointments", app.id), { status: status });
                 const idx = historyList.value.findIndex(x => x.id === app.id); 
                 if(idx !== -1) historyList.value.splice(idx, 1);
+                loadDashboardData(); // Recarrega KPIs pois status mudou
                 Swal.fire('Feito!', '', 'success');
             }
         };
@@ -252,7 +314,6 @@ createApp({
         const openDetails = (app) => {
             fetchClientToCache(app.clientId);
             selectedAppointment.value = app;
-            // Garante que o checklist seja um array para não dar erro
             if (!selectedAppointment.value.checklist) selectedAppointment.value.checklist = [];
             detailTaskInput.value = '';
             view.value = 'appointment_details';
@@ -261,20 +322,16 @@ createApp({
         const saveTaskInDetail = async () => {
             if (!detailTaskInput.value.trim() || !selectedAppointment.value) return;
             const newTask = { text: detailTaskInput.value, done: false };
-            
-            // Atualiza localmente
             if (!selectedAppointment.value.checklist) selectedAppointment.value.checklist = [];
             selectedAppointment.value.checklist.push(newTask);
-            
-            // Salva no banco
             await updateAppInFirebase(selectedAppointment.value);
-            detailTaskInput.value = ''; // Limpa input
+            detailTaskInput.value = ''; 
         };
 
         const toggleTaskDone = async (index) => {
             if (!selectedAppointment.value) return;
             const task = selectedAppointment.value.checklist[index];
-            task.done = !task.done; // O v-model do checkbox já faz isso visualmente, mas garantimos aqui
+            task.done = !task.done; 
             await updateAppInFirebase(selectedAppointment.value);
         };
 
@@ -288,12 +345,19 @@ createApp({
             if(!newExpense.description) return; 
             const docRef = await addDoc(collection(db, "expenses"), {...newExpense, userId: user.value.uid}); 
             expensesList.value.unshift({id: docRef.id, ...newExpense});
+            
+            // Se a despesa for no mês atual do dashboard, atualiza
+            if(newExpense.date.startsWith(dashboardMonth.value)) loadDashboardData();
+
             Object.assign(newExpense, {description: '', value: ''}); 
             Swal.fire({icon:'success', title:'Registrado', timer:1000}); 
         };
         const deleteExpense = async (id) => { 
+            // Para deletar e atualizar o KPI, precisaríamos saber a data da despesa antes de deletar, 
+            // ou simplesmente recarregar o dashboard
             await deleteDoc(doc(db, "expenses", id)); 
             expensesList.value = expensesList.value.filter(e => e.id !== id);
+            loadDashboardData();
         };
         
         const startNewSchedule = () => { 
@@ -353,21 +417,17 @@ createApp({
             let y = 0; 
 
             // --- CABEÇALHO MODERNO ---
-            // Fundo Colorido
             doc.setFillColor(...primaryColor);
             doc.rect(0, 0, pageWidth, 40, 'F');
             
-            // Logo (Círculo branco se tiver logo, ou texto)
             if (company.logo) { 
                 try { 
-                    // Fundo branco para o logo
                     doc.setFillColor(255, 255, 255);
                     doc.circle(margin + 10, 20, 12, 'F');
                     doc.addImage(company.logo, 'JPEG', margin + 2, 12, 16, 16); 
                 } catch (e) {} 
             }
 
-            // Título e Subtítulo (Branco)
             doc.setTextColor(255, 255, 255);
             doc.setFont("helvetica", "bold"); 
             doc.setFontSize(22); 
@@ -380,14 +440,14 @@ createApp({
 
             y = 55;
 
-            // --- 1. IDENTIFICAÇÃO (LAYOUT EM CAIXAS) ---
+            // --- 1. IDENTIFICAÇÃO ---
             doc.setTextColor(...darkGray);
             doc.setFontSize(10);
             doc.setFont("helvetica", "bold");
             doc.text("IDENTIFICAÇÃO DAS PARTES", margin, y);
             y += 5;
 
-            // Caixa Contratada (Empresa)
+            // Caixa Contratada
             doc.setDrawColor(200, 200, 200);
             doc.setFillColor(...lightGray);
             doc.roundedRect(margin, y, 80, 40, 3, 3, 'FD');
@@ -400,8 +460,8 @@ createApp({
             doc.text("CNPJ: " + (company.cnpj || '...'), margin + 5, y + 22);
             doc.text((company.rua || '') + ', ' + (company.cidade || ''), margin + 5, y + 28);
 
-            // Caixa Contratante (Cliente)
-            doc.setFillColor(255, 255, 255); // Fundo branco
+            // Caixa Contratante
+            doc.setFillColor(255, 255, 255);
             doc.roundedRect(margin + 85, y, 85, 40, 3, 3, 'FD');
 
             doc.setFontSize(9);
@@ -437,14 +497,12 @@ createApp({
             });
             y = doc.lastAutoTable.finalY + 10;
 
-            // --- 3. ITENS E ESPECIFICAÇÕES (TABELA MODERNA) ---
+            // --- 3. ITENS E ESPECIFICAÇÕES ---
             doc.setFontSize(10); doc.setFont("helvetica", "bold");
             doc.text("ITENS CONTRATADOS & ESPECIFICAÇÕES", margin, y);
             
-            // Prepara dados da tabela
             let tableBody = app.selectedServices.map(s => [s.description, formatCurrency(s.price)]);
             
-            // Adiciona Balões e Obs na tabela se existirem
             if (app.details?.balloonColors) {
                 tableBody.push([{ content: 'Cores dos Balões: ' + app.details.balloonColors, colSpan: 2, styles: { fontStyle: 'italic', textColor: [139, 92, 246] } }]);
             }
@@ -464,17 +522,15 @@ createApp({
             });
             y = doc.lastAutoTable.finalY + 10;
 
-            // --- 4. RESUMO FINANCEIRO (Destaque) ---
+            // --- 4. RESUMO FINANCEIRO ---
             const entry = app.entryFee || app.details?.entryFee || 0;
-            
-            // Caixa de totais alinhada à direita
             const boxWidth = 70;
             const boxX = pageWidth - margin - boxWidth;
             
             doc.setFillColor(...lightGray);
             doc.rect(boxX, y, boxWidth, 26, 'F');
             doc.setDrawColor(...primaryColor);
-            doc.line(boxX, y, boxX, y + 26); // Linha lateral roxa
+            doc.line(boxX, y, boxX, y + 26); 
 
             doc.setFontSize(9);
             doc.setTextColor(100, 100, 100);
@@ -492,15 +548,13 @@ createApp({
 
             y += 35;
 
-            // --- 5. TERMOS LEGAIS (Texto Corrido) ---
+            // --- 5. TERMOS LEGAIS ---
             doc.setFontSize(8); doc.setTextColor(100, 100, 100); doc.setFont("helvetica", "normal");
             const terms = "TERMOS GERAIS: O cancelamento deste contrato com menos de 30 dias de antecedência implica na retenção do sinal pago para cobertura de custos operacionais e reserva de data. O pagamento restante deve ser quitado integralmente até a data do evento.";
             const splitTerms = doc.splitTextToSize(terms, pageWidth - (margin * 2));
             doc.text(splitTerms, margin, y);
             y += 25;
 
-            // --- ASSINATURAS ---
-            // Verifica se precisa de nova página
             if (y > 250) { doc.addPage(); y = 40; }
 
             doc.setDrawColor(150, 150, 150); doc.setLineWidth(0.5); doc.setLineDash([2, 2], 0);
@@ -515,11 +569,10 @@ createApp({
             doc.setFont("helvetica", "normal"); doc.setTextColor(150, 150, 150);
             doc.text(new Date().toLocaleDateString('pt-BR'), margin, y + 15);
 
-            // RODAPÉ
             doc.setFontSize(7);
             doc.text("Gerado digitalmente por PartyPlanner Pro", pageWidth / 2, 290, { align: "center" });
 
-            doc.save("Contrato_Moderno_" + cli.name.split(' ')[0] + ".pdf"); 
+            doc.save("Contrato_" + cli.name.split(' ')[0] + ".pdf"); 
         };
         
         const handleLogoUpload = (e) => { const f = e.target.files[0]; if(f){ const r = new FileReader(); r.onload=x=>{ company.logo=x.target.result; saveCompany(); }; r.readAsDataURL(f); } };
@@ -561,8 +614,10 @@ createApp({
             getClientName, getClientPhone, formatCurrency, formatDate, getDay, getMonth, statusText, statusClass,
             clientSearchTerm, filteredClientsSearch, selectClientFromSearch, clearClientSelection,
             handleChangePassword, searchExpenses, searchCatalogClients, catalogClientSearch,
-            // NOVOS EXPORTS
-            selectedAppointment, detailTaskInput, openDetails, saveTaskInDetail, toggleTaskDone, deleteTaskInDetail
+            selectedAppointment, detailTaskInput, openDetails, saveTaskInDetail, toggleTaskDone, deleteTaskInDetail,
+            
+            // --- NOVOS EXPORTS DO DASHBOARD ---
+            dashboardMonth, loadDashboardData, isLoadingDashboard
         };
     }
 }).mount('#app');
