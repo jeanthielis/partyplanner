@@ -451,7 +451,7 @@
                     <main v-if="view === 'expenses'" class="animate-fade">
                         <div class="flex items-center justify-between mb-4">
                             <div class="flex items-center gap-2">
-                                 <button @click="view = 'dashboard'" class="w-8 h-8 rounded-full bg-gray-100 dark:bg-darkcard flex items-center justify-center"><i class="fa-solid fa-arrow-left"></i></button>
+                                    <button @click="view = 'dashboard'" class="w-8 h-8 rounded-full bg-gray-100 dark:bg-darkcard flex items-center justify-center"><i class="fa-solid fa-arrow-left"></i></button>
                                 <h2 class="font-bold text-xl dark:text-white">Financeiro</h2>
                             </div>
                             <button @click="showExpenseModal = true" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg shadow-red-200 dark:shadow-none flex items-center gap-2">
@@ -463,19 +463,35 @@
                             <div class="bg-white dark:bg-darkcard p-6 rounded-3xl shadow-2xl w-full max-w-sm relative">
                                 <button @click="showExpenseModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-red-500"><i class="fa-solid fa-times text-xl"></i></button>
                                 <h3 class="font-bold text-lg mb-4 dark:text-white text-center">Nova Despesa</h3>
+                                
                                 <div class="space-y-4">
                                     <div>
                                         <label class="block text-xs font-bold text-gray-500 mb-1">Descrição</label>
-                                        <input v-model="newExpense.description" placeholder="Ex: Combustível" class="w-full p-3 rounded-xl bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 dark:text-white outline-none focus:ring-2 focus:ring-red-500">
+                                        <input v-model="newExpense.description" placeholder="Ex: Posto Ipiranga" class="w-full p-3 rounded-xl bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 dark:text-white outline-none focus:ring-2 focus:ring-red-500">
                                     </div>
+
                                     <div>
-                                        <label class="block text-xs font-bold text-gray-500 mb-1">Valor (R$)</label>
-                                        <input v-model="newExpense.value" type="number" placeholder="0,00" class="w-full p-3 rounded-xl bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 dark:text-white outline-none focus:ring-2 focus:ring-red-500">
+                                        <label class="block text-xs font-bold text-gray-500 mb-1">Categoria</label>
+                                        <div class="relative">
+                                            <select v-model="newExpense.category" class="w-full p-3 rounded-xl bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 dark:text-white outline-none focus:ring-2 focus:ring-red-500 appearance-none">
+                                                <option value="" disabled>Selecione...</option>
+                                                <option v-for="c in expenseCategories" :key="c.id" :value="c.id">{{ c.label }}</option>
+                                            </select>
+                                            <i class="fa-solid fa-chevron-down absolute right-4 top-4 text-gray-400 text-xs pointer-events-none"></i>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label class="block text-xs font-bold text-gray-500 mb-1">Data</label>
-                                        <input type="date" v-model="newExpense.date" class="w-full p-3 rounded-xl bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 dark:text-white outline-none focus:ring-2 focus:ring-red-500">
+                                    
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label class="block text-xs font-bold text-gray-500 mb-1">Valor (R$)</label>
+                                            <input v-model="newExpense.value" type="number" placeholder="0,00" class="w-full p-3 rounded-xl bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 dark:text-white outline-none focus:ring-2 focus:ring-red-500">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-bold text-gray-500 mb-1">Data</label>
+                                            <input type="date" v-model="newExpense.date" class="w-full p-3 rounded-xl bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 dark:text-white outline-none focus:ring-2 focus:ring-red-500">
+                                        </div>
                                     </div>
+
                                     <button @click="addExpense" class="w-full bg-red-500 text-white py-3 rounded-xl font-bold shadow-lg shadow-red-200 dark:shadow-none hover:scale-[1.02] transition">
                                         Confirmar Lançamento
                                     </button>
@@ -483,19 +499,38 @@
                             </div>
                         </div>
 
-                        <div class="mb-4">
-                            <p class="text-xs font-bold text-gray-500 mb-2 dark:text-gray-300">Filtrar por Período:</p>
+                        <div class="mb-4 space-y-2">
+                            <p class="text-xs font-bold text-gray-500 dark:text-gray-300">Filtrar Despesas:</p>
+                            
+                            <select v-model="expensesFilter.category" class="w-full p-2 rounded-lg bg-white dark:bg-gray-700 border dark:border-gray-600 dark:text-white text-xs font-bold mb-2">
+                                <option value="">Todas as Categorias</option>
+                                <option v-for="c in expenseCategories" :key="c.id" :value="c.id">{{ c.label }}</option>
+                            </select>
+
                             <div class="flex gap-2 items-end">
                                 <input type="date" v-model="expensesFilter.start" class="flex-1 bg-white dark:bg-gray-700 p-2 rounded-lg text-xs border dark:border-gray-600 dark:text-white">
                                 <input type="date" v-model="expensesFilter.end" class="flex-1 bg-white dark:bg-gray-700 p-2 rounded-lg text-xs border dark:border-gray-600 dark:text-white">
                                 <button @click="searchExpenses" class="bg-gray-800 text-white h-[34px] px-3 rounded-lg text-xs font-bold"><i class="fa-solid fa-search"></i></button>
                             </div>
                         </div>
+
                         <div v-if="expensesList.length === 0" class="text-center py-10 text-gray-400 text-sm">Use o filtro para ver as despesas.</div>
+                        
                         <div class="bg-white dark:bg-darkcard rounded-xl shadow-sm divide-y dark:divide-gray-700 max-w-lg">
                             <div v-for="e in expensesList" :key="e.id" class="p-3 flex justify-between items-center">
-                                <div><p class="font-bold text-sm dark:text-white">{{ e.description }}</p><p class="text-xs text-gray-400">{{ formatDate(e.date) }}</p></div>
-                                <div class="flex items-center gap-3"><span class="text-red-500 font-bold text-sm">- {{ formatCurrency(e.value) }}</span><button @click="deleteExpense(e.id)" class="text-gray-300 hover:text-red-500"><i class="fa-solid fa-trash"></i></button></div>
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-full bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-500">
+                                        <i class="fa-solid" :class="getCategoryIcon(e.category)"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-bold text-sm dark:text-white">{{ e.description }}</p>
+                                        <p class="text-[10px] text-gray-400 uppercase font-bold">{{ e.category || 'Outros' }} • {{ formatDate(e.date) }}</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <span class="text-red-500 font-bold text-sm">- {{ formatCurrency(e.value) }}</span>
+                                    <button @click="deleteExpense(e.id)" class="text-gray-300 hover:text-red-500"><i class="fa-solid fa-trash"></i></button>
+                                </div>
                             </div>
                         </div>
                     </main>
