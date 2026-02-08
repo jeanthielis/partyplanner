@@ -1,425 +1,618 @@
-const { createApp, ref, computed, reactive, onMounted, watch } = Vue;
-
-import { 
-    db, auth, 
-    collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDocs, query, where, setDoc, getDoc, orderBy,
-    signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged,
-    updatePassword, reauthenticateWithCredential, EmailAuthProvider 
-} from './firebase.js';
-
-createApp({
-    setup() {
-        // --- ESTADOS GERAIS ---
-        const user = ref(null);
-        const userRole = ref('user');
-        const userStatus = ref('trial');
-        const daysRemaining = ref(30);
-        const authLoading = ref(false);
-        const authForm = reactive({ email: '', password: '' });
-        
-        const view = ref('dashboard');
-        const catalogView = ref('company'); 
-        const isDark = ref(false);
-        
-        // --- DADOS DO DASHBOARD (MENSAL) ---
-        const dashboardMonth = ref(new Date().toISOString().slice(0, 7)); // YYYY-MM
-        const dashboardData = reactive({ appointments: [], expenses: [] });
-        const isLoadingDashboard = ref(false);
-
-        // --- CALENDÁRIO DA AGENDA ---
-        const appointmentViewMode = ref('list'); // 'list' ou 'calendar'
-        const calendarCursor = ref(new Date()); // Data visualizada
-        const selectedCalendarDate = ref(null); // Data clicada
-
-        // --- DADOS DAS LISTAS ---
-        const services = ref([]); 
-        const pendingAppointments = ref([]); 
-        const historyList = ref([]); 
-        const expensesList = ref([]); 
-        const catalogClientsList = ref([]); 
-        const scheduleClientsList = ref([]); 
-        
-        // Cache local para nomes de clientes
-        const clientCache = reactive({}); 
-        const clients = ref([]); 
-
-        // --- CATEGORIAS DE DESPESAS ---
-        const expenseCategories = [
-            { id: 'combustivel', label: 'Combustível / Transporte', icon: 'fa-gas-pump' },
-            { id: 'materiais', label: 'Materiais / Decoração', icon: 'fa-box-open' },
-            { id: 'equipe', label: 'Equipe / Diária', icon: 'fa-users' },
-            { id: 'refeicao', label: 'Alimentação / Lanche', icon: 'fa-utensils' },
-            { id: 'marketing', label: 'Marketing / Anúncios', icon: 'fa-bullhorn' },
-            { id: 'aluguel', label: 'Aluguel / Espaço', icon: 'fa-house' },
-            { id: 'outros', label: 'Outras Despesas', icon: 'fa-money-bill' }
-        ];
-
-        // --- FILTROS ---
-        const currentTab = ref('pending'); 
-        const historyFilter = reactive({ start: '', end: '' });
-        const expensesFilter = reactive({ 
-            start: new Date().toISOString().split('T')[0], 
-            end: new Date().toISOString().split('T')[0],
-            category: '' 
-        });
-        const catalogClientSearch = ref('');
-        const clientSearchTerm = ref(''); 
-        const isLoadingHistory = ref(false);
-
-        // --- FORMULÁRIOS ---
-        const company = reactive({ fantasia: '', logo: '', cnpj: '', razao: '', cidade: '', rua: '', estado: '' });
-        
-        const tempApp = reactive({ 
-            clientId: '', 
-            date: '', 
-            time: '', 
-            location: { bairro: '', cidade: '', numero: '' }, 
-            details: { balloonColors: '', entryFee: 0 }, 
-            notes: '', 
-            selectedServices: [] 
-        });
-        
-        const tempServiceSelect = ref('');
-        
-        // FINANCEIRO (COM MODAL)
-        const newExpense = reactive({ description: '', value: '', date: new Date().toISOString().split('T')[0], category: '' });
-        const showExpenseModal = ref(false); 
-        
-        const currentReceipt = ref(null);
-        const selectedAppointment = ref(null);
-        const detailTaskInput = ref(''); 
-        
-        const isEditing = ref(false);
-        const editingId = ref(null);
-        const newTaskText = ref({});
-
-        // --- UTILS ---
-        const formatCurrency = (v) => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v||0);
-        const formatDate = (d) => d ? d.split('-').reverse().join('/') : '';
-        const getDay = (d) => d ? d.split('-')[2] : '';
-        const getMonth = (d) => ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'][parseInt(d.split('-')[1])-1];
-        const statusText = (s) => s === 'concluded' ? 'Concluída' : (s === 'cancelled' ? 'Cancelada' : 'Pendente');
-        const statusClass = (s) => s === 'concluded' ? 'bg-green-100 text-green-600' : (s === 'cancelled' ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-600');
-        const getCategoryIcon = (catId) => { const cat = expenseCategories.find(c => c.id === catId); return cat ? cat.icon : 'fa-money-bill'; };
-
-        // --- RESOLUÇÃO DE NOMES (CACHE) ---
-        const resolveClientName = (id) => { if (!id) return '...'; if (clientCache[id]) return clientCache[id].name; fetchClientToCache(id); return 'Carregando...'; };
-        const getClientName = (id) => resolveClientName(id);
-        const getClientPhone = (id) => clientCache[id] ? clientCache[id].phone : '';
-        const fetchClientToCache = async (id) => { if (clientCache[id] || !id) return; try { const docSnap = await getDoc(doc(db, "clients", id)); if (docSnap.exists()) clientCache[id] = docSnap.data(); else clientCache[id] = { name: 'Excluído', phone: '-' }; } catch (e) { console.error(e); } };
-
-        watch([pendingAppointments, historyList], ([newPending, newHistory]) => { if(newPending) newPending.forEach(app => fetchClientToCache(app.clientId)); if(newHistory) newHistory.forEach(app => fetchClientToCache(app.clientId)); }, { deep: true });
-
-        // --- AUTH & SYNC ---
-        onMounted(() => {
-            onAuthStateChanged(auth, async (u) => {
-                if (u) {
-                    const userDoc = await getDoc(doc(db, "users", u.uid));
-                    if (!userDoc.exists()) { await signOut(auth); user.value = null; Swal.fire({ icon: 'error', title: 'Acesso Revogado', text: 'Conta removida.' }); return; }
-                    user.value = u;
-                    const data = userDoc.data();
-                    userRole.value = data.role || 'user';
-                    userStatus.value = data.status || 'trial';
-                    if (userRole.value !== 'admin' && userStatus.value !== 'active') {
-                        const createdAt = new Date(data.createdAt || new Date());
-                        const diffDays = Math.ceil(Math.abs(new Date() - createdAt) / (1000 * 60 * 60 * 24)); 
-                        daysRemaining.value = 30 - diffDays;
-                        if (daysRemaining.value <= 0) { view.value = 'expired_plan'; return; }
-                    }
-                    if(data.companyConfig) Object.assign(company, data.companyConfig);
-                    syncData(); loadDashboardData(); 
-                } else { user.value = null; }
-            });
-            if(localStorage.getItem('pp_dark') === 'true') { isDark.value = true; document.documentElement.classList.add('dark'); }
-            const t = new Date(); const lm = new Date(); lm.setDate(t.getDate() - 30); historyFilter.end = t.toISOString().split('T')[0]; historyFilter.start = lm.toISOString().split('T')[0];
-        });
-
-        const handleLogin = async () => { authLoading.value = true; try { await signInWithEmailAndPassword(auth, authForm.email, authForm.password); } catch (error) { Swal.fire('Erro', 'Dados incorretos', 'error'); } finally { authLoading.value = false; } };
-        const logout = async () => { await signOut(auth); window.location.href = "index.html"; };
-
-        // --- DASHBOARD DATA (MENSAL) ---
-        const loadDashboardData = async () => {
-            if (!user.value) return;
-            isLoadingDashboard.value = true;
-            const [year, month] = dashboardMonth.value.split('-');
-            const startStr = `${year}-${month}-01`;
-            const lastDay = new Date(year, month, 0).getDate();
-            const endStr = `${year}-${month}-${lastDay}`;
-            try {
-                const qApps = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("date", ">=", startStr), where("date", "<=", endStr));
-                const qExp = query(collection(db, "expenses"), where("userId", "==", user.value.uid), where("date", ">=", startStr), where("date", "<=", endStr));
-                const [snapApps, snapExp] = await Promise.all([getDocs(qApps), getDocs(qExp)]);
-                dashboardData.appointments = snapApps.docs.map(d => ({id: d.id, ...d.data()})).filter(app => app.status !== 'cancelled');
-                dashboardData.expenses = snapExp.docs.map(d => ({id: d.id, ...d.data()}));
-            } catch (e) { console.error(e); } finally { isLoadingDashboard.value = false; }
-        };
-        watch(dashboardMonth, () => { loadDashboardData(); });
-
-        // --- CALENDÁRIO LÓGICA ---
-        const changeCalendarMonth = (offset) => { const d = new Date(calendarCursor.value); d.setMonth(d.getMonth() + offset); calendarCursor.value = d; };
-        
-        const calendarGrid = computed(() => {
-            const year = calendarCursor.value.getFullYear();
-            const month = calendarCursor.value.getMonth();
-            const firstDay = new Date(year, month, 1).getDay(); 
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
-            const days = [];
-            for (let i = 0; i < firstDay; i++) { days.push({ day: '', date: null, hasEvent: false }); }
-            for (let i = 1; i <= daysInMonth; i++) {
-                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
-                const hasEvent = pendingAppointments.value.some(app => app.date === dateStr && app.status !== 'cancelled');
-                days.push({ day: i, date: dateStr, hasEvent: hasEvent });
-            }
-            return days;
-        });
-
-        const calendarTitle = computed(() => {
-            const m = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-            return `${m[calendarCursor.value.getMonth()]} ${calendarCursor.value.getFullYear()}`;
-        });
-
-        const selectCalendarDay = (dayObj) => { if (!dayObj.day) return; selectedCalendarDate.value = dayObj.date; };
-        
-        const appointmentsOnSelectedDate = computed(() => {
-            if (!selectedCalendarDate.value) return [];
-            return pendingAppointments.value.filter(a => a.date === selectedCalendarDate.value);
-        });
-
-        // --- SYNC ---
-        let unsubscribeListeners = [];
-        const syncData = () => {
-            unsubscribeListeners.forEach(unsub => unsub()); unsubscribeListeners = [];
-            const myId = user.value.uid; 
-            unsubscribeListeners.push(onSnapshot(query(collection(db, "services"), where("userId", "==", myId)), (snap) => { services.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); }));
-            const qApps = query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "pending"));
-            unsubscribeListeners.push(onSnapshot(qApps, (snap) => { 
-                pendingAppointments.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
-                if(view.value === 'appointment_details' && selectedAppointment.value) {
-                    const updated = pendingAppointments.value.find(a => a.id === selectedAppointment.value.id);
-                    if(updated) selectedAppointment.value = updated;
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PartyPlanner Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="manifest" href="./manifest.json">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: { primary: '#8B5CF6', secondary: '#EC4899', darkbg: '#1F2937', darkcard: '#374151' },
+                    animation: { fade: 'fadeIn 0.3s ease-in-out' },
+                    keyframes: { fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } } }
                 }
-            }));
-        };
-
-        // --- FUNÇÕES E AÇÕES ---
-        const searchHistory = async () => {
-            if(!historyFilter.start || !historyFilter.end) return Swal.fire('Atenção', 'Selecione as datas', 'warning');
-            isLoadingHistory.value = true; historyList.value = [];
-            try {
-                const q = query(collection(db, "appointments"), where("userId", "==", user.value.uid));
-                const snap = await getDocs(q);
-                const allApps = snap.docs.map(d => ({id: d.id, ...d.data()}));
-                historyList.value = allApps.filter(app => app.status === currentTab.value && app.date >= historyFilter.start && app.date <= historyFilter.end);
-                if(historyList.value.length === 0) Swal.fire('Info', 'Nenhum registro encontrado.', 'info');
-            } catch (error) { console.error(error); Swal.fire('Erro', 'Tente novamente.', 'error'); } finally { isLoadingHistory.value = false; }
-        };
-
-        const searchExpenses = async () => {
-            if(!expensesFilter.start || !expensesFilter.end) return Swal.fire('Data', 'Selecione o período', 'info');
-            try {
-                const q = query(collection(db, "expenses"), where("userId", "==", user.value.uid));
-                const snap = await getDocs(q);
-                const allExpenses = snap.docs.map(d => ({id: d.id, ...d.data()}));
-                expensesList.value = allExpenses.filter(e => {
-                    const dateOk = e.date >= expensesFilter.start && e.date <= expensesFilter.end;
-                    const categoryOk = !expensesFilter.category || e.category === expensesFilter.category;
-                    return dateOk && categoryOk;
-                });
-                expensesList.value.sort((a,b) => new Date(b.date) - new Date(a.date));
-                if(expensesList.value.length === 0) Swal.fire('Vazio', 'Nenhuma despesa encontrada.', 'info');
-            } catch(e) { console.error(e); }
-        };
-
-        const searchCatalogClients = async () => {
-            if(catalogClientSearch.value.length < 3) return Swal.fire('Ops', 'Digite pelo menos 3 letras ou CPF', 'info');
-            const term = catalogClientSearch.value.toLowerCase();
-            const q = query(collection(db, "clients"), where("userId", "==", user.value.uid));
-            const snap = await getDocs(q);
-            const allClients = snap.docs.map(d => ({id: d.id, ...d.data()}));
-            catalogClientsList.value = allClients.filter(c => (c.name && c.name.toLowerCase().includes(term)) || (c.cpf && c.cpf.includes(term)));
-            if(catalogClientsList.value.length === 0) Swal.fire('Não encontrado', 'Nenhum cliente com este nome/CPF.', 'info');
-        };
-
-        watch(clientSearchTerm, async (newVal) => {
-            if(newVal.length >= 3) {
-                const term = newVal.toLowerCase();
-                const q = query(collection(db, "clients"), where("userId", "==", user.value.uid));
-                const snap = await getDocs(q);
-                const all = snap.docs.map(d => ({id: d.id, ...d.data()}));
-                scheduleClientsList.value = all.filter(c => (c.name && c.name.toLowerCase().includes(term)) || (c.phone && c.phone.includes(term)));
-            } else { scheduleClientsList.value = []; }
-        });
-
-        // --- COMPUTEDS GERAIS ---
-        const filteredListAppointments = computed(() => { 
-            let list = currentTab.value === 'pending' ? pendingAppointments.value : historyList.value;
-            return [...list].sort((a,b) => new Date(a.date) - new Date(b.date)); 
-        });
-        
-        const kpiRevenue = computed(() => dashboardData.appointments.reduce((acc, a) => acc + (a.totalServices || 0), 0));
-        const kpiExpenses = computed(() => dashboardData.expenses.reduce((acc, e) => acc + (e.value || 0), 0)); 
-        const kpiProfit = computed(() => kpiRevenue.value - kpiExpenses.value); 
-        const kpiReceivables = computed(() => dashboardData.appointments.reduce((acc, a) => acc + (a.finalBalance || 0), 0));
-        const pendingCount = computed(() => pendingAppointments.value.length);
-        const next7DaysApps = computed(() => { 
-            const t = new Date(); t.setHours(0,0,0,0); const w = new Date(t); w.setDate(t.getDate() + 7); 
-            return pendingAppointments.value.filter(a => { return new Date(a.date) >= t && new Date(a.date) <= w; }).sort((a,b) => new Date(a.date) - new Date(b.date));
-        });
-        const totalServices = computed(() => tempApp.selectedServices.reduce((s,i) => s + i.price, 0));
-        const finalBalance = computed(() => totalServices.value - (tempApp.details.entryFee || 0));
-        const filteredClientsSearch = computed(() => scheduleClientsList.value);
-
-        // --- ACTIONS ---
-        const saveAppointment = async () => {
-            const total = tempApp.selectedServices.reduce((sum, i) => sum + i.price, 0);
-            const appData = { ...JSON.parse(JSON.stringify(tempApp)), totalServices: total, entryFee: tempApp.details.entryFee, finalBalance: total - tempApp.details.entryFee, userId: user.value.uid };
-            if(isEditing.value && editingId.value) { await updateDoc(doc(db, "appointments", editingId.value), appData); Swal.fire({icon:'success', title:'Atualizado', timer:1000}); } 
-            else { appData.status = 'pending'; appData.checklist = [{text:'Separar Materiais', done:false}]; await addDoc(collection(db, "appointments"), appData); Swal.fire({icon:'success', title:'Agendado!', timer:1000}); }
-            if(appData.date.startsWith(dashboardMonth.value)) loadDashboardData();
-            view.value = 'appointments_list'; currentTab.value = 'pending';
-        };
-
-        const changeStatus = async (app, status) => { 
-            const action = status === 'concluded' ? 'Concluir' : 'Cancelar';
-            const { isConfirmed } = await Swal.fire({ title: action + '?', text: 'Deseja marcar como ' + action + '?', icon: 'question', showCancelButton: true });
-            if(isConfirmed) {
-                await updateDoc(doc(db, "appointments", app.id), { status: status });
-                const idx = historyList.value.findIndex(x => x.id === app.id); if(idx !== -1) historyList.value.splice(idx, 1);
-                loadDashboardData(); Swal.fire('Feito!', '', 'success');
             }
-        };
+        }
+    </script>
+    
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .checkbox-wrapper input:checked + div { background-color: #8B5CF6; border-color: #8B5CF6; }
+        .checkbox-wrapper input:checked + div svg { display: block; }
 
-        const updateAppInFirebase = async (app) => { await updateDoc(doc(db, "appointments", app.id), { checklist: app.checklist }); };
-        const openDetails = (app) => { fetchClientToCache(app.clientId); selectedAppointment.value = app; if (!selectedAppointment.value.checklist) selectedAppointment.value.checklist = []; detailTaskInput.value = ''; view.value = 'appointment_details'; };
-        const saveTaskInDetail = async () => { if (!detailTaskInput.value.trim() || !selectedAppointment.value) return; const newTask = { text: detailTaskInput.value, done: false }; if (!selectedAppointment.value.checklist) selectedAppointment.value.checklist = []; selectedAppointment.value.checklist.push(newTask); await updateAppInFirebase(selectedAppointment.value); detailTaskInput.value = ''; };
-        const toggleTaskDone = async (index) => { if (!selectedAppointment.value) return; selectedAppointment.value.checklist[index].done = !selectedAppointment.value.checklist[index].done; await updateAppInFirebase(selectedAppointment.value); };
-        const deleteTaskInDetail = async (index) => { if (!selectedAppointment.value) return; selectedAppointment.value.checklist.splice(index, 1); await updateAppInFirebase(selectedAppointment.value); };
+        /* Ajustes do Sweet Alert para Celular */
+        div:where(.swal2-container) div:where(.swal2-popup) { width: 90% !important; max-width: 400px !important; padding: 1.5em !important; }
+        div:where(.swal2-container) input:where(.swal2-input) { width: 90% !important; margin: 10px auto !important; font-size: 1rem !important; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 transition-colors duration-300 dark:bg-darkbg dark:text-gray-100">
+    
+    <div id="app" class="h-screen flex overflow-hidden">
 
-        const addExpense = async () => { 
-            if(!newExpense.description || !newExpense.value) return Swal.fire('Ops', 'Preencha todos os campos', 'warning'); 
-            if(!newExpense.category) newExpense.category = 'outros';
-            const docRef = await addDoc(collection(db, "expenses"), {...newExpense, userId: user.value.uid}); 
-            expensesList.value.unshift({id: docRef.id, ...newExpense});
-            if(newExpense.date.startsWith(dashboardMonth.value)) loadDashboardData();
-            Object.assign(newExpense, {description: '', value: '', category: ''}); showExpenseModal.value = false; Swal.fire({icon:'success', title:'Registrado', timer:1000}); 
-        };
-        const deleteExpense = async (id) => { await deleteDoc(doc(db, "expenses", id)); expensesList.value = expensesList.value.filter(e => e.id !== id); loadDashboardData(); };
-        
-        const startNewSchedule = () => { 
-            isEditing.value=false; editingId.value=null; clientSearchTerm.value = ''; 
-            Object.assign(tempApp, { clientId: '', date: '', time: '', location: { bairro: '', cidade: '', numero: '' }, details: { balloonColors: '', entryFee: 0 }, notes: '', selectedServices: [] }); 
-            view.value='schedule'; 
-        };
+        <div v-if="!user" class="w-full h-full flex flex-col items-center justify-center p-6 bg-gradient-to-br from-primary to-secondary animate-fade z-50 absolute inset-0">
+            <div class="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-sm text-center">
+                <div class="mb-6 bg-purple-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto">
+                    <i class="fa-solid fa-champagne-glasses text-3xl text-primary"></i>
+                </div>
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">PartyPlanner</h1>
+                <p class="text-gray-400 text-sm mb-6">Gerencie suas festas com estilo</p>
+                <form @submit.prevent="handleLogin" class="space-y-4">
+                    <input v-model="authForm.email" type="email" placeholder="Email" class="w-full p-3 rounded-xl bg-gray-50 border text-gray-800">
+                    <input v-model="authForm.password" type="password" placeholder="Senha" class="w-full p-3 rounded-xl bg-gray-50 border text-gray-800">
+                    <button type="submit" class="w-full bg-primary text-white py-3 rounded-xl font-bold hover:scale-105 transition">Entrar</button>
+                </form>
+            </div>
+        </div>
 
-        const editAppointment = (app) => { 
-            isEditing.value=true; editingId.value=app.id; clientSearchTerm.value = ''; 
-            fetchClientToCache(app.clientId); const dataToLoad = JSON.parse(JSON.stringify(app));
-            if(!dataToLoad.details) dataToLoad.details = { balloonColors: '', entryFee: 0 };
-            if(!dataToLoad.details.balloonColors) dataToLoad.details.balloonColors = '';
-            if(!dataToLoad.notes) dataToLoad.notes = '';
-            Object.assign(tempApp, dataToLoad); view.value='schedule'; 
-        };
+        <div v-if="view === 'expired_plan'" class="fixed inset-0 bg-gray-900 z-50 flex items-center justify-center p-4">
+            <div class="bg-white p-8 rounded-xl shadow-2xl text-center max-w-sm">
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">Teste Finalizado</h2>
+                <p class="text-gray-500 mb-4">Assine o plano Pro para continuar.</p>
+                <button @click="logout" class="text-gray-400 text-sm underline">Sair</button>
+            </div>
+        </div>
 
-        const showReceipt = (app) => { currentReceipt.value = app; fetchClientToCache(app.clientId); view.value = 'receipt'; };
-        const selectClientFromSearch = (client) => { tempApp.clientId = client.id; clientSearchTerm.value = ''; clientCache[client.id] = client; };
-        const clearClientSelection = () => { tempApp.clientId = ''; clientSearchTerm.value = ''; };
-
-        const openClientModal = async (c) => { 
-            const n = c && c.name ? c.name : ''; const p = c && c.phone ? c.phone : ''; const cpf = c && c.cpf ? c.cpf : '';
-            const html = `<input id="n" class="swal2-input" value="${n}" placeholder="Nome"><input id="p" class="swal2-input" value="${p}" placeholder="Telefone" maxlength="15"><input id="cpf" class="swal2-input" value="${cpf}" placeholder="CPF">`;
-            const { value: vals } = await Swal.fire({ 
-                title: c ? 'Editar Cliente' : 'Novo Cliente', html: html, showCancelButton: true, confirmButtonText: 'Salvar',
-                didOpen: () => { const phoneInput = Swal.getPopup().querySelector('#p'); phoneInput.addEventListener('input', (e) => { let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,5})(\d{0,4})/); e.target.value = !x[2] ? x[1] : '(' + x[1] + ') ' + x[2] + (x[3] ? '-' + x[3] : ''); }); },
-                preConfirm: () => [ document.getElementById('n').value, document.getElementById('p').value, document.getElementById('cpf').value ] 
-            });
-            if (vals) { const d = { name: vals[0], phone: vals[1], cpf: vals[2], userId: user.value.uid }; if (c) await updateDoc(doc(db, "clients", c.id), d); else await addDoc(collection(db, "clients"), d); Swal.fire('Salvo', '', 'success'); } 
-        };
-        const deleteClient = async (id) => { if ((await Swal.fire({ title: 'Excluir?', showCancelButton: true })).isConfirmed) { await deleteDoc(doc(db, "clients", id)); catalogClientsList.value = catalogClientsList.value.filter(x => x.id !== id); } };
-        
-        const openServiceModal = async (s) => { 
-            const d = s && s.description ? s.description : ''; const p = s && s.price ? s.price : '';
-            const html = '<input id="d" class="swal2-input" value="' + d + '" placeholder="Descrição">' + '<input id="p" type="number" class="swal2-input" value="' + p + '" placeholder="Preço (R$)">';
-            const { value: v } = await Swal.fire({ title: s ? 'Editar Serviço' : 'Novo Serviço', html: html, showCancelButton: true, confirmButtonText: 'Salvar', preConfirm: () => [ document.getElementById('d').value, document.getElementById('p').value ] });
-            if (v) { const data = { description: v[0], price: Number(v[1]), userId: user.value.uid }; if (s) await updateDoc(doc(db, "services", s.id), data); else await addDoc(collection(db, "services"), data); }
-        };
-        const deleteService = async (id) => { await deleteDoc(doc(db,"services",id)); };
-        const downloadReceiptImage = () => { html2canvas(document.getElementById('receipt-capture-area'),{scale:2}).then(c=>{const l=document.createElement('a');l.download='Recibo.png';l.href=c.toDataURL();l.click();}); };
-        
-        const generateContractPDF = () => { 
-            const { jsPDF } = window.jspdf; const doc = new jsPDF(); const app = currentReceipt.value; const cli = clientCache[app.clientId] || {name: '...', cpf: '...', phone: ''}; 
-            const primaryColor = [139, 92, 246]; const lightGray = [243, 244, 246]; const darkGray = [55, 65, 81]; const pageWidth = 210; const margin = 20; let y = 0; 
-            doc.setFillColor(...primaryColor); doc.rect(0, 0, pageWidth, 40, 'F');
-            if (company.logo) { try { doc.setFillColor(255, 255, 255); doc.circle(margin + 10, 20, 12, 'F'); doc.addImage(company.logo, 'JPEG', margin + 2, 12, 16, 16); } catch (e) {} }
-            doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(22); doc.text("CONTRATO DE SERVIÇOS", 190, 20, { align: "right" }); 
-            doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.text("DECORAÇÃO E EVENTOS", 190, 26, { align: "right" }); doc.text("Doc. Nº " + app.id.slice(0, 6).toUpperCase(), 190, 32, { align: "right" }); y = 55;
-            doc.setTextColor(...darkGray); doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.text("IDENTIFICAÇÃO DAS PARTES", margin, y); y += 5;
-            doc.setDrawColor(200, 200, 200); doc.setFillColor(...lightGray); doc.roundedRect(margin, y, 80, 40, 3, 3, 'FD');
-            doc.setFontSize(9); doc.setTextColor(100, 100, 100); doc.text("CONTRATADA", margin + 5, y + 8);
-            doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold"); doc.text(company.fantasia || 'Sua Empresa', margin + 5, y + 15);
-            doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.text("CNPJ: " + (company.cnpj || '...'), margin + 5, y + 22); doc.text((company.rua || '') + ', ' + (company.cidade || ''), margin + 5, y + 28);
-            doc.setFillColor(255, 255, 255); doc.roundedRect(margin + 85, y, 85, 40, 3, 3, 'FD');
-            doc.setFontSize(9); doc.setTextColor(100, 100, 100); doc.text("CONTRATANTE", margin + 90, y + 8);
-            doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold"); doc.text(cli.name, margin + 90, y + 15);
-            doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.text("CPF: " + (cli.cpf || 'Não informado'), margin + 90, y + 22); doc.text("Tel: " + (cli.phone || 'Não informado'), margin + 90, y + 28); y += 50;
-            doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(...darkGray); doc.text("DETALHES DO EVENTO", margin, y); y += 2;
-            doc.autoTable({ startY: y + 3, head: [], body: [['Data do Evento', formatDate(app.date)], ['Horário', app.time + ' horas'], ['Local', (app.location.bairro || '') + ' - ' + (app.location.cidade || '')], ['Endereço', (app.location.rua || '') + ', ' + (app.location.numero || '')]], theme: 'plain', styles: { fontSize: 9, cellPadding: 1 }, columnStyles: { 0: { fontStyle: 'bold', cellWidth: 40 }, 1: { cellWidth: 'auto' } }, margin: { left: margin } });
-            y = doc.lastAutoTable.finalY + 10;
-            doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.text("ITENS CONTRATADOS & ESPECIFICAÇÕES", margin, y);
-            let tableBody = app.selectedServices.map(s => [s.description, formatCurrency(s.price)]);
-            if (app.details?.balloonColors) { tableBody.push([{ content: 'Cores dos Balões: ' + app.details.balloonColors, colSpan: 2, styles: { fontStyle: 'italic', textColor: [139, 92, 246] } }]); }
-            if (app.notes) { tableBody.push([{ content: 'Obs: ' + app.notes, colSpan: 2, styles: { fontStyle: 'italic' } }]); }
-            doc.autoTable({ startY: y + 3, head: [['Descrição do Serviço / Item', 'Valor']], body: tableBody, theme: 'striped', headStyles: { fillColor: primaryColor, textColor: [255, 255, 255], fontStyle: 'bold' }, styles: { fontSize: 9, cellPadding: 3 }, columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 40, halign: 'right' } }, margin: { left: margin, right: margin } });
-            y = doc.lastAutoTable.finalY + 10;
-            const entry = app.entryFee || app.details?.entryFee || 0; const boxWidth = 70; const boxX = pageWidth - margin - boxWidth;
-            doc.setFillColor(...lightGray); doc.rect(boxX, y, boxWidth, 26, 'F'); doc.setDrawColor(...primaryColor); doc.line(boxX, y, boxX, y + 26); 
-            doc.setFontSize(9); doc.setTextColor(100, 100, 100); doc.text("Valor Total:", boxX + 5, y + 7); doc.text("Sinal Pago:", boxX + 5, y + 14);
-            doc.setFont("helvetica", "bold"); doc.setTextColor(...primaryColor); doc.text("A Pagar (Restante):", boxX + 5, y + 21);
-            doc.setFont("helvetica", "normal"); doc.setTextColor(0,0,0); doc.text(formatCurrency(app.totalServices), boxX + boxWidth - 5, y + 7, { align: "right" }); doc.text(formatCurrency(entry), boxX + boxWidth - 5, y + 14, { align: "right" });
-            doc.setFont("helvetica", "bold"); doc.text(formatCurrency(app.finalBalance), boxX + boxWidth - 5, y + 21, { align: "right" }); y += 35;
-            doc.setFontSize(8); doc.setTextColor(100, 100, 100); doc.setFont("helvetica", "normal");
-            const terms = "TERMOS GERAIS: O cancelamento deste contrato com menos de 30 dias de antecedência implica na retenção do sinal pago para cobertura de custos operacionais e reserva de data. O pagamento restante deve ser quitado integralmente até a data do evento.";
-            doc.text(doc.splitTextToSize(terms, pageWidth - (margin * 2)), margin, y); y += 25;
-            if (y > 250) { doc.addPage(); y = 40; }
-            doc.setDrawColor(150, 150, 150); doc.setLineWidth(0.5); doc.setLineDash([2, 2], 0); doc.line(margin, y, margin + 70, y); doc.line(margin + 90, y, margin + 160, y);
-            doc.setFontSize(8); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold"); doc.text("CONTRATADA", margin + 10, y + 5); doc.text("CONTRATANTE", margin + 100, y + 5);
-            doc.setFont("helvetica", "normal"); doc.setTextColor(150, 150, 150); doc.text(new Date().toLocaleDateString('pt-BR'), margin, y + 15);
-            doc.setFontSize(7); doc.text("Gerado digitalmente por PartyPlanner Pro", pageWidth / 2, 290, { align: "center" });
-            doc.save("Contrato_" + cli.name.split(' ')[0] + ".pdf"); 
-        };
-        
-        const handleLogoUpload = (e) => { const f = e.target.files[0]; if(f){ const r = new FileReader(); r.onload=x=>{ company.logo=x.target.result; saveCompany(); }; r.readAsDataURL(f); } };
-        const saveCompany = async () => { localStorage.setItem('pp_company', JSON.stringify(company)); if(user.value) await updateDoc(doc(db,"users",user.value.uid), {companyConfig:company}); Swal.fire('Salvo','','success'); };
-        const toggleDarkMode = () => { isDark.value = !isDark.value; if(isDark.value) document.documentElement.classList.add('dark'); else document.documentElement.classList.remove('dark'); localStorage.setItem('pp_dark', isDark.value); };
-        const handleChangePassword = async () => {
-            const html = '<input id="currentPass" type="password" class="swal2-input" placeholder="Senha Atual"><input id="newPass" type="password" class="swal2-input" placeholder="Nova Senha">';
-            const { value: fv } = await Swal.fire({ title: 'Alterar Senha', html: html, showCancelButton: true, confirmButtonText: 'Alterar', preConfirm: () => { return [document.getElementById('currentPass').value, document.getElementById('newPass').value]; } });
-            if (fv && fv[0] && fv[1]) {
-                try { const c = EmailAuthProvider.credential(user.value.email, fv[0]); await reauthenticateWithCredential(user.value, c); await updatePassword(user.value, fv[1]); Swal.fire('Sucesso!', 'Senha alterada.', 'success'); } catch (error) { Swal.fire('Erro', 'Senha incorreta.', 'error'); }
-            }
-        };
-
-        return {
-            user, userRole, userStatus, daysRemaining, authForm, authLoading, view, catalogView, isDark, 
-            services, appointments: pendingAppointments, expensesList, catalogClientsList, company,
-            tempApp, tempServiceSelect, newExpense, showExpenseModal, currentReceipt, 
-            isEditing, newTaskText, expenseCategories,
-            kpiRevenue, kpiExpenses, kpiReceivables, kpiProfit, next7DaysApps, pendingCount,
-            filteredListAppointments, totalServices, finalBalance,
-            currentTab, historyFilter, searchHistory, isLoadingHistory, expensesFilter,
-            handleLogin, logout, toggleDarkMode,
-            startNewSchedule, editAppointment, saveAppointment, changeStatus, addExpense, deleteExpense, 
-            openClientModal, deleteClient, openServiceModal, deleteService,
-            addTask, removeTask, checklistProgress,
-            addServiceToApp, removeServiceFromApp, handleLogoUpload, saveCompany,
-            showReceipt, downloadReceiptImage, generateContractPDF, 
-            getClientName, getClientPhone, formatCurrency, formatDate, getDay, getMonth, statusText, statusClass, getCategoryIcon,
-            clientSearchTerm, filteredClientsSearch, selectClientFromSearch, clearClientSelection,
-            handleChangePassword, searchExpenses, searchCatalogClients, catalogClientSearch,
-            selectedAppointment, detailTaskInput, openDetails, saveTaskInDetail, toggleTaskDone, deleteTaskInDetail,
+        <template v-else-if="user && view !== 'expired_plan'">
             
-            dashboardMonth, loadDashboardData, isLoadingDashboard,
-            // NOVOS EXPORTS DO CALENDÁRIO
-            appointmentViewMode, calendarCursor, changeCalendarMonth, calendarGrid, calendarTitle, selectCalendarDay, selectedCalendarDate, appointmentsOnSelectedDate
-        };
-    }
-}).mount('#app');
+            <aside class="hidden md:flex flex-col w-64 bg-white dark:bg-darkcard border-r dark:border-gray-700 shadow-xl z-20">
+                <div class="p-6 flex items-center gap-3">
+                    <div class="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-white font-bold">
+                        <i class="fa-solid fa-champagne-glasses"></i>
+                    </div>
+                    <h1 class="font-bold text-xl dark:text-white">PartyPlanner</h1>
+                </div>
+
+                <nav class="flex-1 px-4 space-y-2 py-4">
+                    <button @click="view = 'dashboard'" :class="view === 'dashboard' ? 'bg-purple-50 text-primary dark:bg-gray-700 dark:text-white' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition">
+                        <i class="fa-solid fa-chart-pie w-6"></i> Dashboard
+                    </button>
+                    <button @click="view = 'appointments_list'; currentTab = 'pending'" :class="view === 'appointments_list' ? 'bg-purple-50 text-primary dark:bg-gray-700 dark:text-white' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition">
+                        <i class="fa-solid fa-calendar-check w-6"></i> Agenda
+                    </button>
+                    <button @click="startNewSchedule" :class="view === 'schedule' ? 'bg-purple-50 text-primary dark:bg-gray-700 dark:text-white' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition">
+                        <i class="fa-solid fa-plus w-6"></i> Novo Evento
+                    </button>
+                    <button @click="view = 'expenses'" :class="view === 'expenses' ? 'bg-purple-50 text-primary dark:bg-gray-700 dark:text-white' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition">
+                        <i class="fa-solid fa-money-bill-wave w-6"></i> Financeiro
+                    </button>
+                    <button @click="view = 'catalog_hub'" :class="view === 'catalog_hub' ? 'bg-purple-50 text-primary dark:bg-gray-700 dark:text-white' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition">
+                        <i class="fa-solid fa-store w-6"></i> Catálogo
+                    </button>
+                </nav>
+
+                <div class="p-4 border-t dark:border-gray-700">
+                    <button @click="logout" class="w-full flex items-center gap-3 px-4 py-2 text-red-500 hover:bg-red-50 rounded-xl transition font-bold text-sm">
+                        <i class="fa-solid fa-right-from-bracket"></i> Sair do Sistema
+                    </button>
+                </div>
+            </aside>
+
+            <div class="flex-1 flex flex-col h-full relative overflow-hidden bg-gray-50 dark:bg-darkbg">
+                
+                <header class="p-6 pb-2 flex justify-between items-center z-10 bg-white/90 dark:bg-darkbg/90 backdrop-blur-sm shadow-sm md:shadow-none">
+                    <div>
+                        <h2 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">Olá, {{ user.displayName || 'Gestor' }}!</h2>
+                        <p class="text-xs text-gray-400">{{ formatDate(new Date().toISOString().split('T')[0]) }}</p>
+                    </div>
+                    <div class="flex gap-3">
+                        <button @click="toggleDarkMode" class="w-10 h-10 rounded-full bg-gray-100 dark:bg-darkcard flex items-center justify-center shadow-sm text-gray-600 dark:text-yellow-400"><i class="fa-solid" :class="isDark ? 'fa-sun' : 'fa-moon'"></i></button>
+                        <button @click="logout" class="md:hidden w-10 h-10 rounded-full bg-red-50 dark:bg-red-900/30 text-red-500 flex items-center justify-center shadow-sm"><i class="fa-solid fa-right-from-bracket"></i></button>
+                    </div>
+                </header>
+
+                <div class="flex-1 overflow-y-auto p-4 pb-24 md:pb-6 md:p-8 w-full md:max-w-7xl md:mx-auto">
+
+                    <div v-if="userStatus === 'trial' && daysRemaining <= 30" class="mb-6 mx-auto w-full max-w-4xl bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 p-4 rounded-r-lg shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 animate-fade">
+                        <div class="flex items-center gap-4">
+                            <div class="bg-yellow-100 dark:bg-yellow-900/40 p-3 rounded-full text-yellow-600 dark:text-yellow-400">
+                                <i class="fa-solid fa-stopwatch text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="font-bold text-yellow-800 dark:text-yellow-200">Período de Teste Gratuito</p>
+                                <p class="text-sm text-yellow-700 dark:text-yellow-300">Restam <span class="font-black text-lg">{{ daysRemaining }}</span> dias para expirar o acesso.</p>
+                            </div>
+                        </div>
+                        <a href="https://wa.me/55SEU_NUMERO_AQUI?text=Olá, quero assinar o plano Pro!" target="_blank" class="w-full sm:w-auto text-center px-6 py-2 bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-bold rounded-lg transition shadow-sm text-sm">
+                            Assinar Agora
+                        </a>
+                    </div>
+
+                    <main v-if="view === 'dashboard'" class="space-y-6 animate-fade">
+                        
+                        <div class="flex items-center justify-between bg-white dark:bg-darkcard p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                            <div class="flex items-center gap-3">
+                                <div class="bg-purple-100 dark:bg-gray-700 p-2 rounded-lg text-primary">
+                                    <i class="fa-solid fa-calendar-days"></i>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-gray-400 font-bold uppercase">Período</p>
+                                    <p class="text-sm font-bold dark:text-white">Visão Mensal</p>
+                                </div>
+                            </div>
+                            <input type="month" v-model="dashboardMonth" class="bg-gray-50 dark:bg-gray-800 border-none outline-none text-gray-700 dark:text-white font-bold rounded-lg p-2 text-sm focus:ring-2 focus:ring-primary cursor-pointer">
+                        </div>
+                    
+                        <div v-if="isLoadingDashboard" class="text-center py-2 text-primary"><i class="fa-solid fa-circle-notch fa-spin"></i> Atualizando números...</div>
+
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div class="bg-green-500 p-3 rounded-2xl text-white shadow relative">
+                                <p class="text-[10px] uppercase font-bold opacity-80">Receita Total</p>
+                                <p class="text-lg font-bold">{{ formatCurrency(kpiRevenue) }}</p>
+                            </div>
+                            <div class="bg-blue-500 p-3 rounded-2xl text-white shadow relative">
+                                <p class="text-[10px] uppercase font-bold opacity-80">A Receber</p>
+                                <p class="text-lg font-bold">{{ formatCurrency(kpiReceivables) }}</p>
+                            </div>
+                            <div class="bg-red-500 p-3 rounded-2xl text-white shadow relative">
+                                <p class="text-[10px] uppercase font-bold opacity-80">Despesas</p>
+                                <p class="text-lg font-bold">{{ formatCurrency(kpiExpenses) }}</p>
+                            </div>
+                            <div class="bg-purple-600 p-3 rounded-2xl text-white shadow relative">
+                                <p class="text-[10px] uppercase font-bold opacity-80">Lucro Líquido</p>
+                                <p class="text-lg font-bold">{{ formatCurrency(kpiProfit) }}</p>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="font-bold text-lg dark:text-white">Próximos 7 Dias</h3>
+                                <button @click="view = 'appointments_list'; currentTab = 'pending'" class="text-primary text-sm font-bold">Ver todos</button>
+                            </div>
+                            <div v-if="next7DaysApps.length === 0" class="text-center py-6 border-2 border-dashed border-gray-200 dark:border-gray-600 rounded-xl text-gray-400 text-sm">Nenhuma festa esta semana</div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                <div v-for="app in next7DaysApps" :key="app.id" @click="openDetails(app)" class="bg-white dark:bg-darkcard p-4 rounded-xl shadow-sm border-l-4 border-primary flex gap-4 items-start cursor-pointer hover:shadow-md transition">
+                                    <div class="text-center min-w-[50px]">
+                                        <span class="block text-xs font-bold text-primary uppercase">{{ getMonth(app.date) }}</span>
+                                        <span class="block text-xl font-black text-gray-800 dark:text-white">{{ getDay(app.date) }}</span>
+                                    </div>
+                                    <div class="flex-1">
+                                        <h4 class="font-bold text-gray-800 dark:text-white text-sm">{{ getClientName(app.clientId) }}</h4>
+                                        <p class="text-xs text-gray-400 mb-1"><i class="fa-solid fa-location-dot mr-1"></i>{{ app.location.bairro || 'Sem local' }} - {{ app.time }}</p>
+                                        <div class="flex flex-wrap gap-1">
+                                            <span v-for="s in app.selectedServices" class="text-[9px] bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-gray-500 dark:text-gray-300">{{ s.description }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </main>
+
+                    <main v-if="view === 'appointments_list'" class="animate-fade">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-2">
+                                <button @click="view = 'dashboard'" class="w-8 h-8 rounded-full bg-gray-100 dark:bg-darkcard flex items-center justify-center"><i class="fa-solid fa-arrow-left"></i></button>
+                                <h2 class="font-bold text-xl dark:text-white">Agenda</h2>
+                            </div>
+                            
+                            <div class="bg-gray-200 dark:bg-gray-700 p-1 rounded-lg flex text-xs font-bold">
+                                <button @click="appointmentViewMode = 'list'" :class="appointmentViewMode === 'list' ? 'bg-white dark:bg-darkcard text-primary shadow' : 'text-gray-500'" class="px-3 py-1.5 rounded-md transition">Lista</button>
+                                <button @click="appointmentViewMode = 'calendar'" :class="appointmentViewMode === 'calendar' ? 'bg-white dark:bg-darkcard text-primary shadow' : 'text-gray-500'" class="px-3 py-1.5 rounded-md transition">Calendário</button>
+                            </div>
+                        </div>
+
+                        <div v-if="appointmentViewMode === 'list'">
+                            <div class="flex gap-2 mb-4 bg-gray-200 dark:bg-gray-700 p-1 rounded-xl">
+                                <button @click="currentTab = 'pending'" :class="currentTab === 'pending' ? 'bg-white dark:bg-darkcard shadow text-primary' : 'text-gray-500 dark:text-gray-400'" class="flex-1 py-2 rounded-lg text-xs font-bold transition">Pendentes</button>
+                                <button @click="currentTab = 'concluded'" :class="currentTab === 'concluded' ? 'bg-white dark:bg-darkcard shadow text-primary' : 'text-gray-500 dark:text-gray-400'" class="flex-1 py-2 rounded-lg text-xs font-bold transition">Concluídos</button>
+                                <button @click="currentTab = 'cancelled'" :class="currentTab === 'cancelled' ? 'bg-white dark:bg-darkcard shadow text-primary' : 'text-gray-500 dark:text-gray-400'" class="flex-1 py-2 rounded-lg text-xs font-bold transition">Cancelados</button>
+                            </div>
+
+                            <div v-if="currentTab !== 'pending'" class="mb-4 bg-purple-50 dark:bg-gray-800 p-3 rounded-xl border border-purple-100 dark:border-gray-600">
+                                <p class="text-xs font-bold text-gray-500 mb-2 dark:text-gray-300"><i class="fa-solid fa-filter mr-1"></i>Filtrar Histórico:</p>
+                                <div class="flex gap-2 items-end">
+                                    <input type="date" v-model="historyFilter.start" class="flex-1 bg-white dark:bg-gray-700 p-1.5 rounded-lg text-xs border dark:border-gray-600 dark:text-white">
+                                    <input type="date" v-model="historyFilter.end" class="flex-1 bg-white dark:bg-gray-700 p-1.5 rounded-lg text-xs border dark:border-gray-600 dark:text-white">
+                                    <button @click="searchHistory" class="bg-primary text-white h-[34px] px-3 rounded-lg text-xs font-bold shadow hover:bg-purple-600 transition"><i class="fa-solid fa-search"></i></button>
+                                </div>
+                            </div>
+
+                            <div v-if="isLoadingHistory" class="text-center py-10"><i class="fa-solid fa-circle-notch fa-spin text-primary text-2xl"></i></div>
+                            <div v-if="!isLoadingHistory && filteredListAppointments.length === 0" class="text-center py-10 text-gray-400 text-sm">{{ currentTab === 'pending' ? 'Nenhuma pendência.' : 'Nenhum registro encontrado.' }}</div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div v-for="app in filteredListAppointments" :key="app.id" class="bg-white dark:bg-darkcard p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 relative">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <h3 class="font-bold text-lg text-gray-800 dark:text-white">{{ getClientName(app.clientId) }}</h3>
+                                        <span :class="statusClass(app.status)" class="text-[10px] px-2 py-1 rounded-full font-bold uppercase">{{ statusText(app.status) }}</span>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-y-2 text-xs text-gray-500 dark:text-gray-400 mb-3">
+                                        <div class="flex items-center gap-1"><i class="fa-regular fa-calendar text-primary"></i> <span class="font-bold">{{ formatDate(app.date) }}</span></div>
+                                        <div class="flex items-center gap-1"><i class="fa-regular fa-clock text-primary"></i> <span class="font-bold">{{ app.time }}</span></div>
+                                        <div class="col-span-2 flex items-center gap-1"><i class="fa-solid fa-location-dot text-primary"></i><span>{{ app.location.bairro }} - {{ app.location.cidade }}</span></div>
+                                    </div>
+                                    <div class="mb-3 bg-gray-50 dark:bg-gray-800 p-2 rounded-lg">
+                                        <p class="text-[10px] font-bold text-gray-400 uppercase mb-1">Serviços</p>
+                                        <div class="flex flex-wrap gap-1"><span v-for="s in app.selectedServices" class="text-[10px] bg-white dark:bg-gray-700 px-2 py-0.5 rounded border dark:border-gray-600 text-gray-600 dark:text-gray-300">{{ s.description }}</span></div>
+                                    </div>
+                                    <div class="flex justify-between items-center mb-4 text-xs">
+                                        <div><p class="text-gray-400">Total</p><p class="font-bold text-gray-800 dark:text-white">{{ formatCurrency(app.totalServices) }}</p></div>
+                                        <div class="text-right"><p class="text-gray-400">A Receber</p><p class="font-bold text-lg" :class="app.finalBalance > 0 ? 'text-red-500' : 'text-green-500'">{{ formatCurrency(app.finalBalance) }}</p></div>
+                                    </div>
+                                    <div class="w-full bg-gray-100 dark:bg-gray-700 h-1.5 rounded-full mb-4 overflow-hidden"><div class="bg-primary h-full transition-all duration-500" :style="'width: ' + checklistProgress(app) + '%'"></div></div>
+                                    <div class="flex flex-col gap-2 border-t border-gray-100 dark:border-gray-700 pt-3">
+                                        <button @click="openDetails(app)" class="w-full py-2 bg-primary text-white rounded-lg text-sm font-bold shadow-md shadow-purple-200 dark:shadow-none hover:bg-purple-700 transition"><i class="fa-solid fa-list-check mr-2"></i> Ver Detalhes</button>
+                                        <div class="flex gap-2">
+                                            <button @click="editAppointment(app)" class="flex-1 py-2 bg-gray-50 dark:bg-gray-700 rounded-lg text-xs font-bold text-gray-600 dark:text-gray-300">Editar</button>
+                                            <button @click="showReceipt(app)" class="flex-1 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-xs font-bold text-blue-600 dark:text-blue-400">Recibo</button>
+                                            <template v-if="app.status === 'pending'">
+                                                <button @click="changeStatus(app, 'concluded')" class="w-10 h-9 rounded-lg bg-green-100 text-green-600 flex items-center justify-center hover:bg-green-200"><i class="fa-solid fa-check"></i></button>
+                                                <button @click="changeStatus(app, 'cancelled')" class="w-10 h-9 rounded-lg bg-red-100 text-red-600 flex items-center justify-center hover:bg-red-200"><i class="fa-solid fa-xmark"></i></button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div v-if="appointmentViewMode === 'calendar'" class="animate-fade">
+                            <div class="bg-white dark:bg-darkcard rounded-3xl shadow-sm p-4 border border-gray-100 dark:border-gray-700">
+                                <div class="flex justify-between items-center mb-6">
+                                    <button @click="changeCalendarMonth(-1)" class="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-200"><i class="fa-solid fa-chevron-left"></i></button>
+                                    <h3 class="font-bold text-lg dark:text-white capitalize">{{ calendarTitle }}</h3>
+                                    <button @click="changeCalendarMonth(1)" class="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-200"><i class="fa-solid fa-chevron-right"></i></button>
+                                </div>
+                                <div class="grid grid-cols-7 text-center mb-2">
+                                    <span class="text-xs font-bold text-gray-400">D</span><span class="text-xs font-bold text-gray-400">S</span><span class="text-xs font-bold text-gray-400">T</span><span class="text-xs font-bold text-gray-400">Q</span><span class="text-xs font-bold text-gray-400">Q</span><span class="text-xs font-bold text-gray-400">S</span><span class="text-xs font-bold text-gray-400">S</span>
+                                </div>
+                                <div class="grid grid-cols-7 gap-y-4">
+                                    <div v-for="(d, index) in calendarGrid" :key="index" class="flex flex-col items-center">
+                                        <div @click="selectCalendarDay(d)" class="w-8 h-8 flex items-center justify-center rounded-full text-sm font-medium relative transition cursor-pointer" :class="{'text-gray-300 cursor-default': !d.day, 'bg-primary text-white shadow-lg': selectedCalendarDate === d.date, 'hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-white': d.day && selectedCalendarDate !== d.date}">
+                                            {{ d.day }}
+                                            <div v-if="d.hasEvent && selectedCalendarDate !== d.date" class="absolute -bottom-1 w-1.5 h-1.5 bg-primary rounded-full"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div v-if="selectedCalendarDate" class="mt-4 animate-fade">
+                                <h3 class="font-bold text-sm text-gray-500 mb-3 uppercase border-b pb-1">Eventos em {{ formatDate(selectedCalendarDate) }}</h3>
+                                <div v-if="appointmentsOnSelectedDate.length === 0" class="text-center py-4 text-gray-400 text-sm bg-white dark:bg-darkcard rounded-xl border border-dashed border-gray-200 dark:border-gray-600">
+                                    Nenhum evento agendado neste dia.<br><button @click="startNewSchedule(); tempApp.date = selectedCalendarDate" class="text-primary font-bold mt-2 hover:underline">+ Agendar aqui</button>
+                                </div>
+                                <div class="space-y-3">
+                                    <div v-for="app in appointmentsOnSelectedDate" :key="app.id" @click="openDetails(app)" class="bg-white dark:bg-darkcard p-4 rounded-xl shadow-sm border-l-4 border-primary flex gap-4 items-center cursor-pointer hover:shadow-md transition">
+                                        <div class="text-center min-w-[50px]"><span class="block text-lg font-black text-gray-800 dark:text-white">{{ app.time }}</span></div>
+                                        <div class="flex-1 border-l pl-3 border-gray-100 dark:border-gray-700"><h4 class="font-bold text-gray-800 dark:text-white text-sm">{{ getClientName(app.clientId) }}</h4><p class="text-xs text-gray-400">{{ app.location.bairro || 'Sem local' }}</p></div>
+                                        <i class="fa-solid fa-chevron-right text-gray-300"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div v-else class="mt-6 text-center"><p class="text-xs text-gray-400">Selecione um dia para ver os detalhes.</p></div>
+                        </div>
+                    </main>
+
+                    <main v-if="view === 'appointment_details' && selectedAppointment" class="animate-fade bg-white dark:bg-darkbg rounded-3xl overflow-hidden shadow-lg border dark:border-gray-700">
+                        <div class="sticky top-0 z-20 bg-white/95 dark:bg-darkbg/95 backdrop-blur shadow-sm p-4 flex items-center gap-3 border-b dark:border-gray-700">
+                            <button @click="view = 'appointments_list'" class="w-8 h-8 rounded-full bg-gray-100 dark:bg-darkcard flex items-center justify-center"><i class="fa-solid fa-arrow-left"></i></button>
+                            <div class="flex-1">
+                                <h2 class="font-bold text-lg dark:text-white leading-tight">{{ getClientName(selectedAppointment.clientId) }}</h2>
+                                <p class="text-xs text-gray-400">{{ formatDate(selectedAppointment.date) }} às {{ selectedAppointment.time }}</p>
+                            </div>
+                            <a :href="'https://wa.me/55' + getClientPhone(selectedAppointment.clientId).replace(/\D/g,'')" target="_blank" class="w-10 h-10 rounded-full bg-green-500 text-white flex items-center justify-center shadow-lg hover:scale-105 transition"><i class="fa-brands fa-whatsapp text-xl"></i></a>
+                        </div>
+                        <div class="p-6 space-y-6">
+                            <div class="bg-gray-50 dark:bg-darkcard p-4 rounded-2xl border border-gray-100 dark:border-gray-700">
+                                <h3 class="text-xs font-bold text-gray-400 uppercase mb-3"><i class="fa-solid fa-map-pin mr-1"></i> Localização</h3>
+                                <p class="font-bold text-gray-800 dark:text-white">{{ selectedAppointment.location.rua || 'Rua não informada' }}, {{ selectedAppointment.location.numero }}</p>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">{{ selectedAppointment.location.bairro }} - {{ selectedAppointment.location.cidade }}</p>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div v-if="selectedAppointment.details?.balloonColors" class="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-2xl border border-purple-100 dark:border-purple-900/30">
+                                    <h3 class="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase mb-1"><i class="fa-solid fa-palette mr-1"></i> Cores dos Balões</h3>
+                                    <p class="text-sm dark:text-gray-200">{{ selectedAppointment.details.balloonColors }}</p>
+                                </div>
+                                <div v-if="selectedAppointment.notes" class="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-2xl border border-yellow-100 dark:border-yellow-900/30">
+                                    <h3 class="text-xs font-bold text-yellow-600 dark:text-yellow-400 uppercase mb-1"><i class="fa-solid fa-sticky-note mr-1"></i> Observações</h3>
+                                    <p class="text-sm italic dark:text-gray-200">"{{ selectedAppointment.notes }}"</p>
+                                </div>
+                            </div>
+                            <div class="border-t border-b border-gray-100 dark:border-gray-700 py-4">
+                                <h3 class="text-xs font-bold text-gray-400 uppercase mb-3">Resumo Financeiro</h3>
+                                <div class="space-y-2 mb-4">
+                                    <div v-for="s in selectedAppointment.selectedServices" class="flex justify-between text-sm">
+                                        <span class="text-gray-600 dark:text-gray-300">{{ s.description }}</span>
+                                        <span class="font-bold dark:text-white">{{ formatCurrency(s.price) }}</span>
+                                    </div>
+                                </div>
+                                <div class="bg-gray-100 dark:bg-gray-800 p-3 rounded-xl space-y-2">
+                                    <div class="flex justify-between text-sm"><span>Total</span><span class="font-bold dark:text-white">{{ formatCurrency(selectedAppointment.totalServices) }}</span></div>
+                                    <div class="flex justify-between text-sm text-green-600"><span>Entrada</span><span>- {{ formatCurrency(selectedAppointment.entryFee || selectedAppointment.details?.entryFee || 0) }}</span></div>
+                                    <div class="flex justify-between text-lg font-black text-primary border-t border-gray-200 dark:border-gray-700 pt-2"><span>A Receber</span><span>{{ formatCurrency(selectedAppointment.finalBalance) }}</span></div>
+                                </div>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-lg dark:text-white mb-3 flex items-center gap-2"><i class="fa-solid fa-list-check text-primary"></i> Checklist de Tarefas</h3>
+                                <div class="flex gap-2 mb-4">
+                                    <input v-model="detailTaskInput" @keyup.enter="saveTaskInDetail" placeholder="Adicionar nova tarefa..." class="flex-1 p-3 rounded-xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 dark:text-white outline-none focus:ring-2 focus:ring-primary">
+                                    <button @click="saveTaskInDetail" class="bg-primary text-white w-12 rounded-xl shadow-lg shadow-purple-200 dark:shadow-none hover:bg-purple-700"><i class="fa-solid fa-plus"></i></button>
+                                </div>
+                                <div class="space-y-2">
+                                    <div v-if="!selectedAppointment.checklist || selectedAppointment.checklist.length === 0" class="text-center text-gray-400 text-sm py-4">Nenhuma tarefa adicionada.</div>
+                                    <div v-for="(task, idx) in selectedAppointment.checklist" :key="idx" class="flex items-center gap-3 bg-white dark:bg-darkcard p-3 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm transition hover:shadow-md">
+                                        <label class="checkbox-wrapper cursor-pointer relative w-6 h-6 flex-shrink-0">
+                                            <input type="checkbox" :checked="task.done" @change="toggleTaskDone(idx)" class="absolute opacity-0 w-full h-full cursor-pointer">
+                                            <div class="w-6 h-6 border-2 border-gray-300 dark:border-gray-500 rounded-md transition flex items-center justify-center bg-white dark:bg-gray-800">
+                                                <svg class="w-3 h-3 text-white hidden pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                                            </div>
+                                        </label>
+                                        <span :class="{'line-through text-gray-400': task.done, 'text-gray-800 dark:text-gray-200': !task.done}" class="flex-1 text-sm transition-all">{{ task.text }}</span>
+                                        <button @click="deleteTaskInDetail(idx)" class="text-gray-300 hover:text-red-500 p-2"><i class="fa-solid fa-trash"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </main>
+
+                    <main v-if="view === 'schedule'" class="animate-fade bg-gray-50 dark:bg-darkbg">
+                        <div class="flex items-center gap-2 mb-6">
+                            <button @click="view = isEditing ? 'appointments_list' : 'dashboard'" class="w-8 h-8 rounded-full bg-white dark:bg-darkcard shadow flex items-center justify-center"><i class="fa-solid fa-arrow-left"></i></button>
+                            <h2 class="font-bold text-xl dark:text-white">{{ isEditing ? 'Editar' : 'Novo Agendamento' }}</h2>
+                        </div>
+                        <div class="bg-white dark:bg-darkcard p-6 rounded-3xl shadow-sm space-y-5 max-w-2xl mx-auto">
+                            <div class="mb-4">
+                                <div class="flex justify-between items-center mb-1">
+                                    <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">Cliente</label>
+                                    <button @click="openClientModal(null)" class="text-primary text-xs font-bold hover:underline">+ Add Cliente</button>
+                                </div>
+                                <div v-if="!tempApp.clientId" class="relative">
+                                    <input v-model="clientSearchTerm" placeholder="Digite min. 3 letras para buscar..." class="w-full p-3 rounded-xl border border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-primary outline-none">
+                                    <div v-if="clientSearchTerm.length >= 3" class="absolute w-full bg-white dark:bg-gray-800 shadow-xl rounded-xl mt-1 z-10 max-h-48 overflow-y-auto border border-gray-100 dark:border-gray-600">
+                                        <ul>
+                                            <li v-for="c in filteredClientsSearch" :key="c.id" @click="selectClientFromSearch(c)" class="p-3 border-b dark:border-gray-700 hover:bg-purple-50 dark:hover:bg-gray-700 cursor-pointer flex justify-between items-center">
+                                                <div><p class="font-bold dark:text-white">{{ c.name }}</p><p class="text-xs text-gray-500">{{ c.phone }}</p></div>
+                                            </li>
+                                        </ul>
+                                        <div v-if="filteredClientsSearch.length === 0" class="p-2 text-xs text-red-500 text-center">Nenhum cliente encontrado.</div>
+                                    </div>
+                                </div>
+                                <div v-else class="bg-purple-50 dark:bg-gray-700 p-3 rounded-xl flex justify-between items-center border border-purple-100 dark:border-gray-600">
+                                    <div class="flex items-center gap-3">
+                                        <div class="bg-purple-100 dark:bg-gray-600 text-purple-600 dark:text-white w-10 h-10 rounded-full flex items-center justify-center font-bold"><i class="fa-solid fa-user"></i></div>
+                                        <div><p class="font-bold text-gray-800 dark:text-white text-sm">{{ getClientName(tempApp.clientId) }}</p><p class="text-xs text-green-600 font-bold">Selecionado</p></div>
+                                    </div>
+                                    <button @click="clearClientSelection" class="text-red-500 p-2"><i class="fa-solid fa-times"></i></button>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <input type="date" v-model="tempApp.date" class="w-full p-3 rounded-xl bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 dark:text-white">
+                                <input type="time" v-model="tempApp.time" class="w-full p-3 rounded-xl bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 dark:text-white">
+                            </div>
+                            <div class="space-y-3">
+                                <input v-model="tempApp.location.bairro" placeholder="Bairro" class="w-full p-3 rounded-xl bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 dark:text-white text-sm">
+                                <div class="grid grid-cols-3 gap-2">
+                                    <input v-model="tempApp.location.cidade" placeholder="Cidade" class="col-span-2 w-full p-3 rounded-xl bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 dark:text-white text-sm">
+                                    <input v-model="tempApp.location.numero" placeholder="Nº" class="w-full p-3 rounded-xl bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 dark:text-white text-sm">
+                                </div>
+                            </div>
+                            <div class="space-y-3 pt-2 border-t dark:border-gray-700">
+                                <label class="block text-xs font-bold text-gray-500 uppercase">Detalhes Adicionais</label>
+                                <input v-model="tempApp.details.balloonColors" placeholder="Cores dos Balões" class="w-full p-3 rounded-xl bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 dark:text-white text-sm">
+                                <textarea v-model="tempApp.notes" placeholder="Observação / Notas" rows="2" class="w-full p-3 rounded-xl bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 dark:text-white text-sm"></textarea>
+                            </div>
+                            <div class="pt-2">
+                                <div class="flex justify-between items-center mb-1">
+                                    <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">Serviços</label>
+                                     <button @click="openServiceModal(null)" class="text-primary text-xs font-bold hover:underline">+ Add Serviço</button>
+                                </div>
+                                <div class="flex gap-2 mb-2">
+                                    <select v-model="tempServiceSelect" class="flex-1 p-2 rounded-xl bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 text-sm dark:text-white">
+                                        <option value="">Selecionar...</option>
+                                        <option v-for="s in services" :key="s.id" :value="s">{{ s.description }} - {{ formatCurrency(s.price) }}</option>
+                                    </select>
+                                    <button @click="addServiceToApp" class="bg-gray-200 dark:bg-gray-600 px-3 rounded-xl"><i class="fa-solid fa-plus"></i></button>
+                                </div>
+                                <div class="space-y-2">
+                                    <div v-for="(item, idx) in tempApp.selectedServices" :key="idx" class="flex justify-between items-center bg-gray-50 dark:bg-gray-700 p-2 rounded-lg text-sm">
+                                        <span class="dark:text-white">{{ item.description }}</span>
+                                        <div class="flex items-center gap-3"><span class="font-bold dark:text-gray-300">{{ formatCurrency(item.price) }}</span><button @click="removeServiceFromApp(idx)" class="text-red-400"><i class="fa-solid fa-trash-alt"></i></button></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4 pt-4 border-t dark:border-gray-700">
+                                <div><label class="block text-xs font-bold text-gray-500 mb-1">Total</label><p class="text-xl font-bold text-gray-800 dark:text-white">{{ formatCurrency(totalServices) }}</p></div>
+                                <div><label class="block text-xs font-bold text-gray-500 mb-1">Entrada (R$)</label><input type="number" v-model="tempApp.details.entryFee" class="w-full p-2 rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white font-bold text-right"></div>
+                            </div>
+                            <button @click="saveAppointment(false)" class="w-full bg-primary text-white py-4 rounded-2xl font-bold shadow-lg shadow-purple-200 hover:scale-[1.02] transition">Confirmar</button>
+                        </div>
+                    </main>
+
+                    <main v-if="view === 'receipt' && currentReceipt" class="animate-fade bg-gray-100 dark:bg-darkbg">
+                        <div class="flex items-center gap-2 mb-4">
+                            <button @click="view = 'appointments_list'" class="w-8 h-8 rounded-full bg-white dark:bg-darkcard shadow flex items-center justify-center"><i class="fa-solid fa-arrow-left"></i></button>
+                            <h2 class="font-bold text-xl dark:text-white">Documentos</h2>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 mb-6">
+                            <button @click="downloadReceiptImage" class="bg-white dark:bg-darkcard p-4 rounded-xl shadow-sm flex flex-col items-center gap-2 hover:bg-purple-50"><i class="fa-solid fa-image text-2xl text-secondary"></i><span class="text-xs font-bold dark:text-white">Baixar Imagem</span></button>
+                            <button @click="generateContractPDF" class="bg-white dark:bg-darkcard p-4 rounded-xl shadow-sm flex flex-col items-center gap-2 hover:bg-purple-50"><i class="fa-solid fa-file-pdf text-2xl text-red-500"></i><span class="text-xs font-bold dark:text-white">Gerar Contrato</span></button>
+                        </div>
+                        <div id="receipt-capture-area" class="bg-white p-8 rounded-xl shadow-lg max-w-sm mx-auto border-t-8 border-primary relative overflow-hidden">
+                            <div class="text-center mb-6 relative">
+                                <div class="w-20 h-20 bg-gray-100 rounded-full mx-auto mb-2 overflow-hidden flex items-center justify-center border-2 border-dashed border-gray-300 relative group">
+                                    <img v-if="company.logo" :src="company.logo" class="w-full h-full object-cover">
+                                    <i v-else class="fa-solid fa-camera text-gray-400 text-xl"></i>
+                                    <input type="file" @change="handleLogoUpload" class="absolute inset-0 opacity-0 cursor-pointer" accept="image/*">
+                                </div>
+                                <h2 class="font-bold text-xl text-gray-800">{{ company.fantasia || 'Sua Empresa' }}</h2>
+                            </div>
+                            <div class="space-y-4 mb-6 text-sm">
+                                <div class="flex justify-between border-b border-dashed pb-2">
+                                    <span class="text-gray-500">Cliente</span>
+                                    <span class="font-bold text-right">{{ getClientName(currentReceipt.clientId) }}<br><span class="text-xs font-normal">{{ getClientPhone(currentReceipt.clientId) }}</span></span>
+                                </div>
+                                <div class="flex justify-between border-b border-dashed pb-2">
+                                    <span class="text-gray-500">Data</span>
+                                    <span class="font-bold">{{ formatDate(currentReceipt.date) }}</span>
+                                </div>
+                                <div>
+                                    <p class="text-gray-500 mb-1">Serviços:</p>
+                                    <ul class="text-xs space-y-1">
+                                        <li v-for="s in currentReceipt.selectedServices" class="flex justify-between">
+                                            <span>{{ s.description }}</span>
+                                            <span>{{ formatCurrency(s.price) }}</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-lg space-y-2">
+                                <div class="flex justify-between text-sm"><span>Total</span><span class="font-bold">{{ formatCurrency(currentReceipt.totalServices) }}</span></div>
+                                <div class="flex justify-between text-sm text-green-600"><span>Entrada</span><span>- {{ formatCurrency(currentReceipt.entryFee || currentReceipt.details?.entryFee || 0) }}</span></div>
+                                <div class="flex justify-between text-lg font-black text-primary border-t pt-2"><span>Restante</span><span>{{ formatCurrency(currentReceipt.finalBalance) }}</span></div>
+                            </div>
+                        </div>
+                    </main>
+
+                    <main v-if="view === 'expenses'" class="animate-fade">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-2">
+                                <button @click="view = 'dashboard'" class="w-8 h-8 rounded-full bg-gray-100 dark:bg-darkcard flex items-center justify-center"><i class="fa-solid fa-arrow-left"></i></button>
+                                <h2 class="font-bold text-xl dark:text-white">Financeiro</h2>
+                            </div>
+                            <button @click="showExpenseModal = true" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg shadow-red-200 dark:shadow-none flex items-center gap-2"><i class="fa-solid fa-plus"></i> Add Despesa</button>
+                        </div>
+
+                        <div v-if="showExpenseModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade">
+                            <div class="bg-white dark:bg-darkcard p-6 rounded-3xl shadow-2xl w-full max-w-sm relative">
+                                <button @click="showExpenseModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-red-500"><i class="fa-solid fa-times text-xl"></i></button>
+                                <h3 class="font-bold text-lg mb-4 dark:text-white text-center">Nova Despesa</h3>
+                                <div class="space-y-4">
+                                    <div><label class="block text-xs font-bold text-gray-500 mb-1">Descrição</label><input v-model="newExpense.description" placeholder="Ex: Posto Ipiranga" class="w-full p-3 rounded-xl bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 dark:text-white outline-none focus:ring-2 focus:ring-red-500"></div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-500 mb-1">Categoria</label>
+                                        <div class="relative">
+                                            <select v-model="newExpense.category" class="w-full p-3 rounded-xl bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 dark:text-white outline-none focus:ring-2 focus:ring-red-500 appearance-none">
+                                                <option value="" disabled>Selecione...</option>
+                                                <option v-for="c in expenseCategories" :key="c.id" :value="c.id">{{ c.label }}</option>
+                                            </select>
+                                            <i class="fa-solid fa-chevron-down absolute right-4 top-4 text-gray-400 text-xs pointer-events-none"></i>
+                                        </div>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div><label class="block text-xs font-bold text-gray-500 mb-1">Valor (R$)</label><input v-model="newExpense.value" type="number" placeholder="0,00" class="w-full p-3 rounded-xl bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 dark:text-white outline-none focus:ring-2 focus:ring-red-500"></div>
+                                        <div><label class="block text-xs font-bold text-gray-500 mb-1">Data</label><input type="date" v-model="newExpense.date" class="w-full p-3 rounded-xl bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 dark:text-white outline-none focus:ring-2 focus:ring-red-500"></div>
+                                    </div>
+                                    <button @click="addExpense" class="w-full bg-red-500 text-white py-3 rounded-xl font-bold shadow-lg shadow-red-200 dark:shadow-none hover:scale-[1.02] transition">Confirmar Lançamento</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-4 space-y-2">
+                            <p class="text-xs font-bold text-gray-500 dark:text-gray-300">Filtrar Despesas:</p>
+                            <select v-model="expensesFilter.category" class="w-full p-2 rounded-lg bg-white dark:bg-gray-700 border dark:border-gray-600 dark:text-white text-xs font-bold mb-2">
+                                <option value="">Todas as Categorias</option>
+                                <option v-for="c in expenseCategories" :key="c.id" :value="c.id">{{ c.label }}</option>
+                            </select>
+                            <div class="flex gap-2 items-end">
+                                <input type="date" v-model="expensesFilter.start" class="flex-1 bg-white dark:bg-gray-700 p-2 rounded-lg text-xs border dark:border-gray-600 dark:text-white">
+                                <input type="date" v-model="expensesFilter.end" class="flex-1 bg-white dark:bg-gray-700 p-2 rounded-lg text-xs border dark:border-gray-600 dark:text-white">
+                                <button @click="searchExpenses" class="bg-gray-800 text-white h-[34px] px-3 rounded-lg text-xs font-bold"><i class="fa-solid fa-search"></i></button>
+                            </div>
+                        </div>
+                        <div v-if="expensesList.length === 0" class="text-center py-10 text-gray-400 text-sm">Use o filtro para ver as despesas.</div>
+                        <div class="bg-white dark:bg-darkcard rounded-xl shadow-sm divide-y dark:divide-gray-700 max-w-lg">
+                            <div v-for="e in expensesList" :key="e.id" class="p-3 flex justify-between items-center">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-full bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-500"><i class="fa-solid" :class="getCategoryIcon(e.category)"></i></div>
+                                    <div><p class="font-bold text-sm dark:text-white">{{ e.description }}</p><p class="text-[10px] text-gray-400 uppercase font-bold">{{ e.category || 'Outros' }} • {{ formatDate(e.date) }}</p></div>
+                                </div>
+                                <div class="flex items-center gap-3"><span class="text-red-500 font-bold text-sm">- {{ formatCurrency(e.value) }}</span><button @click="deleteExpense(e.id)" class="text-gray-300 hover:text-red-500"><i class="fa-solid fa-trash"></i></button></div>
+                            </div>
+                        </div>
+                    </main>
+
+                    <main v-if="view === 'catalog_hub'" class="animate-fade">
+                        <div class="flex items-center gap-2 mb-4 overflow-x-auto hide-scrollbar">
+                            <button @click="catalogView = 'company'" :class="catalogView === 'company' ? 'bg-primary text-white' : 'bg-gray-200 text-gray-600'" class="px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap">Empresa</button>
+                            <button @click="catalogView = 'clients'" :class="catalogView === 'clients' ? 'bg-primary text-white' : 'bg-gray-200 text-gray-600'" class="px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap">Clientes</button>
+                            <button @click="catalogView = 'services'" :class="catalogView === 'services' ? 'bg-primary text-white' : 'bg-gray-200 text-gray-600'" class="px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap">Serviços</button>
+                        </div>
+                        <div v-if="catalogView === 'company'">
+                            <h2 class="font-bold text-xl dark:text-white mb-4">Dados da Empresa</h2>
+                            <div class="bg-white dark:bg-darkcard p-4 rounded-xl shadow-sm space-y-3 max-w-lg">
+                                <input v-model="company.fantasia" placeholder="Nome Fantasia" class="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                <input v-model="company.razao" placeholder="Razão Social" class="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                <input v-model="company.cnpj" placeholder="CNPJ" class="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                <div class="grid grid-cols-2 gap-2">
+                                    <input v-model="company.cidade" placeholder="Cidade" class="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                    <input v-model="company.rua" placeholder="Rua/Bairro" class="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                </div>
+                                <button @click="saveCompany" class="w-full bg-primary text-white py-2 rounded font-bold">Salvar Dados</button>
+                                <button @click="handleChangePassword" class="w-full bg-gray-200 text-gray-700 py-2 rounded font-bold text-sm mt-2"><i class="fa-solid fa-lock mr-2"></i>Alterar Senha</button>
+                            </div>
+                        </div>
+                        <div v-if="catalogView === 'clients'">
+                            <div class="flex justify-between items-center mb-3">
+                                <h3 class="font-bold dark:text-white">Consultar Clientes</h3>
+                            </div>
+                            <div class="flex gap-2 mb-4">
+                                <input v-model="catalogClientSearch" placeholder="Nome (3 letras) ou CPF" class="flex-1 p-2 rounded border dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                <button @click="searchCatalogClients" class="bg-primary text-white px-3 rounded"><i class="fa-solid fa-search"></i></button>
+                            </div>
+                            <div v-if="catalogClientsList.length === 0" class="text-center text-gray-400 text-sm py-4">Digite para buscar.</div>
+                            <div class="bg-white dark:bg-darkcard rounded-xl shadow-sm divide-y dark:divide-gray-700 max-w-lg">
+                                <div v-for="c in catalogClientsList" :key="c.id" class="p-3 flex justify-between items-center">
+                                    <div><p class="font-bold text-sm dark:text-white">{{ c.name }}</p><p class="text-xs text-gray-400">{{ c.phone }}</p></div>
+                                    <div class="flex gap-2"><button @click="openClientModal(c)" class="text-blue-400"><i class="fa-solid fa-pen"></i></button><button @click="deleteClient(c.id)" class="text-red-400"><i class="fa-solid fa-trash"></i></button></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-if="catalogView === 'services'">
+                            <div class="flex justify-between items-center mb-3">
+                                <h3 class="font-bold dark:text-white">Meus Serviços</h3>
+                                <button @click="openServiceModal(null)" class="text-primary text-xs font-bold">+ Novo</button>
+                            </div>
+                            <div class="bg-white dark:bg-darkcard rounded-xl shadow-sm divide-y dark:divide-gray-700 max-w-lg">
+                                <div v-for="s in services" :key="s.id" class="p-3 flex justify-between items-center">
+                                    <div><p class="font-bold text-sm dark:text-white">{{ s.description }}</p><p class="text-xs text-primary font-bold">{{ formatCurrency(s.price) }}</p></div>
+                                    <div class="flex gap-2"><button @click="openServiceModal(s)" class="text-blue-400"><i class="fa-solid fa-pen"></i></button><button @click="deleteService(s.id)" class="text-red-400"><i class="fa-solid fa-trash"></i></button></div>
+                                </div>
+                            </div>
+                        </div>
+                    </main>
+
+                </div>
+            </div>
+
+            <nav class="md:hidden fixed bottom-0 w-full bg-white dark:bg-darkcard border-t dark:border-gray-700 flex justify-around py-3 pb-5 z-20 text-xs font-medium text-gray-400">
+                <button @click="view = 'dashboard'" :class="{'text-primary': view === 'dashboard'}" class="flex flex-col items-center gap-1 transition">
+                    <i class="fa-solid fa-chart-pie text-xl"></i> Início
+                </button>
+                <button @click="view = 'appointments_list'; currentTab = 'pending'" :class="{'text-primary': view === 'appointments_list'}" class="flex flex-col items-center gap-1 transition relative">
+                    <div class="relative">
+                        <i class="fa-solid fa-calendar-check text-xl"></i>
+                        <div v-if="pendingCount > 0" class="absolute -top-2 -right-2 bg-red-500 text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-white dark:border-darkcard animate-pulse">
+                            {{ pendingCount }}
+                        </div>
+                    </div>
+                    Agenda
+                </button>
+                <button @click="startNewSchedule" :class="{'text-primary': view === 'schedule'}" class="flex flex-col items-center gap-1 transition">
+                    <div class="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-white -mt-6 shadow-lg shadow-purple-200 border-4 border-white dark:border-darkcard">
+                        <i class="fa-solid fa-plus text-xl"></i>
+                    </div>
+                    <span class="mt-1">Novo</span>
+                </button>
+                <button @click="view = 'expenses'" :class="{'text-primary': view === 'expenses'}" class="flex flex-col items-center gap-1 transition">
+                    <i class="fa-solid fa-money-bill-wave text-xl"></i> Despesas
+                </button>
+                <button @click="view = 'catalog_hub'" :class="{'text-primary': view === 'catalog_hub'}" class="flex flex-col items-center gap-1 transition">
+                    <i class="fa-solid fa-store text-xl"></i> Catálogo
+                </button>
+            </nav>
+
+        </template>
+    </div>
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>
