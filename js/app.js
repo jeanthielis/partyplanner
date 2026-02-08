@@ -26,10 +26,10 @@ createApp({
         const dashboardData = reactive({ appointments: [], expenses: [] });
         const isLoadingDashboard = ref(false);
 
-        // --- CALENDÁRIO ---
-        const appointmentViewMode = ref('list'); 
-        const calendarCursor = ref(new Date()); 
-        const selectedCalendarDate = ref(null); 
+        // --- CALENDÁRIO DA AGENDA ---
+        const appointmentViewMode = ref('list'); // 'list' ou 'calendar'
+        const calendarCursor = ref(new Date()); // Data visualizada
+        const selectedCalendarDate = ref(null); // Data clicada
 
         // --- DADOS DAS LISTAS ---
         const services = ref([]); 
@@ -38,13 +38,14 @@ createApp({
         const catalogClientsList = ref([]); 
         const scheduleClientsList = ref([]); 
         
-        // FINANCEIRO UNIFICADO
+        // FINANCEIRO UNIFICADO (Substitui o antigo expensesList)
         const financeData = reactive({ expenses: [], incomes: [] });
 
+        // Cache local para nomes de clientes
         const clientCache = reactive({}); 
         const clients = ref([]); 
 
-        // --- CATEGORIAS ---
+        // --- CATEGORIAS DE DESPESAS ---
         const expenseCategories = [
             { id: 'combustivel', label: 'Combustível / Transporte', icon: 'fa-gas-pump' },
             { id: 'materiais', label: 'Materiais / Decoração', icon: 'fa-box-open' },
@@ -71,13 +72,18 @@ createApp({
         const company = reactive({ fantasia: '', logo: '', cnpj: '', razao: '', cidade: '', rua: '', estado: '' });
         
         const tempApp = reactive({ 
-            clientId: '', date: '', time: '', location: { bairro: '', cidade: '', numero: '' }, 
-            details: { balloonColors: '', entryFee: 0 }, notes: '', selectedServices: [] 
+            clientId: '', 
+            date: '', 
+            time: '', 
+            location: { bairro: '', cidade: '', numero: '' }, 
+            details: { balloonColors: '', entryFee: 0 }, 
+            notes: '', 
+            selectedServices: [] 
         });
         
         const tempServiceSelect = ref('');
         
-        // FINANCEIRO MODAL
+        // FINANCEIRO (COM MODAL)
         const newExpense = reactive({ description: '', value: '', date: new Date().toISOString().split('T')[0], category: '' });
         const showExpenseModal = ref(false); 
         
@@ -98,7 +104,7 @@ createApp({
         const statusClass = (s) => s === 'concluded' ? 'bg-green-100 text-green-600' : (s === 'cancelled' ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-600');
         const getCategoryIcon = (catId) => { const cat = expenseCategories.find(c => c.id === catId); return cat ? cat.icon : 'fa-money-bill'; };
 
-        // --- RESOLUÇÃO DE NOMES ---
+        // --- RESOLUÇÃO DE NOMES (CACHE) ---
         const resolveClientName = (id) => { if (!id) return '...'; if (clientCache[id]) return clientCache[id].name; fetchClientToCache(id); return 'Carregando...'; };
         const getClientName = (id) => resolveClientName(id);
         const getClientPhone = (id) => clientCache[id] ? clientCache[id].phone : '';
@@ -175,6 +181,7 @@ createApp({
         });
 
         const selectCalendarDay = (dayObj) => { if (!dayObj.day) return; selectedCalendarDate.value = dayObj.date; };
+        
         const appointmentsOnSelectedDate = computed(() => {
             if (!selectedCalendarDate.value) return [];
             return pendingAppointments.value.filter(a => a.date === selectedCalendarDate.value);
@@ -203,6 +210,7 @@ createApp({
         });
 
         // Computed para lista visual de despesas (filtro de categoria)
+        // Substitui a antiga expensesList
         const filteredExpensesList = computed(() => {
             let list = financeData.expenses;
             if (expensesFilter.category) { list = list.filter(e => e.category === expensesFilter.category); }
@@ -269,14 +277,28 @@ createApp({
         const saveTaskInDetail = async () => { if (!detailTaskInput.value.trim() || !selectedAppointment.value) return; const newTask = { text: detailTaskInput.value, done: false }; if (!selectedAppointment.value.checklist) selectedAppointment.value.checklist = []; selectedAppointment.value.checklist.push(newTask); await updateAppInFirebase(selectedAppointment.value); detailTaskInput.value = ''; };
         const toggleTaskDone = async (index) => { if (!selectedAppointment.value) return; selectedAppointment.value.checklist[index].done = !selectedAppointment.value.checklist[index].done; await updateAppInFirebase(selectedAppointment.value); };
         const deleteTaskInDetail = async (index) => { if (!selectedAppointment.value) return; selectedAppointment.value.checklist.splice(index, 1); await updateAppInFirebase(selectedAppointment.value); };
+        
+        // --- FUNÇÕES DE CHECKLIST E SERVIÇOS RESTAURADAS ---
         const addTask = (app) => { if(!newTaskText.value[app.id]) return; app.checklist.push({text:newTaskText.value[app.id], done:false}); newTaskText.value[app.id]=''; updateAppInFirebase(app); };
         const removeTask = (app, i) => { app.checklist.splice(i, 1); updateAppInFirebase(app); };
         const checklistProgress = (app) => { if(!app.checklist?.length) return 0; return Math.round((app.checklist.filter(t=>t.done).length/app.checklist.length)*100); };
         const addServiceToApp = () => { if(tempServiceSelect.value) { tempApp.selectedServices.push({...tempServiceSelect.value}); tempServiceSelect.value = ''; } };
         const removeServiceFromApp = (i) => tempApp.selectedServices.splice(i,1);
 
-        const addExpense = async () => { if(!newExpense.description || !newExpense.value) return Swal.fire('Ops', 'Preencha todos os campos', 'warning'); if(!newExpense.category) newExpense.category = 'outros'; const docRef = await addDoc(collection(db, "expenses"), {...newExpense, userId: user.value.uid}); financeData.expenses.unshift({id: docRef.id, ...newExpense}); if(newExpense.date.startsWith(dashboardMonth.value)) loadDashboardData(); Object.assign(newExpense, {description: '', value: '', category: ''}); showExpenseModal.value = false; Swal.fire({icon:'success', title:'Registrado', timer:1000}); };
-        const deleteExpense = async (id) => { await deleteDoc(doc(db, "expenses", id)); financeData.expenses = financeData.expenses.filter(e => e.id !== id); loadDashboardData(); };
+        const addExpense = async () => { 
+            if(!newExpense.description || !newExpense.value) return Swal.fire('Ops', 'Preencha todos os campos', 'warning'); 
+            if(!newExpense.category) newExpense.category = 'outros'; 
+            const docRef = await addDoc(collection(db, "expenses"), {...newExpense, userId: user.value.uid}); 
+            financeData.expenses.unshift({id: docRef.id, ...newExpense}); 
+            if(newExpense.date.startsWith(dashboardMonth.value)) loadDashboardData(); 
+            Object.assign(newExpense, {description: '', value: '', category: ''}); showExpenseModal.value = false; Swal.fire({icon:'success', title:'Registrado', timer:1000}); 
+        };
+        
+        const deleteExpense = async (id) => { 
+            await deleteDoc(doc(db, "expenses", id)); 
+            financeData.expenses = financeData.expenses.filter(e => e.id !== id); 
+            loadDashboardData(); 
+        };
         
         const startNewSchedule = () => { isEditing.value=false; editingId.value=null; clientSearchTerm.value = ''; Object.assign(tempApp, { clientId: '', date: '', time: '', location: { bairro: '', cidade: '', numero: '' }, details: { balloonColors: '', entryFee: 0 }, notes: '', selectedServices: [] }); view.value='schedule'; };
         const editAppointment = (app) => { isEditing.value=true; editingId.value=app.id; clientSearchTerm.value = ''; fetchClientToCache(app.clientId); const dataToLoad = JSON.parse(JSON.stringify(app)); if(!dataToLoad.details) dataToLoad.details = { balloonColors: '', entryFee: 0 }; if(!dataToLoad.details.balloonColors) dataToLoad.details.balloonColors = ''; if(!dataToLoad.notes) dataToLoad.notes = ''; Object.assign(tempApp, dataToLoad); view.value='schedule'; };
@@ -301,7 +323,7 @@ createApp({
 
         return {
             user, userRole, userStatus, daysRemaining, authForm, authLoading, view, catalogView, isDark, 
-            services, appointments: pendingAppointments, expensesList, catalogClientsList, company,
+            services, appointments: pendingAppointments, expensesList: [], catalogClientsList, company,
             tempApp, tempServiceSelect, newExpense, showExpenseModal, currentReceipt, 
             isEditing, newTaskText, expenseCategories,
             kpiRevenue, kpiExpenses, kpiReceivables, kpiProfit, next7DaysApps, pendingCount,
