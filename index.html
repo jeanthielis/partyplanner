@@ -312,13 +312,42 @@
                 </div>
             </div>
 
-            <nav class="md:hidden fixed bottom-0 w-full bg-white dark:bg-darkcard border-t dark:border-gray-700 flex justify-around py-3 pb-5 z-20 text-xs font-medium text-gray-400">
-                <button @click="view = 'dashboard'" :class="{'text-primary': view === 'dashboard'}" class="flex flex-col items-center gap-1 transition"><i class="fa-solid fa-chart-pie text-xl"></i> Início</button>
-                <button @click="view = 'appointments_list'; currentTab = 'pending'" :class="{'text-primary': view === 'appointments_list'}" class="flex flex-col items-center gap-1 transition relative"><div class="relative"><i class="fa-solid fa-calendar-check text-xl"></i><div v-if="pendingCount > 0" class="absolute -top-2 -right-2 bg-red-500 text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-white dark:border-darkcard animate-pulse">{{ pendingCount }}</div></div>Agenda</button>
-                <button @click="startNewSchedule" :class="{'text-primary': view === 'schedule'}" class="flex flex-col items-center gap-1 transition"><div class="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-white -mt-6 shadow-lg shadow-purple-200 border-4 border-white dark:border-darkcard"><i class="fa-solid fa-plus text-xl"></i></div><span class="mt-1">Novo</span></button>
-                <button @click="view = 'expenses'" :class="{'text-primary': view === 'expenses'}" class="flex flex-col items-center gap-1 transition"><i class="fa-solid fa-money-bill-wave text-xl"></i> Despesas</button>
-                <button @click="view = 'statement'" :class="{'text-primary': view === 'statement'}" class="flex flex-col items-center gap-1 transition"><i class="fa-solid fa-file-invoice-dollar text-xl"></i> Extrato</button>
-            </nav>
+            <nav class="md:hidden fixed bottom-0 w-full bg-white dark:bg-darkcard border-t dark:border-gray-700 flex justify-between px-2 py-2 pb-5 z-20 text-[10px] font-medium text-gray-400 overflow-x-auto hide-scrollbar">
+    
+    <button @click="view = 'dashboard'" :class="{'text-primary': view === 'dashboard'}" class="flex flex-col items-center gap-1 transition min-w-[50px]">
+        <i class="fa-solid fa-chart-pie text-lg"></i> Início
+    </button>
+    
+    <button @click="view = 'appointments_list'; currentTab = 'pending'" :class="{'text-primary': view === 'appointments_list'}" class="flex flex-col items-center gap-1 transition relative min-w-[50px]">
+        <div class="relative">
+            <i class="fa-solid fa-calendar-check text-lg"></i>
+            <div v-if="pendingCount > 0" class="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-bold w-3 h-3 flex items-center justify-center rounded-full animate-pulse">
+                {{ pendingCount }}
+            </div>
+        </div>
+        Agenda
+    </button>
+    
+    <button @click="startNewSchedule" :class="{'text-primary': view === 'schedule'}" class="flex flex-col items-center gap-1 transition min-w-[50px]">
+        <div class="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-white -mt-5 shadow-lg shadow-purple-200 border-4 border-white dark:border-darkcard">
+            <i class="fa-solid fa-plus text-lg"></i>
+        </div>
+        <span class="mt-1">Novo</span>
+    </button>
+    
+    <button @click="view = 'expenses'" :class="{'text-primary': view === 'expenses'}" class="flex flex-col items-center gap-1 transition min-w-[50px]">
+        <i class="fa-solid fa-money-bill-wave text-lg"></i> Despesas
+    </button>
+    
+    <button @click="view = 'statement'" :class="{'text-primary': view === 'statement'}" class="flex flex-col items-center gap-1 transition min-w-[50px]">
+        <i class="fa-solid fa-file-invoice-dollar text-lg"></i> Extrato
+    </button>
+
+    <button @click="view = 'catalog_hub'" :class="{'text-primary': view === 'catalog_hub'}" class="flex flex-col items-center gap-1 transition min-w-[50px]">
+        <i class="fa-solid fa-store text-lg"></i> Catálogo
+    </button>
+
+</nav>
 
         </template>
     </div>
