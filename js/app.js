@@ -38,10 +38,26 @@ createApp({
         const clientCache = reactive({}); 
         const clients = ref([]); 
 
+        // --- DEFINIÇÃO DE CATEGORIAS DE DESPESAS ---
+        const expenseCategories = [
+            { id: 'combustivel', label: 'Combustível / Transporte', icon: 'fa-gas-pump' },
+            { id: 'materiais', label: 'Materiais / Decoração', icon: 'fa-box-open' },
+            { id: 'equipe', label: 'Equipe / Diária', icon: 'fa-users' },
+            { id: 'refeicao', label: 'Alimentação / Lanche', icon: 'fa-utensils' },
+            { id: 'marketing', label: 'Marketing / Anúncios', icon: 'fa-bullhorn' },
+            { id: 'aluguel', label: 'Aluguel / Espaço', icon: 'fa-house' },
+            { id: 'outros', label: 'Outras Despesas', icon: 'fa-money-bill' }
+        ];
+
         // --- FILTROS ---
         const currentTab = ref('pending'); 
         const historyFilter = reactive({ start: '', end: '' });
-        const expensesFilter = reactive({ start: new Date().toISOString().split('T')[0], end: new Date().toISOString().split('T')[0] });
+        // Adicionado filtro de categoria
+        const expensesFilter = reactive({ 
+            start: new Date().toISOString().split('T')[0], 
+            end: new Date().toISOString().split('T')[0],
+            category: '' 
+        });
         const catalogClientSearch = ref('');
         const clientSearchTerm = ref(''); 
         const isLoadingHistory = ref(false);
@@ -61,9 +77,9 @@ createApp({
         
         const tempServiceSelect = ref('');
         
-        // FINANCEIRO (COM MODAL)
-        const newExpense = reactive({ description: '', value: '', date: new Date().toISOString().split('T')[0] });
-        const showExpenseModal = ref(false); // <--- CONTROLE DO MODAL DE DESPESA
+        // FINANCEIRO (COM MODAL E CATEGORIA)
+        const newExpense = reactive({ description: '', value: '', date: new Date().toISOString().split('T')[0], category: '' });
+        const showExpenseModal = ref(false); 
         
         const currentReceipt = ref(null);
         const selectedAppointment = ref(null);
@@ -80,6 +96,12 @@ createApp({
         const getMonth = (d) => ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'][parseInt(d.split('-')[1])-1];
         const statusText = (s) => s === 'concluded' ? 'Concluída' : (s === 'cancelled' ? 'Cancelada' : 'Pendente');
         const statusClass = (s) => s === 'concluded' ? 'bg-green-100 text-green-600' : (s === 'cancelled' ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-600');
+        
+        // Helper para ícone da categoria
+        const getCategoryIcon = (catId) => {
+            const cat = expenseCategories.find(c => c.id === catId);
+            return cat ? cat.icon : 'fa-money-bill'; // Ícone padrão
+        };
 
         // --- RESOLUÇÃO DE NOMES (CACHE) ---
         const resolveClientName = (id) => {
@@ -148,7 +170,7 @@ createApp({
 
         const logout = async () => { await signOut(auth); window.location.href = "index.html"; };
 
-        // --- DASHBOARD DATA (KPIS MENSAIS) ---
+        // --- DASHBOARD DATA ---
         const loadDashboardData = async () => {
             if (!user.value) return;
             isLoadingDashboard.value = true;
@@ -159,33 +181,14 @@ createApp({
             const endStr = `${year}-${month}-${lastDay}`;
 
             try {
-                const qApps = query(
-                    collection(db, "appointments"), 
-                    where("userId", "==", user.value.uid),
-                    where("date", ">=", startStr),
-                    where("date", "<=", endStr)
-                );
-                
-                const qExp = query(
-                    collection(db, "expenses"), 
-                    where("userId", "==", user.value.uid),
-                    where("date", ">=", startStr),
-                    where("date", "<=", endStr)
-                );
+                const qApps = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("date", ">=", startStr), where("date", "<=", endStr));
+                const qExp = query(collection(db, "expenses"), where("userId", "==", user.value.uid), where("date", ">=", startStr), where("date", "<=", endStr));
 
                 const [snapApps, snapExp] = await Promise.all([getDocs(qApps), getDocs(qExp)]);
 
-                dashboardData.appointments = snapApps.docs
-                    .map(d => ({id: d.id, ...d.data()}))
-                    .filter(app => app.status !== 'cancelled');
-                
+                dashboardData.appointments = snapApps.docs.map(d => ({id: d.id, ...d.data()})).filter(app => app.status !== 'cancelled');
                 dashboardData.expenses = snapExp.docs.map(d => ({id: d.id, ...d.data()}));
-
-            } catch (e) {
-                console.error("Erro ao carregar dashboard:", e);
-            } finally {
-                isLoadingDashboard.value = false;
-            }
+            } catch (e) { console.error(e); } finally { isLoadingDashboard.value = false; }
         };
 
         watch(dashboardMonth, () => { loadDashboardData(); });
@@ -196,10 +199,7 @@ createApp({
             unsubscribeListeners.forEach(unsub => unsub()); unsubscribeListeners = [];
             const myId = user.value.uid; 
             
-            unsubscribeListeners.push(onSnapshot(query(collection(db, "services"), where("userId", "==", myId)), (snap) => { 
-                services.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
-            }));
-
+            unsubscribeListeners.push(onSnapshot(query(collection(db, "services"), where("userId", "==", myId)), (snap) => { services.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); }));
             const qApps = query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "pending"));
             unsubscribeListeners.push(onSnapshot(qApps, (snap) => { 
                 pendingAppointments.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
@@ -210,7 +210,7 @@ createApp({
             }));
         };
 
-        // --- BUSCAS ---
+        // --- BUSCAS E FILTROS ---
         const searchHistory = async () => {
             if(!historyFilter.start || !historyFilter.end) return Swal.fire('Atenção', 'Selecione as datas', 'warning');
             isLoadingHistory.value = true; historyList.value = [];
@@ -223,15 +223,23 @@ createApp({
             } catch (error) { console.error(error); Swal.fire('Erro', 'Tente novamente.', 'error'); } finally { isLoadingHistory.value = false; }
         };
 
+        // ATUALIZADO: Filtro de Despesas com Categoria
         const searchExpenses = async () => {
             if(!expensesFilter.start || !expensesFilter.end) return Swal.fire('Data', 'Selecione o período', 'info');
             try {
                 const q = query(collection(db, "expenses"), where("userId", "==", user.value.uid));
                 const snap = await getDocs(q);
                 const allExpenses = snap.docs.map(d => ({id: d.id, ...d.data()}));
-                expensesList.value = allExpenses.filter(e => e.date >= expensesFilter.start && e.date <= expensesFilter.end);
+                
+                // Filtra por data E categoria (se selecionada)
+                expensesList.value = allExpenses.filter(e => {
+                    const dateOk = e.date >= expensesFilter.start && e.date <= expensesFilter.end;
+                    const categoryOk = !expensesFilter.category || e.category === expensesFilter.category;
+                    return dateOk && categoryOk;
+                });
+
                 expensesList.value.sort((a,b) => new Date(b.date) - new Date(a.date));
-                if(expensesList.value.length === 0) Swal.fire('Vazio', 'Nenhuma despesa no período.', 'info');
+                if(expensesList.value.length === 0) Swal.fire('Vazio', 'Nenhuma despesa encontrada.', 'info');
             } catch(e) { console.error(e); }
         };
 
@@ -281,9 +289,7 @@ createApp({
             const appData = { ...JSON.parse(JSON.stringify(tempApp)), totalServices: total, entryFee: tempApp.details.entryFee, finalBalance: total - tempApp.details.entryFee, userId: user.value.uid };
             if(isEditing.value && editingId.value) { await updateDoc(doc(db, "appointments", editingId.value), appData); Swal.fire({icon:'success', title:'Atualizado', timer:1000}); } 
             else { appData.status = 'pending'; appData.checklist = [{text:'Separar Materiais', done:false}]; await addDoc(collection(db, "appointments"), appData); Swal.fire({icon:'success', title:'Agendado!', timer:1000}); }
-            
             if(appData.date.startsWith(dashboardMonth.value)) loadDashboardData();
-
             view.value = 'appointments_list'; currentTab.value = 'pending';
         };
 
@@ -331,17 +337,21 @@ createApp({
             await updateAppInFirebase(selectedAppointment.value);
         };
 
-        // --- NOVA FUNÇÃO ADD EXPENSE (COM MODAL) ---
+        // --- ADD EXPENSE (COM MODAL E CATEGORIA) ---
         const addExpense = async () => { 
-            if(!newExpense.description || !newExpense.value) return Swal.fire('Ops', 'Preencha todos os campos', 'warning'); 
+            // Validação simples
+            if(!newExpense.description || !newExpense.value) return Swal.fire('Ops', 'Preencha descrição e valor', 'warning'); 
             
+            // Se não selecionar categoria, salva vazio ou 'outros'
+            if(!newExpense.category) newExpense.category = 'outros';
+
             const docRef = await addDoc(collection(db, "expenses"), {...newExpense, userId: user.value.uid}); 
             expensesList.value.unshift({id: docRef.id, ...newExpense});
             
             if(newExpense.date.startsWith(dashboardMonth.value)) loadDashboardData();
 
-            Object.assign(newExpense, {description: '', value: ''}); 
-            showExpenseModal.value = false; // Fecha Modal
+            Object.assign(newExpense, {description: '', value: '', category: ''}); 
+            showExpenseModal.value = false; 
             Swal.fire({icon:'success', title:'Registrado', timer:1000}); 
         };
 
@@ -375,7 +385,6 @@ createApp({
         const selectClientFromSearch = (client) => { tempApp.clientId = client.id; clientSearchTerm.value = ''; clientCache[client.id] = client; };
         const clearClientSelection = () => { tempApp.clientId = ''; clientSearchTerm.value = ''; };
 
-        // --- CLIENTES (COM MÁSCARA) ---
         const openClientModal = async (c) => { 
             const n = c && c.name ? c.name : ''; 
             const p = c && c.phone ? c.phone : ''; 
@@ -393,18 +402,13 @@ createApp({
                 showCancelButton: true, 
                 confirmButtonText: 'Salvar',
                 didOpen: () => {
-                    // MÁSCARA DE TELEFONE
                     const phoneInput = Swal.getPopup().querySelector('#p');
                     phoneInput.addEventListener('input', (e) => {
                         let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,5})(\d{0,4})/);
                         e.target.value = !x[2] ? x[1] : '(' + x[1] + ') ' + x[2] + (x[3] ? '-' + x[3] : '');
                     });
                 },
-                preConfirm: () => [ 
-                    document.getElementById('n').value, 
-                    document.getElementById('p').value, 
-                    document.getElementById('cpf').value 
-                ] 
+                preConfirm: () => [ document.getElementById('n').value, document.getElementById('p').value, document.getElementById('cpf').value ] 
             });
 
             if (vals) { 
@@ -530,7 +534,7 @@ createApp({
             user, userRole, userStatus, daysRemaining, authForm, authLoading, view, catalogView, isDark, 
             services, appointments: pendingAppointments, expensesList, catalogClientsList, company,
             tempApp, tempServiceSelect, newExpense, showExpenseModal, currentReceipt, 
-            isEditing, newTaskText, 
+            isEditing, newTaskText, expenseCategories,
             kpiRevenue, kpiExpenses, kpiReceivables, kpiProfit, next7DaysApps, pendingCount,
             filteredListAppointments, totalServices, finalBalance,
             currentTab, historyFilter, searchHistory, isLoadingHistory, expensesFilter,
@@ -540,7 +544,7 @@ createApp({
             addTask, removeTask, checklistProgress,
             addServiceToApp, removeServiceFromApp, handleLogoUpload, saveCompany,
             showReceipt, downloadReceiptImage, generateContractPDF, 
-            getClientName, getClientPhone, formatCurrency, formatDate, getDay, getMonth, statusText, statusClass,
+            getClientName, getClientPhone, formatCurrency, formatDate, getDay, getMonth, statusText, statusClass, getCategoryIcon,
             clientSearchTerm, filteredClientsSearch, selectClientFromSearch, clearClientSelection,
             handleChangePassword, searchExpenses, searchCatalogClients, catalogClientSearch,
             selectedAppointment, detailTaskInput, openDetails, saveTaskInDetail, toggleTaskDone, deleteTaskInDetail,
