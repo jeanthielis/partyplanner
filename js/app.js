@@ -26,6 +26,11 @@ createApp({
         const dashboardData = reactive({ appointments: [], expenses: [] });
         const isLoadingDashboard = ref(false);
 
+        // --- CALENDÁRIO DA AGENDA ---
+        const appointmentViewMode = ref('list'); // 'list' ou 'calendar'
+        const calendarCursor = ref(new Date()); // Data visualizada
+        const selectedCalendarDate = ref(null); // Data clicada
+
         // --- DADOS DAS LISTAS ---
         const services = ref([]); 
         const pendingAppointments = ref([]); 
@@ -38,7 +43,7 @@ createApp({
         const clientCache = reactive({}); 
         const clients = ref([]); 
 
-        // --- DEFINIÇÃO DE CATEGORIAS DE DESPESAS ---
+        // --- CATEGORIAS DE DESPESAS ---
         const expenseCategories = [
             { id: 'combustivel', label: 'Combustível / Transporte', icon: 'fa-gas-pump' },
             { id: 'materiais', label: 'Materiais / Decoração', icon: 'fa-box-open' },
@@ -52,7 +57,6 @@ createApp({
         // --- FILTROS ---
         const currentTab = ref('pending'); 
         const historyFilter = reactive({ start: '', end: '' });
-        // Adicionado filtro de categoria
         const expensesFilter = reactive({ 
             start: new Date().toISOString().split('T')[0], 
             end: new Date().toISOString().split('T')[0],
@@ -77,7 +81,7 @@ createApp({
         
         const tempServiceSelect = ref('');
         
-        // FINANCEIRO (COM MODAL E CATEGORIA)
+        // FINANCEIRO (COM MODAL)
         const newExpense = reactive({ description: '', value: '', date: new Date().toISOString().split('T')[0], category: '' });
         const showExpenseModal = ref(false); 
         
@@ -96,37 +100,15 @@ createApp({
         const getMonth = (d) => ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'][parseInt(d.split('-')[1])-1];
         const statusText = (s) => s === 'concluded' ? 'Concluída' : (s === 'cancelled' ? 'Cancelada' : 'Pendente');
         const statusClass = (s) => s === 'concluded' ? 'bg-green-100 text-green-600' : (s === 'cancelled' ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-600');
-        
-        // Helper para ícone da categoria
-        const getCategoryIcon = (catId) => {
-            const cat = expenseCategories.find(c => c.id === catId);
-            return cat ? cat.icon : 'fa-money-bill'; // Ícone padrão
-        };
+        const getCategoryIcon = (catId) => { const cat = expenseCategories.find(c => c.id === catId); return cat ? cat.icon : 'fa-money-bill'; };
 
         // --- RESOLUÇÃO DE NOMES (CACHE) ---
-        const resolveClientName = (id) => {
-            if (!id) return '...';
-            if (clientCache[id]) return clientCache[id].name;
-            fetchClientToCache(id);
-            return 'Carregando...';
-        };
-
+        const resolveClientName = (id) => { if (!id) return '...'; if (clientCache[id]) return clientCache[id].name; fetchClientToCache(id); return 'Carregando...'; };
         const getClientName = (id) => resolveClientName(id);
         const getClientPhone = (id) => clientCache[id] ? clientCache[id].phone : '';
+        const fetchClientToCache = async (id) => { if (clientCache[id] || !id) return; try { const docSnap = await getDoc(doc(db, "clients", id)); if (docSnap.exists()) clientCache[id] = docSnap.data(); else clientCache[id] = { name: 'Excluído', phone: '-' }; } catch (e) { console.error(e); } };
 
-        const fetchClientToCache = async (id) => {
-            if (clientCache[id] || !id) return;
-            try {
-                const docSnap = await getDoc(doc(db, "clients", id));
-                if (docSnap.exists()) clientCache[id] = docSnap.data();
-                else clientCache[id] = { name: 'Excluído', phone: '-' };
-            } catch (e) { console.error(e); }
-        };
-
-        watch([pendingAppointments, historyList], ([newPending, newHistory]) => {
-            if(newPending) newPending.forEach(app => fetchClientToCache(app.clientId));
-            if(newHistory) newHistory.forEach(app => fetchClientToCache(app.clientId));
-        }, { deep: true });
+        watch([pendingAppointments, historyList], ([newPending, newHistory]) => { if(newPending) newPending.forEach(app => fetchClientToCache(app.clientId)); if(newHistory) newHistory.forEach(app => fetchClientToCache(app.clientId)); }, { deep: true });
 
         // --- AUTH & SYNC ---
         onMounted(() => {
@@ -134,71 +116,80 @@ createApp({
                 if (u) {
                     const userDoc = await getDoc(doc(db, "users", u.uid));
                     if (!userDoc.exists()) { await signOut(auth); user.value = null; Swal.fire({ icon: 'error', title: 'Acesso Revogado', text: 'Conta removida.' }); return; }
-
                     user.value = u;
                     const data = userDoc.data();
                     userRole.value = data.role || 'user';
                     userStatus.value = data.status || 'trial';
-                    
                     if (userRole.value !== 'admin' && userStatus.value !== 'active') {
                         const createdAt = new Date(data.createdAt || new Date());
                         const diffDays = Math.ceil(Math.abs(new Date() - createdAt) / (1000 * 60 * 60 * 24)); 
                         daysRemaining.value = 30 - diffDays;
                         if (daysRemaining.value <= 0) { view.value = 'expired_plan'; return; }
                     }
-
                     if(data.companyConfig) Object.assign(company, data.companyConfig);
-                    
-                    syncData(); 
-                    loadDashboardData(); 
-                } else {
-                    user.value = null;
-                }
+                    syncData(); loadDashboardData(); 
+                } else { user.value = null; }
             });
             if(localStorage.getItem('pp_dark') === 'true') { isDark.value = true; document.documentElement.classList.add('dark'); }
-            
-            const t = new Date(); const lm = new Date(); lm.setDate(t.getDate() - 30);
-            historyFilter.end = t.toISOString().split('T')[0]; historyFilter.start = lm.toISOString().split('T')[0];
+            const t = new Date(); const lm = new Date(); lm.setDate(t.getDate() - 30); historyFilter.end = t.toISOString().split('T')[0]; historyFilter.start = lm.toISOString().split('T')[0];
         });
 
-        const handleLogin = async () => {
-            authLoading.value = true;
-            try { await signInWithEmailAndPassword(auth, authForm.email, authForm.password); } 
-            catch (error) { Swal.fire('Erro', 'Dados incorretos', 'error'); } 
-            finally { authLoading.value = false; }
-        };
-
+        const handleLogin = async () => { authLoading.value = true; try { await signInWithEmailAndPassword(auth, authForm.email, authForm.password); } catch (error) { Swal.fire('Erro', 'Dados incorretos', 'error'); } finally { authLoading.value = false; } };
         const logout = async () => { await signOut(auth); window.location.href = "index.html"; };
 
-        // --- DASHBOARD DATA ---
+        // --- DASHBOARD DATA (MENSAL) ---
         const loadDashboardData = async () => {
             if (!user.value) return;
             isLoadingDashboard.value = true;
-            
             const [year, month] = dashboardMonth.value.split('-');
             const startStr = `${year}-${month}-01`;
             const lastDay = new Date(year, month, 0).getDate();
             const endStr = `${year}-${month}-${lastDay}`;
-
             try {
                 const qApps = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("date", ">=", startStr), where("date", "<=", endStr));
                 const qExp = query(collection(db, "expenses"), where("userId", "==", user.value.uid), where("date", ">=", startStr), where("date", "<=", endStr));
-
                 const [snapApps, snapExp] = await Promise.all([getDocs(qApps), getDocs(qExp)]);
-
                 dashboardData.appointments = snapApps.docs.map(d => ({id: d.id, ...d.data()})).filter(app => app.status !== 'cancelled');
                 dashboardData.expenses = snapExp.docs.map(d => ({id: d.id, ...d.data()}));
             } catch (e) { console.error(e); } finally { isLoadingDashboard.value = false; }
         };
-
         watch(dashboardMonth, () => { loadDashboardData(); });
+
+        // --- CALENDÁRIO LÓGICA ---
+        const changeCalendarMonth = (offset) => { const d = new Date(calendarCursor.value); d.setMonth(d.getMonth() + offset); calendarCursor.value = d; };
+        
+        const calendarGrid = computed(() => {
+            const year = calendarCursor.value.getFullYear();
+            const month = calendarCursor.value.getMonth();
+            const firstDay = new Date(year, month, 1).getDay(); 
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const days = [];
+            for (let i = 0; i < firstDay; i++) { days.push({ day: '', date: null, hasEvent: false }); }
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                const hasEvent = pendingAppointments.value.some(app => app.date === dateStr && app.status !== 'cancelled');
+                days.push({ day: i, date: dateStr, hasEvent: hasEvent });
+            }
+            return days;
+        });
+
+        const calendarTitle = computed(() => {
+            const m = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+            return `${m[calendarCursor.value.getMonth()]} ${calendarCursor.value.getFullYear()}`;
+        });
+
+        const selectCalendarDay = (dayObj) => { if (!dayObj.day) return; selectedCalendarDate.value = dayObj.date; };
+        
+        const appointmentsOnSelectedDate = computed(() => {
+            if (!selectedCalendarDate.value) return [];
+            return pendingAppointments.value.filter(a => a.date === selectedCalendarDate.value);
+        });
 
         // --- SYNC ---
         let unsubscribeListeners = [];
         const syncData = () => {
             unsubscribeListeners.forEach(unsub => unsub()); unsubscribeListeners = [];
             const myId = user.value.uid; 
-            
             unsubscribeListeners.push(onSnapshot(query(collection(db, "services"), where("userId", "==", myId)), (snap) => { services.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); }));
             const qApps = query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "pending"));
             unsubscribeListeners.push(onSnapshot(qApps, (snap) => { 
@@ -210,7 +201,7 @@ createApp({
             }));
         };
 
-        // --- BUSCAS E FILTROS ---
+        // --- FUNÇÕES E AÇÕES ---
         const searchHistory = async () => {
             if(!historyFilter.start || !historyFilter.end) return Swal.fire('Atenção', 'Selecione as datas', 'warning');
             isLoadingHistory.value = true; historyList.value = [];
@@ -223,21 +214,17 @@ createApp({
             } catch (error) { console.error(error); Swal.fire('Erro', 'Tente novamente.', 'error'); } finally { isLoadingHistory.value = false; }
         };
 
-        // ATUALIZADO: Filtro de Despesas com Categoria
         const searchExpenses = async () => {
             if(!expensesFilter.start || !expensesFilter.end) return Swal.fire('Data', 'Selecione o período', 'info');
             try {
                 const q = query(collection(db, "expenses"), where("userId", "==", user.value.uid));
                 const snap = await getDocs(q);
                 const allExpenses = snap.docs.map(d => ({id: d.id, ...d.data()}));
-                
-                // Filtra por data E categoria (se selecionada)
                 expensesList.value = allExpenses.filter(e => {
                     const dateOk = e.date >= expensesFilter.start && e.date <= expensesFilter.end;
                     const categoryOk = !expensesFilter.category || e.category === expensesFilter.category;
                     return dateOk && categoryOk;
                 });
-
                 expensesList.value.sort((a,b) => new Date(b.date) - new Date(a.date));
                 if(expensesList.value.length === 0) Swal.fire('Vazio', 'Nenhuma despesa encontrada.', 'info');
             } catch(e) { console.error(e); }
@@ -263,7 +250,7 @@ createApp({
             } else { scheduleClientsList.value = []; }
         });
 
-        // --- COMPUTEDS ---
+        // --- COMPUTEDS GERAIS ---
         const filteredListAppointments = computed(() => { 
             let list = currentTab.value === 'pending' ? pendingAppointments.value : historyList.value;
             return [...list].sort((a,b) => new Date(a.date) - new Date(b.date)); 
@@ -273,7 +260,6 @@ createApp({
         const kpiExpenses = computed(() => dashboardData.expenses.reduce((acc, e) => acc + (e.value || 0), 0)); 
         const kpiProfit = computed(() => kpiRevenue.value - kpiExpenses.value); 
         const kpiReceivables = computed(() => dashboardData.appointments.reduce((acc, a) => acc + (a.finalBalance || 0), 0));
-        
         const pendingCount = computed(() => pendingAppointments.value.length);
         const next7DaysApps = computed(() => { 
             const t = new Date(); t.setHours(0,0,0,0); const w = new Date(t); w.setDate(t.getDate() + 7); 
@@ -298,87 +284,40 @@ createApp({
             const { isConfirmed } = await Swal.fire({ title: action + '?', text: 'Deseja marcar como ' + action + '?', icon: 'question', showCancelButton: true });
             if(isConfirmed) {
                 await updateDoc(doc(db, "appointments", app.id), { status: status });
-                const idx = historyList.value.findIndex(x => x.id === app.id); 
-                if(idx !== -1) historyList.value.splice(idx, 1);
-                loadDashboardData(); 
-                Swal.fire('Feito!', '', 'success');
+                const idx = historyList.value.findIndex(x => x.id === app.id); if(idx !== -1) historyList.value.splice(idx, 1);
+                loadDashboardData(); Swal.fire('Feito!', '', 'success');
             }
         };
 
         const updateAppInFirebase = async (app) => { await updateDoc(doc(db, "appointments", app.id), { checklist: app.checklist }); };
-        
-        const openDetails = (app) => {
-            fetchClientToCache(app.clientId);
-            selectedAppointment.value = app;
-            if (!selectedAppointment.value.checklist) selectedAppointment.value.checklist = [];
-            detailTaskInput.value = '';
-            view.value = 'appointment_details';
-        };
+        const openDetails = (app) => { fetchClientToCache(app.clientId); selectedAppointment.value = app; if (!selectedAppointment.value.checklist) selectedAppointment.value.checklist = []; detailTaskInput.value = ''; view.value = 'appointment_details'; };
+        const saveTaskInDetail = async () => { if (!detailTaskInput.value.trim() || !selectedAppointment.value) return; const newTask = { text: detailTaskInput.value, done: false }; if (!selectedAppointment.value.checklist) selectedAppointment.value.checklist = []; selectedAppointment.value.checklist.push(newTask); await updateAppInFirebase(selectedAppointment.value); detailTaskInput.value = ''; };
+        const toggleTaskDone = async (index) => { if (!selectedAppointment.value) return; selectedAppointment.value.checklist[index].done = !selectedAppointment.value.checklist[index].done; await updateAppInFirebase(selectedAppointment.value); };
+        const deleteTaskInDetail = async (index) => { if (!selectedAppointment.value) return; selectedAppointment.value.checklist.splice(index, 1); await updateAppInFirebase(selectedAppointment.value); };
 
-        const saveTaskInDetail = async () => {
-            if (!detailTaskInput.value.trim() || !selectedAppointment.value) return;
-            const newTask = { text: detailTaskInput.value, done: false };
-            if (!selectedAppointment.value.checklist) selectedAppointment.value.checklist = [];
-            selectedAppointment.value.checklist.push(newTask);
-            await updateAppInFirebase(selectedAppointment.value);
-            detailTaskInput.value = ''; 
-        };
-
-        const toggleTaskDone = async (index) => {
-            if (!selectedAppointment.value) return;
-            const task = selectedAppointment.value.checklist[index];
-            task.done = !task.done; 
-            await updateAppInFirebase(selectedAppointment.value);
-        };
-
-        const deleteTaskInDetail = async (index) => {
-            if (!selectedAppointment.value) return;
-            selectedAppointment.value.checklist.splice(index, 1);
-            await updateAppInFirebase(selectedAppointment.value);
-        };
-
-        // --- ADD EXPENSE (COM MODAL E CATEGORIA) ---
         const addExpense = async () => { 
-            // Validação simples
-            if(!newExpense.description || !newExpense.value) return Swal.fire('Ops', 'Preencha descrição e valor', 'warning'); 
-            
-            // Se não selecionar categoria, salva vazio ou 'outros'
+            if(!newExpense.description || !newExpense.value) return Swal.fire('Ops', 'Preencha todos os campos', 'warning'); 
             if(!newExpense.category) newExpense.category = 'outros';
-
             const docRef = await addDoc(collection(db, "expenses"), {...newExpense, userId: user.value.uid}); 
             expensesList.value.unshift({id: docRef.id, ...newExpense});
-            
             if(newExpense.date.startsWith(dashboardMonth.value)) loadDashboardData();
-
-            Object.assign(newExpense, {description: '', value: '', category: ''}); 
-            showExpenseModal.value = false; 
-            Swal.fire({icon:'success', title:'Registrado', timer:1000}); 
+            Object.assign(newExpense, {description: '', value: '', category: ''}); showExpenseModal.value = false; Swal.fire({icon:'success', title:'Registrado', timer:1000}); 
         };
-
-        const deleteExpense = async (id) => { 
-            await deleteDoc(doc(db, "expenses", id)); 
-            expensesList.value = expensesList.value.filter(e => e.id !== id);
-            loadDashboardData();
-        };
+        const deleteExpense = async (id) => { await deleteDoc(doc(db, "expenses", id)); expensesList.value = expensesList.value.filter(e => e.id !== id); loadDashboardData(); };
         
         const startNewSchedule = () => { 
             isEditing.value=false; editingId.value=null; clientSearchTerm.value = ''; 
-            Object.assign(tempApp, {
-                clientId: '', date: '', time: '', location: { bairro: '', cidade: '', numero: '' }, 
-                details: { balloonColors: '', entryFee: 0 }, notes: '', selectedServices: [] 
-            }); 
+            Object.assign(tempApp, { clientId: '', date: '', time: '', location: { bairro: '', cidade: '', numero: '' }, details: { balloonColors: '', entryFee: 0 }, notes: '', selectedServices: [] }); 
             view.value='schedule'; 
         };
 
         const editAppointment = (app) => { 
             isEditing.value=true; editingId.value=app.id; clientSearchTerm.value = ''; 
-            fetchClientToCache(app.clientId); 
-            const dataToLoad = JSON.parse(JSON.stringify(app));
+            fetchClientToCache(app.clientId); const dataToLoad = JSON.parse(JSON.stringify(app));
             if(!dataToLoad.details) dataToLoad.details = { balloonColors: '', entryFee: 0 };
             if(!dataToLoad.details.balloonColors) dataToLoad.details.balloonColors = '';
             if(!dataToLoad.notes) dataToLoad.notes = '';
-            Object.assign(tempApp, dataToLoad); 
-            view.value='schedule'; 
+            Object.assign(tempApp, dataToLoad); view.value='schedule'; 
         };
 
         const showReceipt = (app) => { currentReceipt.value = app; fetchClientToCache(app.clientId); view.value = 'receipt'; };
@@ -386,39 +325,15 @@ createApp({
         const clearClientSelection = () => { tempApp.clientId = ''; clientSearchTerm.value = ''; };
 
         const openClientModal = async (c) => { 
-            const n = c && c.name ? c.name : ''; 
-            const p = c && c.phone ? c.phone : ''; 
-            const cpf = c && c.cpf ? c.cpf : '';
-            
-            const html = `
-                <input id="n" class="swal2-input" value="${n}" placeholder="Nome">
-                <input id="p" class="swal2-input" value="${p}" placeholder="Telefone" maxlength="15">
-                <input id="cpf" class="swal2-input" value="${cpf}" placeholder="CPF">
-            `;
-
+            const n = c && c.name ? c.name : ''; const p = c && c.phone ? c.phone : ''; const cpf = c && c.cpf ? c.cpf : '';
+            const html = `<input id="n" class="swal2-input" value="${n}" placeholder="Nome"><input id="p" class="swal2-input" value="${p}" placeholder="Telefone" maxlength="15"><input id="cpf" class="swal2-input" value="${cpf}" placeholder="CPF">`;
             const { value: vals } = await Swal.fire({ 
-                title: c ? 'Editar Cliente' : 'Novo Cliente', 
-                html: html, 
-                showCancelButton: true, 
-                confirmButtonText: 'Salvar',
-                didOpen: () => {
-                    const phoneInput = Swal.getPopup().querySelector('#p');
-                    phoneInput.addEventListener('input', (e) => {
-                        let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,5})(\d{0,4})/);
-                        e.target.value = !x[2] ? x[1] : '(' + x[1] + ') ' + x[2] + (x[3] ? '-' + x[3] : '');
-                    });
-                },
+                title: c ? 'Editar Cliente' : 'Novo Cliente', html: html, showCancelButton: true, confirmButtonText: 'Salvar',
+                didOpen: () => { const phoneInput = Swal.getPopup().querySelector('#p'); phoneInput.addEventListener('input', (e) => { let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,5})(\d{0,4})/); e.target.value = !x[2] ? x[1] : '(' + x[1] + ') ' + x[2] + (x[3] ? '-' + x[3] : ''); }); },
                 preConfirm: () => [ document.getElementById('n').value, document.getElementById('p').value, document.getElementById('cpf').value ] 
             });
-
-            if (vals) { 
-                const d = { name: vals[0], phone: vals[1], cpf: vals[2], userId: user.value.uid }; 
-                if (c) await updateDoc(doc(db, "clients", c.id), d); 
-                else await addDoc(collection(db, "clients"), d); 
-                Swal.fire('Salvo', '', 'success'); 
-            } 
+            if (vals) { const d = { name: vals[0], phone: vals[1], cpf: vals[2], userId: user.value.uid }; if (c) await updateDoc(doc(db, "clients", c.id), d); else await addDoc(collection(db, "clients"), d); Swal.fire('Salvo', '', 'success'); } 
         };
-
         const deleteClient = async (id) => { if ((await Swal.fire({ title: 'Excluir?', showCancelButton: true })).isConfirmed) { await deleteDoc(doc(db, "clients", id)); catalogClientsList.value = catalogClientsList.value.filter(x => x.id !== id); } };
         
         const openServiceModal = async (s) => { 
@@ -431,102 +346,55 @@ createApp({
         const downloadReceiptImage = () => { html2canvas(document.getElementById('receipt-capture-area'),{scale:2}).then(c=>{const l=document.createElement('a');l.download='Recibo.png';l.href=c.toDataURL();l.click();}); };
         
         const generateContractPDF = () => { 
-            const { jsPDF } = window.jspdf; 
-            const doc = new jsPDF(); 
-            const app = currentReceipt.value; 
-            const cli = clientCache[app.clientId] || {name: '....................', cpf: '....................', phone: ''}; 
-            
-            const primaryColor = [139, 92, 246]; 
-            const lightGray = [243, 244, 246];   
-            const darkGray = [55, 65, 81];       
-            
-            const pageWidth = 210; 
-            const margin = 20; 
-            let y = 0; 
-
-            doc.setFillColor(...primaryColor);
-            doc.rect(0, 0, pageWidth, 40, 'F');
-            
+            const { jsPDF } = window.jspdf; const doc = new jsPDF(); const app = currentReceipt.value; const cli = clientCache[app.clientId] || {name: '...', cpf: '...', phone: ''}; 
+            const primaryColor = [139, 92, 246]; const lightGray = [243, 244, 246]; const darkGray = [55, 65, 81]; const pageWidth = 210; const margin = 20; let y = 0; 
+            doc.setFillColor(...primaryColor); doc.rect(0, 0, pageWidth, 40, 'F');
             if (company.logo) { try { doc.setFillColor(255, 255, 255); doc.circle(margin + 10, 20, 12, 'F'); doc.addImage(company.logo, 'JPEG', margin + 2, 12, 16, 16); } catch (e) {} }
-
-            doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(22); 
-            doc.text("CONTRATO DE SERVIÇOS", 190, 20, { align: "right" }); 
-            
-            doc.setFontSize(10); doc.setFont("helvetica", "normal");
-            doc.text("DECORAÇÃO E EVENTOS", 190, 26, { align: "right" }); 
-            doc.text("Doc. Nº " + app.id.slice(0, 6).toUpperCase(), 190, 32, { align: "right" }); 
-
-            y = 55;
-
+            doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(22); doc.text("CONTRATO DE SERVIÇOS", 190, 20, { align: "right" }); 
+            doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.text("DECORAÇÃO E EVENTOS", 190, 26, { align: "right" }); doc.text("Doc. Nº " + app.id.slice(0, 6).toUpperCase(), 190, 32, { align: "right" }); y = 55;
             doc.setTextColor(...darkGray); doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.text("IDENTIFICAÇÃO DAS PARTES", margin, y); y += 5;
-
             doc.setDrawColor(200, 200, 200); doc.setFillColor(...lightGray); doc.roundedRect(margin, y, 80, 40, 3, 3, 'FD');
             doc.setFontSize(9); doc.setTextColor(100, 100, 100); doc.text("CONTRATADA", margin + 5, y + 8);
             doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold"); doc.text(company.fantasia || 'Sua Empresa', margin + 5, y + 15);
             doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.text("CNPJ: " + (company.cnpj || '...'), margin + 5, y + 22); doc.text((company.rua || '') + ', ' + (company.cidade || ''), margin + 5, y + 28);
-
             doc.setFillColor(255, 255, 255); doc.roundedRect(margin + 85, y, 85, 40, 3, 3, 'FD');
             doc.setFontSize(9); doc.setTextColor(100, 100, 100); doc.text("CONTRATANTE", margin + 90, y + 8);
             doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold"); doc.text(cli.name, margin + 90, y + 15);
-            doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.text("CPF: " + (cli.cpf || 'Não informado'), margin + 90, y + 22); doc.text("Tel: " + (cli.phone || 'Não informado'), margin + 90, y + 28);
-
-            y += 50;
-
+            doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.text("CPF: " + (cli.cpf || 'Não informado'), margin + 90, y + 22); doc.text("Tel: " + (cli.phone || 'Não informado'), margin + 90, y + 28); y += 50;
             doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(...darkGray); doc.text("DETALHES DO EVENTO", margin, y); y += 2;
-            const eventData = [['Data do Evento', formatDate(app.date)], ['Horário', app.time + ' horas'], ['Local', (app.location.bairro || '') + ' - ' + (app.location.cidade || '')], ['Endereço', (app.location.rua || '') + ', ' + (app.location.numero || '')]];
-
-            doc.autoTable({ startY: y + 3, head: [], body: eventData, theme: 'plain', styles: { fontSize: 9, cellPadding: 1 }, columnStyles: { 0: { fontStyle: 'bold', cellWidth: 40 }, 1: { cellWidth: 'auto' } }, margin: { left: margin } });
+            doc.autoTable({ startY: y + 3, head: [], body: [['Data do Evento', formatDate(app.date)], ['Horário', app.time + ' horas'], ['Local', (app.location.bairro || '') + ' - ' + (app.location.cidade || '')], ['Endereço', (app.location.rua || '') + ', ' + (app.location.numero || '')]], theme: 'plain', styles: { fontSize: 9, cellPadding: 1 }, columnStyles: { 0: { fontStyle: 'bold', cellWidth: 40 }, 1: { cellWidth: 'auto' } }, margin: { left: margin } });
             y = doc.lastAutoTable.finalY + 10;
-
             doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.text("ITENS CONTRATADOS & ESPECIFICAÇÕES", margin, y);
-            
             let tableBody = app.selectedServices.map(s => [s.description, formatCurrency(s.price)]);
             if (app.details?.balloonColors) { tableBody.push([{ content: 'Cores dos Balões: ' + app.details.balloonColors, colSpan: 2, styles: { fontStyle: 'italic', textColor: [139, 92, 246] } }]); }
             if (app.notes) { tableBody.push([{ content: 'Obs: ' + app.notes, colSpan: 2, styles: { fontStyle: 'italic' } }]); }
-
             doc.autoTable({ startY: y + 3, head: [['Descrição do Serviço / Item', 'Valor']], body: tableBody, theme: 'striped', headStyles: { fillColor: primaryColor, textColor: [255, 255, 255], fontStyle: 'bold' }, styles: { fontSize: 9, cellPadding: 3 }, columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 40, halign: 'right' } }, margin: { left: margin, right: margin } });
             y = doc.lastAutoTable.finalY + 10;
-
             const entry = app.entryFee || app.details?.entryFee || 0; const boxWidth = 70; const boxX = pageWidth - margin - boxWidth;
             doc.setFillColor(...lightGray); doc.rect(boxX, y, boxWidth, 26, 'F'); doc.setDrawColor(...primaryColor); doc.line(boxX, y, boxX, y + 26); 
             doc.setFontSize(9); doc.setTextColor(100, 100, 100); doc.text("Valor Total:", boxX + 5, y + 7); doc.text("Sinal Pago:", boxX + 5, y + 14);
             doc.setFont("helvetica", "bold"); doc.setTextColor(...primaryColor); doc.text("A Pagar (Restante):", boxX + 5, y + 21);
             doc.setFont("helvetica", "normal"); doc.setTextColor(0,0,0); doc.text(formatCurrency(app.totalServices), boxX + boxWidth - 5, y + 7, { align: "right" }); doc.text(formatCurrency(entry), boxX + boxWidth - 5, y + 14, { align: "right" });
-            doc.setFont("helvetica", "bold"); doc.text(formatCurrency(app.finalBalance), boxX + boxWidth - 5, y + 21, { align: "right" });
-
-            y += 35;
+            doc.setFont("helvetica", "bold"); doc.text(formatCurrency(app.finalBalance), boxX + boxWidth - 5, y + 21, { align: "right" }); y += 35;
             doc.setFontSize(8); doc.setTextColor(100, 100, 100); doc.setFont("helvetica", "normal");
             const terms = "TERMOS GERAIS: O cancelamento deste contrato com menos de 30 dias de antecedência implica na retenção do sinal pago para cobertura de custos operacionais e reserva de data. O pagamento restante deve ser quitado integralmente até a data do evento.";
             doc.text(doc.splitTextToSize(terms, pageWidth - (margin * 2)), margin, y); y += 25;
-
             if (y > 250) { doc.addPage(); y = 40; }
             doc.setDrawColor(150, 150, 150); doc.setLineWidth(0.5); doc.setLineDash([2, 2], 0); doc.line(margin, y, margin + 70, y); doc.line(margin + 90, y, margin + 160, y);
             doc.setFontSize(8); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold"); doc.text("CONTRATADA", margin + 10, y + 5); doc.text("CONTRATANTE", margin + 100, y + 5);
             doc.setFont("helvetica", "normal"); doc.setTextColor(150, 150, 150); doc.text(new Date().toLocaleDateString('pt-BR'), margin, y + 15);
             doc.setFontSize(7); doc.text("Gerado digitalmente por PartyPlanner Pro", pageWidth / 2, 290, { align: "center" });
-
             doc.save("Contrato_" + cli.name.split(' ')[0] + ".pdf"); 
         };
         
         const handleLogoUpload = (e) => { const f = e.target.files[0]; if(f){ const r = new FileReader(); r.onload=x=>{ company.logo=x.target.result; saveCompany(); }; r.readAsDataURL(f); } };
         const saveCompany = async () => { localStorage.setItem('pp_company', JSON.stringify(company)); if(user.value) await updateDoc(doc(db,"users",user.value.uid), {companyConfig:company}); Swal.fire('Salvo','','success'); };
-        const addTask = (app) => { if(!newTaskText.value[app.id]) return; app.checklist.push({text:newTaskText.value[app.id], done:false}); newTaskText.value[app.id]=''; updateAppInFirebase(app); };
-        const removeTask = (app, i) => { app.checklist.splice(i, 1); updateAppInFirebase(app); };
-        const checklistProgress = (app) => { if(!app.checklist?.length) return 0; return Math.round((app.checklist.filter(t=>t.done).length/app.checklist.length)*100); };
-        const addServiceToApp = () => { if(tempServiceSelect.value) { tempApp.selectedServices.push({...tempServiceSelect.value}); tempServiceSelect.value = ''; } };
-        const removeServiceFromApp = (i) => tempApp.selectedServices.splice(i,1);
         const toggleDarkMode = () => { isDark.value = !isDark.value; if(isDark.value) document.documentElement.classList.add('dark'); else document.documentElement.classList.remove('dark'); localStorage.setItem('pp_dark', isDark.value); };
-
         const handleChangePassword = async () => {
-            const html = '<input id="currentPass" type="password" class="swal2-input" placeholder="Senha Atual">' + '<input id="newPass" type="password" class="swal2-input" placeholder="Nova Senha">';
-            const { value: formValues } = await Swal.fire({ title: 'Alterar Senha', html: html, showCancelButton: true, confirmButtonText: 'Alterar', preConfirm: () => { const c = document.getElementById('currentPass').value; const n = document.getElementById('newPass').value; if (!c || !n) { Swal.showValidationMessage('Preencha os dois campos'); } return [c, n]; } });
-            if (formValues) {
-                try {
-                    const credential = EmailAuthProvider.credential(user.value.email, formValues[0]);
-                    await reauthenticateWithCredential(user.value, credential);
-                    await updatePassword(user.value, formValues[1]);
-                    Swal.fire('Sucesso!', 'Senha alterada.', 'success');
-                } catch (error) { Swal.fire('Erro', 'Senha incorreta.', 'error'); }
+            const html = '<input id="currentPass" type="password" class="swal2-input" placeholder="Senha Atual"><input id="newPass" type="password" class="swal2-input" placeholder="Nova Senha">';
+            const { value: fv } = await Swal.fire({ title: 'Alterar Senha', html: html, showCancelButton: true, confirmButtonText: 'Alterar', preConfirm: () => { return [document.getElementById('currentPass').value, document.getElementById('newPass').value]; } });
+            if (fv && fv[0] && fv[1]) {
+                try { const c = EmailAuthProvider.credential(user.value.email, fv[0]); await reauthenticateWithCredential(user.value, c); await updatePassword(user.value, fv[1]); Swal.fire('Sucesso!', 'Senha alterada.', 'success'); } catch (error) { Swal.fire('Erro', 'Senha incorreta.', 'error'); }
             }
         };
 
@@ -549,7 +417,9 @@ createApp({
             handleChangePassword, searchExpenses, searchCatalogClients, catalogClientSearch,
             selectedAppointment, detailTaskInput, openDetails, saveTaskInDetail, toggleTaskDone, deleteTaskInDetail,
             
-            dashboardMonth, loadDashboardData, isLoadingDashboard
+            dashboardMonth, loadDashboardData, isLoadingDashboard,
+            // NOVOS EXPORTS DO CALENDÁRIO
+            appointmentViewMode, calendarCursor, changeCalendarMonth, calendarGrid, calendarTitle, selectCalendarDay, selectedCalendarDate, appointmentsOnSelectedDate
         };
     }
 }).mount('#app');
