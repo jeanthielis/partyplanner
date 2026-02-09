@@ -38,7 +38,7 @@ createApp({
         const services = ref([]); 
         const pendingAppointments = ref([]); 
         const historyList = ref([]); 
-        const expensesList = ref([]); // Lista principal de despesas
+        const expensesList = ref([]); 
         const catalogClientsList = ref([]); 
         const scheduleClientsList = ref([]); 
         const clientCache = reactive({}); 
@@ -74,7 +74,7 @@ createApp({
         const isEditing = ref(false);
         const editingId = ref(null);
 
-        // --- VACINA DE DADOS (SEGURANÇA) ---
+        // --- VACINA DE DADOS ---
         const sanitizeApp = (docSnapshot) => {
             const data = docSnapshot.data ? docSnapshot.data() : docSnapshot;
             return {
@@ -178,7 +178,6 @@ createApp({
                 
                 dashboardData.appointments = snapApps.docs.map(sanitizeApp).filter(app => app.status !== 'cancelled');
                 
-                // Carrega as despesas e ordena
                 const loadedExpenses = snapExp.docs.map(d => ({id: d.id, ...d.data()}));
                 dashboardData.expenses = loadedExpenses;
                 expensesList.value = [...loadedExpenses].sort((a,b) => new Date(b.date) - new Date(a.date));
@@ -251,8 +250,12 @@ createApp({
         };
 
         // --- COMPUTEDS ---
-        // CORREÇÃO: Criando o alias para satisfazer o HTML
+        // CORREÇÕES PARA EVITAR ERROS DE PROPRIEDADE ---
         const filteredExpensesList = computed(() => expensesList.value);
+        const financeSummary = computed(() => {
+            // Calcula o total da lista atual para evitar erro no template
+            return expensesList.value.reduce((acc, item) => acc + (Number(item.value) || 0), 0);
+        });
 
         const filteredListAppointments = computed(() => { 
             let list = currentTab.value === 'pending' ? pendingAppointments.value : historyList.value;
@@ -363,7 +366,7 @@ createApp({
             selectedAppointment, detailTaskInput, openDetails, saveTaskInDetail, toggleTaskDone, deleteTaskInDetail,
             dashboardMonth, loadDashboardData, isLoadingDashboard,
             appointmentViewMode, calendarCursor, changeCalendarMonth, calendarGrid, calendarTitle, selectCalendarDay, selectedCalendarDate, appointmentsOnSelectedDate,
-            filteredExpensesList // CORREÇÃO AQUI: ADICIONADO AO RETURN
+            filteredExpensesList, financeSummary // <--- AQUI ESTÃO AS VARIÁVEIS QUE FALTAVAM
         };
     }
 }).mount('#app');
