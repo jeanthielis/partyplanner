@@ -73,6 +73,22 @@ createApp({
         const isEditing = ref(false);
         const editingId = ref(null);
 
+        // --- VACINA DE DADOS (IMPEDE O ERRO 'UNDEFINED') ---
+        const sanitizeApp = (docSnapshot) => {
+            const data = docSnapshot.data();
+            return {
+                id: docSnapshot.id,
+                ...data,
+                // Se não tiver checklist, cria uma lista vazia para não quebrar o .length no HTML
+                checklist: Array.isArray(data.checklist) ? data.checklist : [],
+                // Mesma coisa para serviços
+                selectedServices: Array.isArray(data.selectedServices) ? data.selectedServices : [],
+                // Garante que valores numéricos existam
+                totalServices: Number(data.totalServices) || 0,
+                finalBalance: Number(data.finalBalance) || 0
+            };
+        };
+
         // --- UTILS ---
         const formatCurrency = (v) => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v||0);
         const formatDate = (d) => d ? d.split('-').reverse().join('/') : '';
@@ -170,7 +186,10 @@ createApp({
                 const qApps = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("date", ">=", startStr), where("date", "<=", endStr));
                 const qExp = query(collection(db, "expenses"), where("userId", "==", user.value.uid), where("date", ">=", startStr), where("date", "<=", endStr));
                 const [snapApps, snapExp] = await Promise.all([getDocs(qApps), getDocs(qExp)]);
-                dashboardData.appointments = snapApps.docs.map(d => ({id: d.id, ...d.data()})).filter(app => app.status !== 'cancelled');
+                
+                // USANDO A VACINA sanitizeApp AQUI
+                dashboardData.appointments = snapApps.docs.map(sanitizeApp).filter(app => app.status !== 'cancelled');
+                
                 dashboardData.expenses = snapExp.docs.map(d => ({id: d.id, ...d.data()}));
             } catch (e) { console.error(e); } finally { isLoadingDashboard.value = false; }
         };
@@ -194,7 +213,7 @@ createApp({
         const selectCalendarDay = (dayObj) => { if (!dayObj.day) return; selectedCalendarDate.value = dayObj.date; };
         const appointmentsOnSelectedDate = computed(() => { if (!selectedCalendarDate.value) return []; return pendingAppointments.value.filter(a => a.date === selectedCalendarDate.value); });
 
-        // --- SYNC ---
+        // --- SYNC (TEMPO REAL) ---
         let unsubscribeListeners = [];
         const syncData = () => {
             unsubscribeListeners.forEach(unsub => unsub()); unsubscribeListeners = [];
@@ -202,7 +221,8 @@ createApp({
             unsubscribeListeners.push(onSnapshot(query(collection(db, "services"), where("userId", "==", myId)), (snap) => { services.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); }));
             const qApps = query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "pending"));
             unsubscribeListeners.push(onSnapshot(qApps, (snap) => { 
-                pendingAppointments.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
+                // USANDO A VACINA sanitizeApp AQUI TAMBÉM
+                pendingAppointments.value = snap.docs.map(sanitizeApp); 
                 if(view.value === 'appointment_details' && selectedAppointment.value) {
                     const updated = pendingAppointments.value.find(a => a.id === selectedAppointment.value.id);
                     if(updated) selectedAppointment.value = updated;
@@ -217,7 +237,8 @@ createApp({
             try {
                 const q = query(collection(db, "appointments"), where("userId", "==", user.value.uid));
                 const snap = await getDocs(q);
-                const allApps = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                // USANDO A VACINA sanitizeApp AQUI TAMBÉM
+                const allApps = snap.docs.map(sanitizeApp);
                 historyList.value = allApps.filter(app => app.status === currentTab.value && app.date >= historyFilter.start && app.date <= historyFilter.end);
                 if(historyList.value.length === 0) Swal.fire('Info', 'Nenhum registro encontrado.', 'info');
             } catch (error) { console.error(error); Swal.fire('Erro', 'Tente novamente.', 'error'); } finally { isLoadingHistory.value = false; }
@@ -309,6 +330,7 @@ createApp({
         const filteredClientsSearch = computed(() => scheduleClientsList.value);
         
         const checklistProgress = (app) => { 
+            // AQUI ESTÁ A PROTEÇÃO FINAL CONTRA O ERRO DE LENGTH
             if (!app || !app.checklist || !Array.isArray(app.checklist) || app.checklist.length === 0) return 0;
             try {
                 const total = app.checklist.length;
