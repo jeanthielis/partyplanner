@@ -74,6 +74,19 @@ createApp({
         const isEditing = ref(false);
         const editingId = ref(null);
 
+        // --- FUNÇÃO DE LIMPEZA MATEMÁTICA (ESSENCIAL) ---
+        // Converte qualquer coisa (texto com vírgula, nulo, undefined) para um número válido
+        const safeFloat = (val) => {
+            if (val === null || val === undefined) return 0;
+            if (typeof val === 'number') return val;
+            if (typeof val === 'string') {
+                // Troca vírgula por ponto e remove caracteres não numéricos (exceto ponto e menos)
+                const clean = val.replace(',', '.').replace(/[^0-9.-]/g, '');
+                return parseFloat(clean) || 0;
+            }
+            return 0;
+        };
+
         // --- VACINA DE DADOS ---
         const sanitizeApp = (docSnapshot) => {
             const data = docSnapshot.data ? docSnapshot.data() : docSnapshot;
@@ -82,14 +95,25 @@ createApp({
                 ...data,
                 checklist: Array.isArray(data.checklist) ? data.checklist : [],
                 selectedServices: Array.isArray(data.selectedServices) ? data.selectedServices : [],
-                totalServices: Number(data.totalServices) || 0,
-                finalBalance: Number(data.finalBalance) || 0,
-                entryFee: Number(data.entryFee) || 0
+                // Usa safeFloat para garantir que os valores sejam números
+                totalServices: safeFloat(data.totalServices),
+                finalBalance: safeFloat(data.finalBalance),
+                entryFee: safeFloat(data.entryFee)
+            };
+        };
+
+        const sanitizeExpense = (docSnapshot) => {
+            const data = docSnapshot.data ? docSnapshot.data() : docSnapshot;
+            return {
+                id: docSnapshot.id || data.id,
+                ...data,
+                // Garante que o valor da despesa seja numérico
+                value: safeFloat(data.value)
             };
         };
 
         // --- UTILS ---
-        const formatCurrency = (v) => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v||0);
+        const formatCurrency = (v) => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(safeFloat(v));
         const formatDate = (d) => {
             if (!d || typeof d !== 'string') return '';
             try { return d.split('-').reverse().join('/'); } catch (e) { return ''; }
@@ -176,8 +200,11 @@ createApp({
                 const qExp = query(collection(db, "expenses"), where("userId", "==", user.value.uid), where("date", ">=", startStr), where("date", "<=", endStr));
                 const [snapApps, snapExp] = await Promise.all([getDocs(qApps), getDocs(qExp)]);
                 
+                // Aplica a vacina nos agendamentos
                 dashboardData.appointments = snapApps.docs.map(sanitizeApp).filter(app => app.status !== 'cancelled');
-                const loadedExpenses = snapExp.docs.map(d => ({id: d.id, ...d.data()}));
+                
+                // Aplica a vacina nas despesas
+                const loadedExpenses = snapExp.docs.map(sanitizeExpense);
                 dashboardData.expenses = loadedExpenses;
                 expensesList.value = [...loadedExpenses].sort((a,b) => new Date(b.date) - new Date(a.date));
 
@@ -237,7 +264,8 @@ createApp({
             try {
                 const q = query(collection(db, "expenses"), where("userId", "==", user.value.uid));
                 const snap = await getDocs(q);
-                const allExpenses = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                // Usa sanitizeExpense aqui também
+                const allExpenses = snap.docs.map(sanitizeExpense);
                 expensesList.value = allExpenses.filter(e => {
                     const dateOk = e.date >= expensesFilter.start && e.date <= expensesFilter.end;
                     const categoryOk = !expensesFilter.category || e.category === expensesFilter.category;
@@ -248,11 +276,11 @@ createApp({
             } catch(e) { console.error(e); }
         };
 
-        // --- COMPUTEDS E TOTAIS ---
-        const filteredExpensesList = computed(() => expensesList.value);
+        // --- COMPUTEDS E CÁLCULOS (COM SAFEFLOAT) ---
+        const filteredExpensesList = computed(() => expensesList.value || []);
         
         const financeSummary = computed(() => {
-            return expensesList.value.reduce((acc, item) => acc + (Number(item.value) || 0), 0);
+            return expensesList.value.reduce((acc, item) => acc + safeFloat(item.value), 0);
         });
 
         const expensesByCategoryStats = computed(() => {
@@ -260,7 +288,7 @@ createApp({
             return expenseCategories.map(cat => {
                 const total = dashboardData.expenses
                     .filter(e => e.category === cat.id)
-                    .reduce((sum, e) => sum + (Number(e.value) || 0), 0);
+                    .reduce((sum, e) => sum + safeFloat(e.value), 0);
                 return { ...cat, total };
             }).filter(c => c.total > 0).sort((a, b) => b.total - a.total);
         });
@@ -270,7 +298,7 @@ createApp({
                 id: a.id,
                 date: a.date,
                 description: 'Receita: ' + (clientCache[a.clientId]?.name || 'Cliente'),
-                value: Number(a.totalServices) || 0,
+                value: safeFloat(a.totalServices),
                 type: 'income',
                 icon: 'fa-circle-arrow-up',
                 color: 'text-green-500'
@@ -279,7 +307,7 @@ createApp({
                 id: e.id,
                 date: e.date,
                 description: e.description || 'Despesa',
-                value: Number(e.value) || 0,
+                value: safeFloat(e.value),
                 type: 'expense',
                 icon: 'fa-circle-arrow-down',
                 color: 'text-red-500'
@@ -287,12 +315,21 @@ createApp({
             return [...income, ...expense].sort((a, b) => new Date(b.date) - new Date(a.date));
         });
 
-        const kpiRevenue = computed(() => { if (!dashboardData.appointments) return 0; return dashboardData.appointments.reduce((acc, a) => acc + (Number(a?.totalServices) || 0), 0); });
-        const kpiExpenses = computed(() => { if (!dashboardData.expenses) return 0; return dashboardData.expenses.reduce((acc, e) => acc + (Number(e?.value) || 0), 0); });
+        // KPI COMPUTEDS (USANDO SAFEFLOAT)
+        const kpiRevenue = computed(() => { 
+            if (!dashboardData.appointments) return 0; 
+            return dashboardData.appointments.reduce((acc, a) => acc + safeFloat(a.totalServices), 0); 
+        });
+        const kpiExpenses = computed(() => { 
+            if (!dashboardData.expenses) return 0; 
+            return dashboardData.expenses.reduce((acc, e) => acc + safeFloat(e.value), 0); 
+        });
         const kpiProfit = computed(() => kpiRevenue.value - kpiExpenses.value); 
-        const kpiReceivables = computed(() => { if (!dashboardData.appointments) return 0; return dashboardData.appointments.reduce((acc, a) => acc + (Number(a?.finalBalance) || 0), 0); });
+        const kpiReceivables = computed(() => { 
+            if (!dashboardData.appointments) return 0; 
+            return dashboardData.appointments.reduce((acc, a) => acc + safeFloat(a.finalBalance), 0); 
+        });
         
-        // >>>>>> AQUI ESTÁ A CORREÇÃO: OBJETO FINANCE_DATA <<<<<<
         const financeData = computed(() => ({
             revenue: kpiRevenue.value,
             expenses: kpiExpenses.value,
@@ -312,15 +349,16 @@ createApp({
             const t = new Date(); t.setHours(0,0,0,0); const w = new Date(t); w.setDate(t.getDate() + 7); 
             return pendingAppointments.value.filter(a => { if (!a || !a.date) return false; const d = new Date(a.date); return d >= t && d <= w; }).sort((a,b) => new Date(a.date) - new Date(b.date));
         });
-        const totalServices = computed(() => { if (!tempApp.selectedServices) return 0; return tempApp.selectedServices.reduce((s,i) => s + (Number(i?.price) || 0), 0); });
-        const finalBalance = computed(() => { const entry = tempApp.details ? (Number(tempApp.details.entryFee) || 0) : 0; return totalServices.value - entry; });
+        const totalServices = computed(() => { if (!tempApp.selectedServices) return 0; return tempApp.selectedServices.reduce((s,i) => s + safeFloat(i.price), 0); });
+        const finalBalance = computed(() => { const entry = safeFloat(tempApp.details ? tempApp.details.entryFee : 0); return totalServices.value - entry; });
         const filteredClientsSearch = computed(() => scheduleClientsList.value);
         const checklistProgress = (app) => { if (!app || !app.checklist || !Array.isArray(app.checklist) || app.checklist.length === 0) return 0; const total = app.checklist.length; const done = app.checklist.filter(t => t && t.done).length; return Math.round((done / total) * 100); };
 
         // --- MODAIS E CRUD ---
         const saveAppointment = async () => {
-            const total = tempApp.selectedServices.reduce((sum, i) => sum + i.price, 0);
-            const appData = { ...JSON.parse(JSON.stringify(tempApp)), totalServices: total, entryFee: tempApp.details.entryFee, finalBalance: total - tempApp.details.entryFee, userId: user.value.uid };
+            const total = tempApp.selectedServices.reduce((sum, i) => sum + safeFloat(i.price), 0);
+            const entry = safeFloat(tempApp.details.entryFee);
+            const appData = { ...JSON.parse(JSON.stringify(tempApp)), totalServices: total, entryFee: entry, finalBalance: total - entry, userId: user.value.uid };
             if(!appData.checklist) appData.checklist = [{text:'Separar Materiais', done:false}];
             if(isEditing.value && editingId.value) { await updateDoc(doc(db, "appointments", editingId.value), appData); Swal.fire({icon:'success', title:'Atualizado', timer:1000}); } 
             else { appData.status = 'pending'; await addDoc(collection(db, "appointments"), appData); Swal.fire({icon:'success', title:'Agendado!', timer:1000}); }
@@ -347,8 +385,10 @@ createApp({
         const addExpense = async () => { 
             if(!newExpense.description || !newExpense.value) return Swal.fire('Ops', 'Preencha todos os campos', 'warning'); 
             if(!newExpense.category) newExpense.category = 'outros';
-            const docRef = await addDoc(collection(db, "expenses"), {...newExpense, userId: user.value.uid}); 
-            expensesList.value.unshift({id: docRef.id, ...newExpense});
+            // Garante que o valor salvo é número
+            const expenseData = { ...newExpense, value: safeFloat(newExpense.value), userId: user.value.uid };
+            const docRef = await addDoc(collection(db, "expenses"), expenseData); 
+            expensesList.value.unshift({id: docRef.id, ...expenseData});
             if(newExpense.date.startsWith(dashboardMonth.value)) loadDashboardData();
             Object.assign(newExpense, {description: '', value: '', category: ''}); showExpenseModal.value = false; Swal.fire({icon:'success', title:'Salvo', timer:1000}); 
         };
@@ -368,7 +408,7 @@ createApp({
         const openClientModal = async (c) => { const n = c ? c.name : ''; const p = c ? c.phone : ''; const cpf = c ? c.cpf : ''; const html = `<input id="n" class="swal2-input" value="${n}" placeholder="Nome"><input id="p" class="swal2-input" value="${p}" placeholder="Telefone"><input id="cpf" class="swal2-input" value="${cpf}" placeholder="CPF">`; const { value: vals } = await Swal.fire({ title: c ? 'Editar' : 'Novo Cliente', html: html, showCancelButton: true, confirmButtonText: 'Salvar', didOpen: () => { const phoneInput = Swal.getPopup().querySelector('#p'); phoneInput.addEventListener('input', (e) => { let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,5})(\d{0,4})/); e.target.value = !x[2] ? x[1] : '(' + x[1] + ') ' + x[2] + (x[3] ? '-' + x[3] : ''); }); }, preConfirm: () => [ document.getElementById('n').value, document.getElementById('p').value, document.getElementById('cpf').value ] }); if (vals) { const d = { name: vals[0], phone: vals[1], cpf: vals[2], userId: user.value.uid }; if (c) await updateDoc(doc(db, "clients", c.id), d); else await addDoc(collection(db, "clients"), d); Swal.fire('Salvo', '', 'success'); } };
         const deleteClient = async (id) => { if ((await Swal.fire({ title: 'Excluir?', showCancelButton: true })).isConfirmed) { await deleteDoc(doc(db, "clients", id)); catalogClientsList.value = catalogClientsList.value.filter(x => x.id !== id); } };
         
-        const openServiceModal = async (s) => { const d = s ? s.description : ''; const p = s ? s.price : ''; const html = `<input id="d" class="swal2-input" value="${d}" placeholder="Descrição"><input id="p" type="number" class="swal2-input" value="${p}" placeholder="Preço">`; const { value: v } = await Swal.fire({ title: s ? 'Editar' : 'Novo Serviço', html: html, showCancelButton: true, confirmButtonText: 'Salvar', preConfirm: () => [ document.getElementById('d').value, document.getElementById('p').value ] }); if (v) { const data = { description: v[0], price: Number(v[1]), userId: user.value.uid }; if (s) await updateDoc(doc(db, "services", s.id), data); else await addDoc(collection(db, "services"), data); } };
+        const openServiceModal = async (s) => { const d = s ? s.description : ''; const p = s ? s.price : ''; const html = `<input id="d" class="swal2-input" value="${d}" placeholder="Descrição"><input id="p" type="number" class="swal2-input" value="${p}" placeholder="Preço">`; const { value: v } = await Swal.fire({ title: s ? 'Editar' : 'Novo Serviço', html: html, showCancelButton: true, confirmButtonText: 'Salvar', preConfirm: () => [ document.getElementById('d').value, document.getElementById('p').value ] }); if (v) { const data = { description: v[0], price: safeFloat(v[1]), userId: user.value.uid }; if (s) await updateDoc(doc(db, "services", s.id), data); else await addDoc(collection(db, "services"), data); } };
         const deleteService = async (id) => { await deleteDoc(doc(db,"services",id)); };
         const downloadReceiptImage = () => { html2canvas(document.getElementById('receipt-capture-area'),{scale:2}).then(c=>{const l=document.createElement('a');l.download='Recibo.png';l.href=c.toDataURL();l.click();}); };
         
@@ -405,7 +445,7 @@ createApp({
             selectedAppointment, detailTaskInput, openDetails, saveTaskInDetail, toggleTaskDone, deleteTaskInDetail,
             dashboardMonth, loadDashboardData, isLoadingDashboard,
             appointmentViewMode, calendarCursor, changeCalendarMonth, calendarGrid, calendarTitle, selectCalendarDay, selectedCalendarDate, appointmentsOnSelectedDate,
-            filteredExpensesList, financeSummary, expensesByCategoryStats, statementList, financeData // <--- ADICIONADO AQUI
+            filteredExpensesList, financeSummary, expensesByCategoryStats, statementList, financeData
         };
     }
 }).mount('#app');
