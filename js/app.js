@@ -9,7 +9,9 @@ import {
 
 createApp({
     setup() {
-        // --- ESTADOS ---
+        // =================================================================
+        // 1. ESTADOS (VARIÁVEIS)
+        // =================================================================
         const user = ref(null);
         const view = ref('dashboard');
         const isDark = ref(false);
@@ -53,7 +55,9 @@ createApp({
             { id: 'outros', label: 'Outros', icon: 'fa-money-bill' }
         ];
 
-        // --- UTILS ---
+        // =================================================================
+        // 2. FUNÇÕES AUXILIARES (UTILS) - AQUI ESTAVAM FALTANDO AS FUNÇÕES
+        // =================================================================
         const toNum = (val) => {
             if (!val) return 0;
             if (typeof val === 'number') return val;
@@ -62,7 +66,27 @@ createApp({
         };
 
         const formatCurrency = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(toNum(v));
-        const formatDate = (d) => d ? d.split('-').reverse().join('/') : '';
+        
+        const formatDate = (d) => {
+            if (!d || typeof d !== 'string') return '';
+            try { return d.split('-').reverse().join('/'); } catch (e) { return ''; }
+        };
+
+        // --- AS FUNÇÕES QUE FALTAVAM E CAUSARAM O ERRO ---
+        const getDay = (d) => d ? d.split('-')[2] : '';
+        
+        const getMonth = (d) => d ? ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'][parseInt(d.split('-')[1])-1] : '';
+        
+        const statusText = (s) => s === 'concluded' ? 'Concluída' : (s === 'cancelled' ? 'Cancelada' : 'Pendente');
+        
+        const statusClass = (s) => s === 'concluded' ? 'bg-green-100 text-green-600' : (s === 'cancelled' ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-600');
+        
+        const getCategoryIcon = (catId) => { 
+            const cat = expenseCategories.find(c => c.id === catId); 
+            return cat ? cat.icon : 'fa-money-bill'; 
+        };
+        // ---------------------------------------------------
+
         const getClientName = (id) => clientCache[id]?.name || '...';
 
         const fetchClientToCache = async (id) => {
@@ -141,9 +165,11 @@ createApp({
             });
         };
 
-        // --- COMPUTEDS (ESTRITA ORDEM) ---
+        // --- COMPUTEDS ---
         const filteredClientsSearch = computed(() => scheduleClientsList.value);
-        
+        const filteredExpensesList = computed(() => expensesList.value);
+        const financeSummary = computed(() => expensesList.value.reduce((acc, item) => acc + toNum(item.value), 0));
+
         const statementList = computed(() => {
             const income = dashboardData.appointments.map(a => ({
                 id: a.id, date: a.date, description: `Receita: ${clientCache[a.clientId]?.name || 'Cliente'}`, value: toNum(a.totalServices), type: 'income', icon: 'fa-arrow-up', color: 'text-green-600'
@@ -208,8 +234,7 @@ createApp({
             if(!expensesFilter.start || !expensesFilter.end) return;
             const q = query(collection(db, "expenses"), where("userId", "==", user.value.uid), where("date", ">=", expensesFilter.start), where("date", "<=", expensesFilter.end));
             const snap = await getDocs(q);
-            statementList.value = snap.docs.map(sanitizeExpense); // Isso filtra só despesas, o statementList é computed, então na vdd aqui atualizamos o expensesList
-            // Ops, statementList é computed. Vamos atualizar o dashboardData.expenses para refletir o filtro
+            // Atualiza os dados do dashboard para refletir no extrato
             dashboardData.expenses = snap.docs.map(sanitizeExpense);
         };
 
@@ -233,14 +258,15 @@ createApp({
             dashboardMonth, financeData, next7DaysApps, statementList, catalogClientsList, expensesList,
             showExpenseModal, newExpense, addExpense, deleteExpense: async(id)=>{await deleteDoc(doc(db,"expenses",id)); loadDashboardData();},
             tempApp, tempServiceSelect, services, totalServices, finalBalance, isEditing, clientSearchTerm, filteredClientsSearch,
-            startNewSchedule: () => { isEditing.value=false; Object.assign(tempApp, {clientId:'', date:'', time:'', location:{bairro:''}, details:{entryFee:0}, selectedServices:[]}); view.value='schedule'; },
+            startNewSchedule: () => { isEditing.value=false; Object.assign(tempApp, {clientId:'', date:'', time:'', location:{bairro:''}, details:{entryFee:0}, selectedServices:[], checklist:[]}); view.value='schedule'; },
             editAppointment: (app) => { isEditing.value=true; editingId.value=app.id; Object.assign(tempApp, JSON.parse(JSON.stringify(app))); view.value='schedule'; },
             saveAppointment, addServiceToApp: () => { if(tempServiceSelect.value) tempApp.selectedServices.push(tempServiceSelect.value); tempServiceSelect.value=''; },
             removeServiceFromApp: (i) => tempApp.selectedServices.splice(i,1),
             searchCatalogClients, deleteClient, openClientModal, searchExpenses, expensesFilter,
             currentReceipt, showReceipt: (app) => { currentReceipt.value = sanitizeApp(app); view.value = 'receipt'; },
             company, handleLogoUpload, saveCompany, handleChangePassword, downloadReceiptImage, generateContractPDF,
-            formatCurrency, formatDate, getClientName, getClientPhone: (id)=>clientCache[id]?.phone,
+            formatCurrency, formatDate, getClientName, 
+            getDay, getMonth, statusText, statusClass, getCategoryIcon, // <--- AGORA ESTÃO AQUI
             toggleDarkMode: () => { isDark.value=!isDark.value; document.documentElement.classList.toggle('dark'); },
             expenseCategories
         };
