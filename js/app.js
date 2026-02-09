@@ -74,7 +74,7 @@ createApp({
         const isEditing = ref(false);
         const editingId = ref(null);
 
-        // --- VACINA DE DADOS ---
+        // --- VACINA DE DADOS (SEGURANÇA) ---
         const sanitizeApp = (docSnapshot) => {
             const data = docSnapshot.data ? docSnapshot.data() : docSnapshot;
             return {
@@ -249,12 +249,31 @@ createApp({
             } catch(e) { console.error(e); }
         };
 
-        // --- COMPUTEDS ---
-        // CORREÇÕES PARA EVITAR ERROS DE PROPRIEDADE ---
+        // --- COMPUTEDS (CORREÇÃO DOS ERROS) ---
+        
+        // 1. Alias para a lista de despesas
         const filteredExpensesList = computed(() => expensesList.value);
+        
+        // 2. Somatório do rodapé
         const financeSummary = computed(() => {
-            // Calcula o total da lista atual para evitar erro no template
             return expensesList.value.reduce((acc, item) => acc + (Number(item.value) || 0), 0);
+        });
+
+        // 3. (NOVO) Estatísticas por Categoria - RESOLVE O ERRO 'expensesByCategoryStats is not defined'
+        const expensesByCategoryStats = computed(() => {
+            if (!dashboardData.expenses || dashboardData.expenses.length === 0) return [];
+            
+            // Agrupa e soma
+            const stats = expenseCategories.map(cat => {
+                const total = dashboardData.expenses
+                    .filter(e => e.category === cat.id)
+                    .reduce((sum, e) => sum + (Number(e.value) || 0), 0);
+                
+                return { ...cat, total };
+            });
+
+            // Filtra só o que tem valor > 0 e ordena
+            return stats.filter(c => c.total > 0).sort((a, b) => b.total - a.total);
         });
 
         const filteredListAppointments = computed(() => { 
@@ -366,7 +385,7 @@ createApp({
             selectedAppointment, detailTaskInput, openDetails, saveTaskInDetail, toggleTaskDone, deleteTaskInDetail,
             dashboardMonth, loadDashboardData, isLoadingDashboard,
             appointmentViewMode, calendarCursor, changeCalendarMonth, calendarGrid, calendarTitle, selectCalendarDay, selectedCalendarDate, appointmentsOnSelectedDate,
-            filteredExpensesList, financeSummary // <--- AQUI ESTÃO AS VARIÁVEIS QUE FALTAVAM
+            filteredExpensesList, financeSummary, expensesByCategoryStats // <--- TODAS AS VARIÁVEIS INCLUÍDAS
         };
     }
 }).mount('#app');
