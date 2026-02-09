@@ -37,8 +37,12 @@ createApp({
         const historyList = ref([]); 
         const expensesList = ref([]); 
         const catalogClientsList = ref([]); 
-        const scheduleClientsList = ref([]); 
+        const scheduleClientsList = ref([]);
         
+        // VARIÁVEIS QUE FALTAVAM E CAUSAVAM ERRO (Financeiro/Extrato)
+        const statementList = ref([]);
+        const financeData = reactive({ incomes: [] }); 
+
         // Cache local para nomes de clientes
         const clientCache = reactive({}); 
         const clients = ref([]); 
@@ -270,10 +274,41 @@ createApp({
         const totalServices = computed(() => tempApp.selectedServices.reduce((s,i) => s + i.price, 0));
         const finalBalance = computed(() => totalServices.value - (tempApp.details.entryFee || 0));
         
-        // --- CORREÇÃO DE SEGURANÇA AQUI ---
         const filteredClientsSearch = computed(() => {
             if (!scheduleClientsList.value) return [];
             return scheduleClientsList.value;
+        });
+
+        // --- NOVOS COMPUTEDS QUE FALTAVAM E CAUSAVAM ERRO ---
+        const filteredExpensesList = computed(() => expensesList.value || []);
+        
+        const financeSummary = computed(() => {
+            return {
+                income: kpiRevenue.value || 0,
+                expense: kpiExpenses.value || 0,
+                balance: kpiProfit.value || 0
+            };
+        });
+
+        const expensesByCategoryStats = computed(() => {
+             if (!expensesList.value || expensesList.value.length === 0) return [];
+             const stats = {};
+             expensesList.value.forEach(e => {
+                 const cat = e.category || 'outros';
+                 if (!stats[cat]) stats[cat] = 0;
+                 stats[cat] += e.value;
+             });
+             return Object.keys(stats).map(key => {
+                 const catObj = expenseCategories.find(c => c.id === key) || {label: 'Outros', icon: 'fa-money-bill'};
+                 const total = kpiExpenses.value || 1;
+                 return {
+                     id: key,
+                     label: catObj.label,
+                     icon: catObj.icon,
+                     value: stats[key],
+                     percentage: Math.round((stats[key] / total) * 100)
+                 };
+             }).sort((a,b) => b.value - a.value);
         });
 
         // --- ACTIONS ---
@@ -405,8 +440,6 @@ createApp({
             }
         };
 
-        // --- FUNÇÕES QUE ESTAVAM FALTANDO OU CAUSANDO ERRO ---
-        
         const addServiceToApp = () => {
             if (!tempServiceSelect.value) return;
             tempApp.selectedServices.push({ ...tempServiceSelect.value }); 
@@ -417,7 +450,6 @@ createApp({
             tempApp.selectedServices.splice(index, 1);
         };
 
-        // Função corrigida para evitar erro de 'undefined length'
         const checklistProgress = (app) => {
             if (!app || !Array.isArray(app.checklist) || app.checklist.length === 0) return 0;
             const total = app.checklist.length;
@@ -437,9 +469,11 @@ createApp({
             startNewSchedule, editAppointment, saveAppointment, changeStatus, addExpense, deleteExpense, 
             openClientModal, deleteClient, openServiceModal, deleteService,
             
-            // Funções adicionadas/corrigidas no return
             checklistProgress, addServiceToApp, removeServiceFromApp,
             
+            // Retornando as variáveis que faltavam para evitar o erro de 'length'
+            statementList, financeData, filteredExpensesList, financeSummary, expensesByCategoryStats,
+
             handleLogoUpload, saveCompany,
             showReceipt, downloadReceiptImage, generateContractPDF, 
             getClientName, getClientPhone, formatCurrency, formatDate, getDay, getMonth, statusText, statusClass, getCategoryIcon,
