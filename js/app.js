@@ -4,7 +4,7 @@ import {
     db, auth, 
     collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDocs, query, where, setDoc, getDoc, orderBy,
     signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged,
-    updatePassword, reauthenticateWithCredential, EmailAuthProvider 
+    updatePassword, reauthenticateWithCredential, EmailAuthProvider, updateProfile 
 } from './firebase.js';
 
 createApp({
@@ -14,38 +14,35 @@ createApp({
         const userRole = ref('user');
         const userStatus = ref('trial');
         const daysRemaining = ref(30);
-        const authLoading = ref(false);
-        const authForm = reactive({ email: '', password: '' });
-        
         const view = ref('dashboard');
         const catalogView = ref('company'); 
         const isDark = ref(false);
         
+        // --- AUTENTICAÇÃO E CADASTRO ---
+        const authLoading = ref(false);
+        const isRegistering = ref(false); 
+        const authForm = reactive({ email: '', password: '', name: '', phone: '' });
+
         // --- DADOS DO DASHBOARD (MENSAL) ---
-        const dashboardMonth = ref(new Date().toISOString().slice(0, 7)); // YYYY-MM
+        const dashboardMonth = ref(new Date().toISOString().slice(0, 7)); 
         const dashboardData = reactive({ appointments: [], expenses: [] });
         const isLoadingDashboard = ref(false);
 
         // --- CALENDÁRIO DA AGENDA ---
-        const appointmentViewMode = ref('list'); // 'list' ou 'calendar'
-        const calendarCursor = ref(new Date()); // Data visualizada
-        const selectedCalendarDate = ref(null); // Data clicada
+        const appointmentViewMode = ref('list'); 
+        const calendarCursor = ref(new Date()); 
+        const selectedCalendarDate = ref(null); 
 
         // --- DADOS DAS LISTAS ---
         const services = ref([]); 
         const pendingAppointments = ref([]); 
         const historyList = ref([]); 
+        const expensesList = ref([]); 
         const catalogClientsList = ref([]); 
         const scheduleClientsList = ref([]); 
-        
-        // FINANCEIRO UNIFICADO (Substitui o antigo expensesList)
-        const financeData = reactive({ expenses: [], incomes: [] });
-
-        // Cache local para nomes de clientes
         const clientCache = reactive({}); 
-        const clients = ref([]); 
 
-        // --- CATEGORIAS DE DESPESAS ---
+        // --- CATEGORIAS ---
         const expenseCategories = [
             { id: 'combustivel', label: 'Combustível / Transporte', icon: 'fa-gas-pump' },
             { id: 'materiais', label: 'Materiais / Decoração', icon: 'fa-box-open' },
@@ -59,41 +56,22 @@ createApp({
         // --- FILTROS ---
         const currentTab = ref('pending'); 
         const historyFilter = reactive({ start: '', end: '' });
-        const expensesFilter = reactive({ 
-            start: new Date().toISOString().split('T')[0], 
-            end: new Date().toISOString().split('T')[0],
-            category: '' 
-        });
+        const expensesFilter = reactive({ start: new Date().toISOString().split('T')[0], end: new Date().toISOString().split('T')[0], category: '' });
         const catalogClientSearch = ref('');
         const clientSearchTerm = ref(''); 
         const isLoadingHistory = ref(false);
 
         // --- FORMULÁRIOS ---
         const company = reactive({ fantasia: '', logo: '', cnpj: '', razao: '', cidade: '', rua: '', estado: '' });
-        
-        const tempApp = reactive({ 
-            clientId: '', 
-            date: '', 
-            time: '', 
-            location: { bairro: '', cidade: '', numero: '' }, 
-            details: { balloonColors: '', entryFee: 0 }, 
-            notes: '', 
-            selectedServices: [] 
-        });
-        
+        const tempApp = reactive({ clientId: '', date: '', time: '', location: { bairro: '', cidade: '', numero: '' }, details: { balloonColors: '', entryFee: 0 }, notes: '', selectedServices: [] });
         const tempServiceSelect = ref('');
-        
-        // FINANCEIRO (COM MODAL)
         const newExpense = reactive({ description: '', value: '', date: new Date().toISOString().split('T')[0], category: '' });
         const showExpenseModal = ref(false); 
-        
         const currentReceipt = ref(null);
         const selectedAppointment = ref(null);
         const detailTaskInput = ref(''); 
-        
         const isEditing = ref(false);
         const editingId = ref(null);
-        const newTaskText = ref({});
 
         // --- UTILS ---
         const formatCurrency = (v) => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v||0);
@@ -104,7 +82,6 @@ createApp({
         const statusClass = (s) => s === 'concluded' ? 'bg-green-100 text-green-600' : (s === 'cancelled' ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-600');
         const getCategoryIcon = (catId) => { const cat = expenseCategories.find(c => c.id === catId); return cat ? cat.icon : 'fa-money-bill'; };
 
-        // --- RESOLUÇÃO DE NOMES (CACHE) ---
         const resolveClientName = (id) => { if (!id) return '...'; if (clientCache[id]) return clientCache[id].name; fetchClientToCache(id); return 'Carregando...'; };
         const getClientName = (id) => resolveClientName(id);
         const getClientPhone = (id) => clientCache[id] ? clientCache[id].phone : '';
@@ -117,9 +94,20 @@ createApp({
             onAuthStateChanged(auth, async (u) => {
                 if (u) {
                     const userDoc = await getDoc(doc(db, "users", u.uid));
-                    if (!userDoc.exists()) { await signOut(auth); user.value = null; Swal.fire({ icon: 'error', title: 'Acesso Revogado', text: 'Conta removida.' }); return; }
+                    if (!userDoc.exists()) {
+                         await setDoc(doc(db, "users", u.uid), {
+                            email: u.email,
+                            displayName: u.displayName || 'Novo Usuário',
+                            role: 'user',
+                            status: 'trial',
+                            createdAt: new Date().toISOString(),
+                            companyConfig: { fantasia: u.displayName || 'Minha Empresa' }
+                        });
+                    }
+                    const updatedDoc = await getDoc(doc(db, "users", u.uid));
+                    if (!updatedDoc.exists()) { await signOut(auth); user.value = null; return; }
                     user.value = u;
-                    const data = userDoc.data();
+                    const data = updatedDoc.data();
                     userRole.value = data.role || 'user';
                     userStatus.value = data.status || 'trial';
                     if (userRole.value !== 'admin' && userStatus.value !== 'active') {
@@ -136,10 +124,52 @@ createApp({
             const t = new Date(); const lm = new Date(); lm.setDate(t.getDate() - 30); historyFilter.end = t.toISOString().split('T')[0]; historyFilter.start = lm.toISOString().split('T')[0];
         });
 
-        const handleLogin = async () => { authLoading.value = true; try { await signInWithEmailAndPassword(auth, authForm.email, authForm.password); } catch (error) { Swal.fire('Erro', 'Dados incorretos', 'error'); } finally { authLoading.value = false; } };
+        const handleAuth = async () => {
+            if (!authForm.email || !authForm.password) return Swal.fire('Ops', 'Preencha email e senha', 'warning');
+            
+            // Validações extras para cadastro
+            if (isRegistering.value) {
+                if (!authForm.name) return Swal.fire('Ops', 'Informe seu nome', 'warning');
+                if (!authForm.phone || authForm.phone.length < 14) return Swal.fire('Ops', 'Informe um WhatsApp válido', 'warning');
+            }
+
+            authLoading.value = true;
+            try {
+                if (isRegistering.value) {
+                    // CADASTRO
+                    const userCredential = await createUserWithEmailAndPassword(auth, authForm.email, authForm.password);
+                    const newUser = userCredential.user;
+                    
+                    await updateProfile(newUser, { displayName: authForm.name });
+                    
+                    // Salvando no Banco de Dados com o TELEFONE 👇
+                    await setDoc(doc(db, "users", newUser.uid), {
+                        email: authForm.email,
+                        displayName: authForm.name,
+                        phone: authForm.phone, // <--- NOVO CAMPO SALVO
+                        role: 'user',
+                        status: 'trial',
+                        createdAt: new Date().toISOString(),
+                        companyConfig: { fantasia: authForm.name }
+                    });
+                    
+                    Swal.fire({ icon: 'success', title: 'Bem-vinda!', text: 'Seu teste de 30 dias começou.', timer: 2000 });
+                } else {
+                    // LOGIN
+                    await signInWithEmailAndPassword(auth, authForm.email, authForm.password);
+                }
+            } catch (error) {
+                console.error(error); let msg = 'Erro ao processar.';
+                if (error.code === 'auth/email-already-in-use') msg = 'Este e-mail já está cadastrado.';
+                if (error.code === 'auth/wrong-password') msg = 'Senha incorreta.';
+                if (error.code === 'auth/user-not-found') msg = 'Usuário não encontrado.';
+                Swal.fire('Erro', msg, 'error');
+            } finally { authLoading.value = false; }
+        };
+
         const logout = async () => { await signOut(auth); window.location.href = "index.html"; };
 
-        // --- DASHBOARD DATA (MENSAL) ---
+        // --- DASHBOARD ---
         const loadDashboardData = async () => {
             if (!user.value) return;
             isLoadingDashboard.value = true;
@@ -157,14 +187,11 @@ createApp({
         };
         watch(dashboardMonth, () => { loadDashboardData(); });
 
-        // --- CALENDÁRIO LÓGICA ---
+        // --- CALENDÁRIO ---
         const changeCalendarMonth = (offset) => { const d = new Date(calendarCursor.value); d.setMonth(d.getMonth() + offset); calendarCursor.value = d; };
-        
         const calendarGrid = computed(() => {
-            const year = calendarCursor.value.getFullYear();
-            const month = calendarCursor.value.getMonth();
-            const firstDay = new Date(year, month, 1).getDay(); 
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const year = calendarCursor.value.getFullYear(); const month = calendarCursor.value.getMonth();
+            const firstDay = new Date(year, month, 1).getDay(); const daysInMonth = new Date(year, month + 1, 0).getDate();
             const days = [];
             for (let i = 0; i < firstDay; i++) { days.push({ day: '', date: null, hasEvent: false }); }
             for (let i = 1; i <= daysInMonth; i++) {
@@ -174,18 +201,9 @@ createApp({
             }
             return days;
         });
-
-        const calendarTitle = computed(() => {
-            const m = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-            return `${m[calendarCursor.value.getMonth()]} ${calendarCursor.value.getFullYear()}`;
-        });
-
+        const calendarTitle = computed(() => { const m = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']; return `${m[calendarCursor.value.getMonth()]} ${calendarCursor.value.getFullYear()}`; });
         const selectCalendarDay = (dayObj) => { if (!dayObj.day) return; selectedCalendarDate.value = dayObj.date; };
-        
-        const appointmentsOnSelectedDate = computed(() => {
-            if (!selectedCalendarDate.value) return [];
-            return pendingAppointments.value.filter(a => a.date === selectedCalendarDate.value);
-        });
+        const appointmentsOnSelectedDate = computed(() => { if (!selectedCalendarDate.value) return []; return pendingAppointments.value.filter(a => a.date === selectedCalendarDate.value); });
 
         // --- SYNC ---
         let unsubscribeListeners = [];
@@ -203,45 +221,61 @@ createApp({
             }));
         };
 
-        // --- COMPUTEDS E LÓGICA FINANCEIRA ---
+        // --- ACTIONS ---
+        const searchHistory = async () => {
+            if(!historyFilter.start || !historyFilter.end) return Swal.fire('Atenção', 'Selecione as datas', 'warning');
+            isLoadingHistory.value = true; historyList.value = [];
+            try {
+                const q = query(collection(db, "appointments"), where("userId", "==", user.value.uid));
+                const snap = await getDocs(q);
+                const allApps = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                historyList.value = allApps.filter(app => app.status === currentTab.value && app.date >= historyFilter.start && app.date <= historyFilter.end);
+                if(historyList.value.length === 0) Swal.fire('Info', 'Nenhum registro encontrado.', 'info');
+            } catch (error) { console.error(error); Swal.fire('Erro', 'Tente novamente.', 'error'); } finally { isLoadingHistory.value = false; }
+        };
+
+        const searchExpenses = async () => {
+            if(!expensesFilter.start || !expensesFilter.end) return Swal.fire('Data', 'Selecione o período', 'info');
+            try {
+                const q = query(collection(db, "expenses"), where("userId", "==", user.value.uid));
+                const snap = await getDocs(q);
+                const allExpenses = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                expensesList.value = allExpenses.filter(e => {
+                    const dateOk = e.date >= expensesFilter.start && e.date <= expensesFilter.end;
+                    const categoryOk = !expensesFilter.category || e.category === expensesFilter.category;
+                    return dateOk && categoryOk;
+                });
+                expensesList.value.sort((a,b) => new Date(b.date) - new Date(a.date));
+                if(expensesList.value.length === 0) Swal.fire('Vazio', 'Nenhuma despesa encontrada.', 'info');
+            } catch(e) { console.error(e); }
+        };
+
+        const searchCatalogClients = async () => {
+            if(catalogClientSearch.value.length < 3) return Swal.fire('Ops', 'Digite pelo menos 3 letras ou CPF', 'info');
+            const term = catalogClientSearch.value.toLowerCase();
+            const q = query(collection(db, "clients"), where("userId", "==", user.value.uid));
+            const snap = await getDocs(q);
+            const allClients = snap.docs.map(d => ({id: d.id, ...d.data()}));
+            catalogClientsList.value = allClients.filter(c => (c.name && c.name.toLowerCase().includes(term)) || (c.cpf && c.cpf.includes(term)));
+            if(catalogClientsList.value.length === 0) Swal.fire('Não encontrado', 'Nenhum cliente com este nome/CPF.', 'info');
+        };
+
+        watch(clientSearchTerm, async (newVal) => {
+            if(newVal.length >= 3) {
+                const term = newVal.toLowerCase();
+                const q = query(collection(db, "clients"), where("userId", "==", user.value.uid));
+                const snap = await getDocs(q);
+                const all = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                scheduleClientsList.value = all.filter(c => (c.name && c.name.toLowerCase().includes(term)) || (c.phone && c.phone.includes(term)));
+            } else { scheduleClientsList.value = []; }
+        });
+
+        // --- COMPUTEDS GERAIS ---
         const filteredListAppointments = computed(() => { 
             let list = currentTab.value === 'pending' ? pendingAppointments.value : historyList.value;
             return [...list].sort((a,b) => new Date(a.date) - new Date(b.date)); 
         });
-
-        // Computed para lista visual de despesas (filtro de categoria)
-        // Substitui a antiga expensesList
-        const filteredExpensesList = computed(() => {
-            let list = financeData.expenses;
-            if (expensesFilter.category) { list = list.filter(e => e.category === expensesFilter.category); }
-            return list.sort((a,b) => new Date(b.date) - new Date(a.date));
-        });
-
-        // Resumo Financeiro (Cards)
-        const financeSummary = computed(() => {
-            const totalIncome = financeData.incomes.filter(a => a.status !== 'cancelled').reduce((acc, curr) => acc + (curr.totalServices || 0), 0);
-            const totalExpense = filteredExpensesList.value.reduce((acc, curr) => acc + (curr.value || 0), 0);
-            return { income: totalIncome, expense: totalExpense, balance: totalIncome - totalExpense };
-        });
-
-        // Gráfico de Categorias
-        const expensesByCategoryStats = computed(() => {
-            const stats = {}; const total = financeSummary.value.expense || 1;
-            filteredExpensesList.value.forEach(e => { const cat = e.category || 'outros'; if (!stats[cat]) stats[cat] = 0; stats[cat] += e.value; });
-            return Object.keys(stats).map(key => {
-                const catInfo = expenseCategories.find(c => c.id === key) || { label: 'Outros', icon: 'fa-money-bill' };
-                return { id: key, label: catInfo.label, icon: catInfo.icon, value: stats[key], percentage: Math.round((stats[key] / total) * 100) };
-            }).sort((a, b) => b.value - a.value);
-        });
-
-        // EXTRATO (STATEMENT)
-        const statementList = computed(() => {
-            const incomes = financeData.incomes.filter(a => a.status !== 'cancelled').map(a => ({ uniqueId: 'inc_' + a.id, date: a.date, description: getClientName(a.clientId), category: 'Evento / Festa', value: a.totalServices, type: 'in' }));
-            const expenses = financeData.expenses.map(e => ({ uniqueId: 'exp_' + e.id, date: e.date, description: e.description, category: expenseCategories.find(c => c.id === e.category)?.label || 'Outros', value: e.value, type: 'out' }));
-            return [...incomes, ...expenses].sort((a, b) => new Date(b.date) - new Date(a.date));
-        });
         
-        // KPIS DASHBOARD
         const kpiRevenue = computed(() => dashboardData.appointments.reduce((acc, a) => acc + (a.totalServices || 0), 0));
         const kpiExpenses = computed(() => dashboardData.expenses.reduce((acc, e) => acc + (e.value || 0), 0)); 
         const kpiProfit = computed(() => kpiRevenue.value - kpiExpenses.value); 
@@ -251,71 +285,85 @@ createApp({
         const totalServices = computed(() => tempApp.selectedServices.reduce((s,i) => s + i.price, 0));
         const finalBalance = computed(() => totalServices.value - (tempApp.details.entryFee || 0));
         const filteredClientsSearch = computed(() => scheduleClientsList.value);
+        // Barra de Progresso
+        const checklistProgress = (app) => { if(!app.checklist?.length) return 0; return Math.round((app.checklist.filter(t=>t.done).length/app.checklist.length)*100); };
 
-        // --- ACTIONS ---
-        const searchHistory = async () => { if(!historyFilter.start || !historyFilter.end) return Swal.fire('Atenção', 'Selecione as datas', 'warning'); isLoadingHistory.value = true; historyList.value = []; try { const q = query(collection(db, "appointments"), where("userId", "==", user.value.uid)); const snap = await getDocs(q); const allApps = snap.docs.map(d => ({id: d.id, ...d.data()})); historyList.value = allApps.filter(app => app.status === currentTab.value && app.date >= historyFilter.start && app.date <= historyFilter.end); if(historyList.value.length === 0) Swal.fire('Info', 'Nenhum registro encontrado.', 'info'); } catch (error) { console.error(error); Swal.fire('Erro', 'Tente novamente.', 'error'); } finally { isLoadingHistory.value = false; } };
-
-        const searchExpenses = async () => {
-            if(!expensesFilter.start || !expensesFilter.end) return Swal.fire('Data', 'Selecione o período', 'info');
-            try {
-                const qExp = query(collection(db, "expenses"), where("userId", "==", user.value.uid), where("date", ">=", expensesFilter.start), where("date", "<=", expensesFilter.end));
-                const qInc = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("date", ">=", expensesFilter.start), where("date", "<=", expensesFilter.end));
-                const [snapExp, snapInc] = await Promise.all([getDocs(qExp), getDocs(qInc)]);
-                financeData.expenses = snapExp.docs.map(d => ({id: d.id, ...d.data()}));
-                financeData.incomes = snapInc.docs.map(d => ({id: d.id, ...d.data()}));
-                if(financeData.expenses.length === 0 && financeData.incomes.length === 0) Swal.fire('Vazio', 'Sem movimentações no período.', 'info');
-            } catch(e) { console.error(e); }
+        const saveAppointment = async () => {
+            const total = tempApp.selectedServices.reduce((sum, i) => sum + i.price, 0);
+            const appData = { ...JSON.parse(JSON.stringify(tempApp)), totalServices: total, entryFee: tempApp.details.entryFee, finalBalance: total - tempApp.details.entryFee, userId: user.value.uid };
+            if(isEditing.value && editingId.value) { await updateDoc(doc(db, "appointments", editingId.value), appData); Swal.fire({icon:'success', title:'Atualizado', timer:1000}); } 
+            else { appData.status = 'pending'; appData.checklist = [{text:'Separar Materiais', done:false}]; await addDoc(collection(db, "appointments"), appData); Swal.fire({icon:'success', title:'Agendado!', timer:1000}); }
+            if(appData.date.startsWith(dashboardMonth.value)) loadDashboardData();
+            view.value = 'appointments_list'; currentTab.value = 'pending';
         };
 
-        const searchCatalogClients = async () => { if(catalogClientSearch.value.length < 3) return Swal.fire('Ops', 'Digite pelo menos 3 letras ou CPF', 'info'); const term = catalogClientSearch.value.toLowerCase(); const q = query(collection(db, "clients"), where("userId", "==", user.value.uid)); const snap = await getDocs(q); const allClients = snap.docs.map(d => ({id: d.id, ...d.data()})); catalogClientsList.value = allClients.filter(c => (c.name && c.name.toLowerCase().includes(term)) || (c.cpf && c.cpf.includes(term))); if(catalogClientsList.value.length === 0) Swal.fire('Não encontrado', 'Nenhum cliente com este nome/CPF.', 'info'); };
-        watch(clientSearchTerm, async (newVal) => { if(newVal.length >= 3) { const term = newVal.toLowerCase(); const q = query(collection(db, "clients"), where("userId", "==", user.value.uid)); const snap = await getDocs(q); const all = snap.docs.map(d => ({id: d.id, ...d.data()})); scheduleClientsList.value = all.filter(c => (c.name && c.name.toLowerCase().includes(term)) || (c.phone && c.phone.includes(term))); } else { scheduleClientsList.value = []; } });
+        const changeStatus = async (app, status) => { 
+            const action = status === 'concluded' ? 'Concluir' : 'Cancelar';
+            const { isConfirmed } = await Swal.fire({ title: action + '?', text: 'Deseja marcar como ' + action + '?', icon: 'question', showCancelButton: true });
+            if(isConfirmed) {
+                await updateDoc(doc(db, "appointments", app.id), { status: status });
+                const idx = historyList.value.findIndex(x => x.id === app.id); if(idx !== -1) historyList.value.splice(idx, 1);
+                loadDashboardData(); Swal.fire('Feito!', '', 'success');
+            }
+        };
 
-        const saveAppointment = async () => { const total = tempApp.selectedServices.reduce((sum, i) => sum + i.price, 0); const appData = { ...JSON.parse(JSON.stringify(tempApp)), totalServices: total, entryFee: tempApp.details.entryFee, finalBalance: total - tempApp.details.entryFee, userId: user.value.uid }; if(isEditing.value && editingId.value) { await updateDoc(doc(db, "appointments", editingId.value), appData); Swal.fire({icon:'success', title:'Atualizado', timer:1000}); } else { appData.status = 'pending'; appData.checklist = [{text:'Separar Materiais', done:false}]; await addDoc(collection(db, "appointments"), appData); Swal.fire({icon:'success', title:'Agendado!', timer:1000}); } if(appData.date.startsWith(dashboardMonth.value)) loadDashboardData(); view.value = 'appointments_list'; currentTab.value = 'pending'; };
-        const changeStatus = async (app, status) => { const action = status === 'concluded' ? 'Concluir' : 'Cancelar'; const { isConfirmed } = await Swal.fire({ title: action + '?', text: 'Deseja marcar como ' + action + '?', icon: 'question', showCancelButton: true }); if(isConfirmed) { await updateDoc(doc(db, "appointments", app.id), { status: status }); const idx = historyList.value.findIndex(x => x.id === app.id); if(idx !== -1) historyList.value.splice(idx, 1); loadDashboardData(); Swal.fire('Feito!', '', 'success'); } };
         const updateAppInFirebase = async (app) => { await updateDoc(doc(db, "appointments", app.id), { checklist: app.checklist }); };
         const openDetails = (app) => { fetchClientToCache(app.clientId); selectedAppointment.value = app; if (!selectedAppointment.value.checklist) selectedAppointment.value.checklist = []; detailTaskInput.value = ''; view.value = 'appointment_details'; };
         const saveTaskInDetail = async () => { if (!detailTaskInput.value.trim() || !selectedAppointment.value) return; const newTask = { text: detailTaskInput.value, done: false }; if (!selectedAppointment.value.checklist) selectedAppointment.value.checklist = []; selectedAppointment.value.checklist.push(newTask); await updateAppInFirebase(selectedAppointment.value); detailTaskInput.value = ''; };
         const toggleTaskDone = async (index) => { if (!selectedAppointment.value) return; selectedAppointment.value.checklist[index].done = !selectedAppointment.value.checklist[index].done; await updateAppInFirebase(selectedAppointment.value); };
         const deleteTaskInDetail = async (index) => { if (!selectedAppointment.value) return; selectedAppointment.value.checklist.splice(index, 1); await updateAppInFirebase(selectedAppointment.value); };
-        
-        // --- FUNÇÕES DE CHECKLIST E SERVIÇOS RESTAURADAS ---
-        const addTask = (app) => { if(!newTaskText.value[app.id]) return; app.checklist.push({text:newTaskText.value[app.id], done:false}); newTaskText.value[app.id]=''; updateAppInFirebase(app); };
-        const removeTask = (app, i) => { app.checklist.splice(i, 1); updateAppInFirebase(app); };
-        const checklistProgress = (app) => { if(!app.checklist?.length) return 0; return Math.round((app.checklist.filter(t=>t.done).length/app.checklist.length)*100); };
+
+        // --- FUNÇÕES DE SERVIÇOS (RESTAURADAS) ---
         const addServiceToApp = () => { if(tempServiceSelect.value) { tempApp.selectedServices.push({...tempServiceSelect.value}); tempServiceSelect.value = ''; } };
         const removeServiceFromApp = (i) => tempApp.selectedServices.splice(i,1);
 
         const addExpense = async () => { 
             if(!newExpense.description || !newExpense.value) return Swal.fire('Ops', 'Preencha todos os campos', 'warning'); 
-            if(!newExpense.category) newExpense.category = 'outros'; 
+            if(!newExpense.category) newExpense.category = 'outros';
             const docRef = await addDoc(collection(db, "expenses"), {...newExpense, userId: user.value.uid}); 
-            financeData.expenses.unshift({id: docRef.id, ...newExpense}); 
-            if(newExpense.date.startsWith(dashboardMonth.value)) loadDashboardData(); 
+            expensesList.value.unshift({id: docRef.id, ...newExpense});
+            if(newExpense.date.startsWith(dashboardMonth.value)) loadDashboardData();
             Object.assign(newExpense, {description: '', value: '', category: ''}); showExpenseModal.value = false; Swal.fire({icon:'success', title:'Registrado', timer:1000}); 
         };
-        
-        const deleteExpense = async (id) => { 
-            await deleteDoc(doc(db, "expenses", id)); 
-            financeData.expenses = financeData.expenses.filter(e => e.id !== id); 
-            loadDashboardData(); 
-        };
+        const deleteExpense = async (id) => { await deleteDoc(doc(db, "expenses", id)); expensesList.value = expensesList.value.filter(e => e.id !== id); loadDashboardData(); };
         
         const startNewSchedule = () => { isEditing.value=false; editingId.value=null; clientSearchTerm.value = ''; Object.assign(tempApp, { clientId: '', date: '', time: '', location: { bairro: '', cidade: '', numero: '' }, details: { balloonColors: '', entryFee: 0 }, notes: '', selectedServices: [] }); view.value='schedule'; };
         const editAppointment = (app) => { isEditing.value=true; editingId.value=app.id; clientSearchTerm.value = ''; fetchClientToCache(app.clientId); const dataToLoad = JSON.parse(JSON.stringify(app)); if(!dataToLoad.details) dataToLoad.details = { balloonColors: '', entryFee: 0 }; if(!dataToLoad.details.balloonColors) dataToLoad.details.balloonColors = ''; if(!dataToLoad.notes) dataToLoad.notes = ''; Object.assign(tempApp, dataToLoad); view.value='schedule'; };
         const showReceipt = (app) => { currentReceipt.value = app; fetchClientToCache(app.clientId); view.value = 'receipt'; };
         const selectClientFromSearch = (client) => { tempApp.clientId = client.id; clientSearchTerm.value = ''; clientCache[client.id] = client; };
         const clearClientSelection = () => { tempApp.clientId = ''; clientSearchTerm.value = ''; };
-        const openClientModal = async (c) => { const n = c && c.name ? c.name : ''; const p = c && c.phone ? c.phone : ''; const cpf = c && c.cpf ? c.cpf : ''; const html = `<input id="n" class="swal2-input" value="${n}" placeholder="Nome"><input id="p" class="swal2-input" value="${p}" placeholder="Telefone" maxlength="15"><input id="cpf" class="swal2-input" value="${cpf}" placeholder="CPF">`; const { value: vals } = await Swal.fire({ title: c ? 'Editar Cliente' : 'Novo Cliente', html: html, showCancelButton: true, confirmButtonText: 'Salvar', didOpen: () => { const phoneInput = Swal.getPopup().querySelector('#p'); phoneInput.addEventListener('input', (e) => { let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,5})(\d{0,4})/); e.target.value = !x[2] ? x[1] : '(' + x[1] + ') ' + x[2] + (x[3] ? '-' + x[3] : ''); }); }, preConfirm: () => [ document.getElementById('n').value, document.getElementById('p').value, document.getElementById('cpf').value ] }); if (vals) { const d = { name: vals[0], phone: vals[1], cpf: vals[2], userId: user.value.uid }; if (c) await updateDoc(doc(db, "clients", c.id), d); else await addDoc(collection(db, "clients"), d); Swal.fire('Salvo', '', 'success'); } };
+
+        const openClientModal = async (c) => { 
+            const n = c && c.name ? c.name : ''; const p = c && c.phone ? c.phone : ''; const cpf = c && c.cpf ? c.cpf : '';
+            const html = `<input id="n" class="swal2-input" value="${n}" placeholder="Nome"><input id="p" class="swal2-input" value="${p}" placeholder="Telefone" maxlength="15"><input id="cpf" class="swal2-input" value="${cpf}" placeholder="CPF">`;
+            const { value: vals } = await Swal.fire({ title: c ? 'Editar Cliente' : 'Novo Cliente', html: html, showCancelButton: true, confirmButtonText: 'Salvar', didOpen: () => { const phoneInput = Swal.getPopup().querySelector('#p'); phoneInput.addEventListener('input', (e) => { let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,5})(\d{0,4})/); e.target.value = !x[2] ? x[1] : '(' + x[1] + ') ' + x[2] + (x[3] ? '-' + x[3] : ''); }); }, preConfirm: () => [ document.getElementById('n').value, document.getElementById('p').value, document.getElementById('cpf').value ] });
+            if (vals) { const d = { name: vals[0], phone: vals[1], cpf: vals[2], userId: user.value.uid }; if (c) await updateDoc(doc(db, "clients", c.id), d); else await addDoc(collection(db, "clients"), d); Swal.fire('Salvo', '', 'success'); } 
+        };
         const deleteClient = async (id) => { if ((await Swal.fire({ title: 'Excluir?', showCancelButton: true })).isConfirmed) { await deleteDoc(doc(db, "clients", id)); catalogClientsList.value = catalogClientsList.value.filter(x => x.id !== id); } };
         const openServiceModal = async (s) => { const d = s && s.description ? s.description : ''; const p = s && s.price ? s.price : ''; const html = '<input id="d" class="swal2-input" value="' + d + '" placeholder="Descrição">' + '<input id="p" type="number" class="swal2-input" value="' + p + '" placeholder="Preço (R$)">'; const { value: v } = await Swal.fire({ title: s ? 'Editar Serviço' : 'Novo Serviço', html: html, showCancelButton: true, confirmButtonText: 'Salvar', preConfirm: () => [ document.getElementById('d').value, document.getElementById('p').value ] }); if (v) { const data = { description: v[0], price: Number(v[1]), userId: user.value.uid }; if (s) await updateDoc(doc(db, "services", s.id), data); else await addDoc(collection(db, "services"), data); } };
         const deleteService = async (id) => { await deleteDoc(doc(db,"services",id)); };
         const downloadReceiptImage = () => { html2canvas(document.getElementById('receipt-capture-area'),{scale:2}).then(c=>{const l=document.createElement('a');l.download='Recibo.png';l.href=c.toDataURL();l.click();}); };
         
         const generateContractPDF = () => { 
-            const { jsPDF } = window.jspdf; const doc = new jsPDF(); const app = currentReceipt.value; const cli = clientCache[app.clientId] || {name: '...', cpf: '...', phone: ''}; const primaryColor = [139, 92, 246]; const lightGray = [243, 244, 246]; const darkGray = [55, 65, 81]; const pageWidth = 210; const margin = 20; let y = 0; doc.setFillColor(...primaryColor); doc.rect(0, 0, pageWidth, 40, 'F'); if (company.logo) { try { doc.setFillColor(255, 255, 255); doc.circle(margin + 10, 20, 12, 'F'); doc.addImage(company.logo, 'JPEG', margin + 2, 12, 16, 16); } catch (e) {} } doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(22); doc.text("CONTRATO DE SERVIÇOS", 190, 20, { align: "right" }); doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.text("DECORAÇÃO E EVENTOS", 190, 26, { align: "right" }); doc.text("Doc. Nº " + app.id.slice(0, 6).toUpperCase(), 190, 32, { align: "right" }); y = 55; doc.setTextColor(...darkGray); doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.text("IDENTIFICAÇÃO DAS PARTES", margin, y); y += 5; doc.setDrawColor(200, 200, 200); doc.setFillColor(...lightGray); doc.roundedRect(margin, y, 80, 40, 3, 3, 'FD'); doc.setFontSize(9); doc.setTextColor(100, 100, 100); doc.text("CONTRATADA", margin + 5, y + 8); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold"); doc.text(company.fantasia || 'Sua Empresa', margin + 5, y + 15); doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.text("CNPJ: " + (company.cnpj || '...'), margin + 5, y + 22); doc.text((company.rua || '') + ', ' + (company.cidade || ''), margin + 5, y + 28); doc.setFillColor(255, 255, 255); doc.roundedRect(margin + 85, y, 85, 40, 3, 3, 'FD'); doc.setFontSize(9); doc.setTextColor(100, 100, 100); doc.text("CONTRATANTE", margin + 90, y + 8); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold"); doc.text(cli.name, margin + 90, y + 15); doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.text("CPF: " + (cli.cpf || 'Não informado'), margin + 90, y + 22); doc.text("Tel: " + (cli.phone || 'Não informado'), margin + 90, y + 28); y += 50;
-            doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(...darkGray); doc.text("DETALHES DO EVENTO", margin, y); y += 2; doc.autoTable({ startY: y + 3, head: [], body: [['Data do Evento', formatDate(app.date)], ['Horário', app.time + ' horas'], ['Local', (app.location.bairro || '') + ' - ' + (app.location.cidade || '')], ['Endereço', (app.location.rua || '') + ', ' + (app.location.numero || '')]], theme: 'plain', styles: { fontSize: 9, cellPadding: 1 }, columnStyles: { 0: { fontStyle: 'bold', cellWidth: 40 }, 1: { cellWidth: 'auto' } }, margin: { left: margin } }); y = doc.lastAutoTable.finalY + 10; doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.text("ITENS CONTRATADOS & ESPECIFICAÇÕES", margin, y); let tableBody = app.selectedServices.map(s => [s.description, formatCurrency(s.price)]); if (app.details?.balloonColors) { tableBody.push([{ content: 'Cores dos Balões: ' + app.details.balloonColors, colSpan: 2, styles: { fontStyle: 'italic', textColor: [139, 92, 246] } }]); } if (app.notes) { tableBody.push([{ content: 'Obs: ' + app.notes, colSpan: 2, styles: { fontStyle: 'italic' } }]); } doc.autoTable({ startY: y + 3, head: [['Descrição do Serviço / Item', 'Valor']], body: tableBody, theme: 'striped', headStyles: { fillColor: primaryColor, textColor: [255, 255, 255], fontStyle: 'bold' }, styles: { fontSize: 9, cellPadding: 3 }, columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 40, halign: 'right' } }, margin: { left: margin, right: margin } }); y = doc.lastAutoTable.finalY + 10; const entry = app.entryFee || app.details?.entryFee || 0; const boxWidth = 70; const boxX = pageWidth - margin - boxWidth; doc.setFillColor(...lightGray); doc.rect(boxX, y, boxWidth, 26, 'F'); doc.setDrawColor(...primaryColor); doc.line(boxX, y, boxX, y + 26); doc.setFontSize(9); doc.setTextColor(100, 100, 100); doc.text("Valor Total:", boxX + 5, y + 7); doc.text("Sinal Pago:", boxX + 5, y + 14); doc.setFont("helvetica", "bold"); doc.setTextColor(...primaryColor); doc.text("A Pagar (Restante):", boxX + 5, y + 21); doc.setFont("helvetica", "normal"); doc.setTextColor(0,0,0); doc.text(formatCurrency(app.totalServices), boxX + boxWidth - 5, y + 7, { align: "right" }); doc.text(formatCurrency(entry), boxX + boxWidth - 5, y + 14, { align: "right" }); doc.setFont("helvetica", "bold"); doc.text(formatCurrency(app.finalBalance), boxX + boxWidth - 5, y + 21, { align: "right" }); y += 35;
-            doc.setFontSize(8); doc.setTextColor(100, 100, 100); doc.setFont("helvetica", "normal"); const terms = "TERMOS GERAIS: O cancelamento deste contrato com menos de 30 dias de antecedência implica na retenção do sinal pago para cobertura de custos operacionais e reserva de data. O pagamento restante deve ser quitado integralmente até a data do evento."; doc.text(doc.splitTextToSize(terms, pageWidth - (margin * 2)), margin, y); y += 25; if (y > 250) { doc.addPage(); y = 40; } doc.setDrawColor(150, 150, 150); doc.setLineWidth(0.5); doc.setLineDash([2, 2], 0); doc.line(margin, y, margin + 70, y); doc.line(margin + 90, y, margin + 160, y); doc.setFontSize(8); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold"); doc.text("CONTRATADA", margin + 10, y + 5); doc.text("CONTRATANTE", margin + 100, y + 5); doc.setFont("helvetica", "normal"); doc.setTextColor(150, 150, 150); doc.text(new Date().toLocaleDateString('pt-BR'), margin, y + 15); doc.setFontSize(7); doc.text("Gerado digitalmente por PartyPlanner Pro", pageWidth / 2, 290, { align: "center" }); doc.save("Contrato_" + cli.name.split(' ')[0] + ".pdf"); 
+            const { jsPDF } = window.jspdf; const doc = new jsPDF(); const app = currentReceipt.value; const cli = clientCache[app.clientId] || {name: '...', cpf: '...', phone: ''}; 
+            const primaryColor = [139, 92, 246]; const lightGray = [243, 244, 246]; const darkGray = [55, 65, 81]; const pageWidth = 210; const margin = 20; let y = 0; 
+            doc.setFillColor(...primaryColor); doc.rect(0, 0, pageWidth, 40, 'F'); if (company.logo) { try { doc.setFillColor(255, 255, 255); doc.circle(margin + 10, 20, 12, 'F'); doc.addImage(company.logo, 'JPEG', margin + 2, 12, 16, 16); } catch (e) {} }
+            doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(22); doc.text("CONTRATO DE SERVIÇOS", 190, 20, { align: "right" }); doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.text("DECORAÇÃO E EVENTOS", 190, 26, { align: "right" }); doc.text("Doc. Nº " + app.id.slice(0, 6).toUpperCase(), 190, 32, { align: "right" }); y = 55;
+            doc.setTextColor(...darkGray); doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.text("IDENTIFICAÇÃO DAS PARTES", margin, y); y += 5;
+            doc.setDrawColor(200, 200, 200); doc.setFillColor(...lightGray); doc.roundedRect(margin, y, 80, 40, 3, 3, 'FD'); doc.setFontSize(9); doc.setTextColor(100, 100, 100); doc.text("CONTRATADA", margin + 5, y + 8); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold"); doc.text(company.fantasia || 'Sua Empresa', margin + 5, y + 15); doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.text("CNPJ: " + (company.cnpj || '...'), margin + 5, y + 22); doc.text((company.rua || '') + ', ' + (company.cidade || ''), margin + 5, y + 28);
+            doc.setFillColor(255, 255, 255); doc.roundedRect(margin + 85, y, 85, 40, 3, 3, 'FD'); doc.setFontSize(9); doc.setTextColor(100, 100, 100); doc.text("CONTRATANTE", margin + 90, y + 8); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold"); doc.text(cli.name, margin + 90, y + 15); doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.text("CPF: " + (cli.cpf || 'Não informado'), margin + 90, y + 22); doc.text("Tel: " + (cli.phone || 'Não informado'), margin + 90, y + 28); y += 50;
+            doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(...darkGray); doc.text("DETALHES DO EVENTO", margin, y); y += 2;
+            doc.autoTable({ startY: y + 3, head: [], body: [['Data do Evento', formatDate(app.date)], ['Horário', app.time + ' horas'], ['Local', (app.location.bairro || '') + ' - ' + (app.location.cidade || '')], ['Endereço', (app.location.rua || '') + ', ' + (app.location.numero || '')]], theme: 'plain', styles: { fontSize: 9, cellPadding: 1 }, columnStyles: { 0: { fontStyle: 'bold', cellWidth: 40 }, 1: { cellWidth: 'auto' } }, margin: { left: margin } }); y = doc.lastAutoTable.finalY + 10;
+            doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.text("ITENS CONTRATADOS & ESPECIFICAÇÕES", margin, y);
+            let tableBody = app.selectedServices.map(s => [s.description, formatCurrency(s.price)]); if (app.details?.balloonColors) { tableBody.push([{ content: 'Cores dos Balões: ' + app.details.balloonColors, colSpan: 2, styles: { fontStyle: 'italic', textColor: [139, 92, 246] } }]); } if (app.notes) { tableBody.push([{ content: 'Obs: ' + app.notes, colSpan: 2, styles: { fontStyle: 'italic' } }]); }
+            doc.autoTable({ startY: y + 3, head: [['Descrição do Serviço / Item', 'Valor']], body: tableBody, theme: 'striped', headStyles: { fillColor: primaryColor, textColor: [255, 255, 255], fontStyle: 'bold' }, styles: { fontSize: 9, cellPadding: 3 }, columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 40, halign: 'right' } }, margin: { left: margin, right: margin } }); y = doc.lastAutoTable.finalY + 10;
+            const entry = app.entryFee || app.details?.entryFee || 0; const boxWidth = 70; const boxX = pageWidth - margin - boxWidth;
+            doc.setFillColor(...lightGray); doc.rect(boxX, y, boxWidth, 26, 'F'); doc.setDrawColor(...primaryColor); doc.line(boxX, y, boxX, y + 26); doc.setFontSize(9); doc.setTextColor(100, 100, 100); doc.text("Valor Total:", boxX + 5, y + 7); doc.text("Sinal Pago:", boxX + 5, y + 14); doc.setFont("helvetica", "bold"); doc.setTextColor(...primaryColor); doc.text("A Pagar (Restante):", boxX + 5, y + 21);
+            doc.setFont("helvetica", "normal"); doc.setTextColor(0,0,0); doc.text(formatCurrency(app.totalServices), boxX + boxWidth - 5, y + 7, { align: "right" }); doc.text(formatCurrency(entry), boxX + boxWidth - 5, y + 14, { align: "right" }); doc.setFont("helvetica", "bold"); doc.text(formatCurrency(app.finalBalance), boxX + boxWidth - 5, y + 21, { align: "right" }); y += 35;
+            doc.setFontSize(8); doc.setTextColor(100, 100, 100); doc.setFont("helvetica", "normal"); const terms = "TERMOS GERAIS: O cancelamento deste contrato com menos de 30 dias de antecedência implica na retenção do sinal pago para cobertura de custos operacionais e reserva de data. O pagamento restante deve ser quitado integralmente até a data do evento."; doc.text(doc.splitTextToSize(terms, pageWidth - (margin * 2)), margin, y); y += 25; if (y > 250) { doc.addPage(); y = 40; }
+            doc.setDrawColor(150, 150, 150); doc.setLineWidth(0.5); doc.setLineDash([2, 2], 0); doc.line(margin, y, margin + 70, y); doc.line(margin + 90, y, margin + 160, y); doc.setFontSize(8); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold"); doc.text("CONTRATADA", margin + 10, y + 5); doc.text("CONTRATANTE", margin + 100, y + 5); doc.setFont("helvetica", "normal"); doc.setTextColor(150, 150, 150); doc.text(new Date().toLocaleDateString('pt-BR'), margin, y + 15); doc.setFontSize(7); doc.text("Gerado digitalmente por PartyPlanner Pro", pageWidth / 2, 290, { align: "center" }); doc.save("Contrato_" + cli.name.split(' ')[0] + ".pdf"); 
         };
+        
         const handleLogoUpload = (e) => { const f = e.target.files[0]; if(f){ const r = new FileReader(); r.onload=x=>{ company.logo=x.target.result; saveCompany(); }; r.readAsDataURL(f); } };
         const saveCompany = async () => { localStorage.setItem('pp_company', JSON.stringify(company)); if(user.value) await updateDoc(doc(db,"users",user.value.uid), {companyConfig:company}); Swal.fire('Salvo','','success'); };
         const toggleDarkMode = () => { isDark.value = !isDark.value; if(isDark.value) document.documentElement.classList.add('dark'); else document.documentElement.classList.remove('dark'); localStorage.setItem('pp_dark', isDark.value); };
@@ -323,24 +371,23 @@ createApp({
 
         return {
             user, userRole, userStatus, daysRemaining, authForm, authLoading, view, catalogView, isDark, 
-            services, appointments: pendingAppointments, expensesList: [], catalogClientsList, company,
+            services, appointments: pendingAppointments, expensesList, catalogClientsList, company,
             tempApp, tempServiceSelect, newExpense, showExpenseModal, currentReceipt, 
-            isEditing, newTaskText, expenseCategories,
+            isEditing, expenseCategories, // <--- Aqui estava o problema, removi newTaskText
             kpiRevenue, kpiExpenses, kpiReceivables, kpiProfit, next7DaysApps, pendingCount,
             filteredListAppointments, totalServices, finalBalance,
             currentTab, historyFilter, searchHistory, isLoadingHistory, expensesFilter,
-            handleLogin, logout, toggleDarkMode,
+            handleAuth, isRegistering, logout, toggleDarkMode,
             startNewSchedule, editAppointment, saveAppointment, changeStatus, addExpense, deleteExpense, 
             openClientModal, deleteClient, openServiceModal, deleteService,
-            addTask, removeTask, checklistProgress,
+            checklistProgress, 
             addServiceToApp, removeServiceFromApp, handleLogoUpload, saveCompany,
             showReceipt, downloadReceiptImage, generateContractPDF, 
             getClientName, getClientPhone, formatCurrency, formatDate, getDay, getMonth, statusText, statusClass, getCategoryIcon,
             clientSearchTerm, filteredClientsSearch, selectClientFromSearch, clearClientSelection,
             handleChangePassword, searchExpenses, searchCatalogClients, catalogClientSearch,
             selectedAppointment, detailTaskInput, openDetails, saveTaskInDetail, toggleTaskDone, deleteTaskInDetail,
-            
-            dashboardMonth, loadDashboardData, isLoadingDashboard, financeData, filteredExpensesList, financeSummary, expensesByCategoryStats, statementList,
+            dashboardMonth, loadDashboardData, isLoadingDashboard,
             appointmentViewMode, calendarCursor, changeCalendarMonth, calendarGrid, calendarTitle, selectCalendarDay, selectedCalendarDate, appointmentsOnSelectedDate
         };
     }
