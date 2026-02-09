@@ -397,6 +397,13 @@ createApp({
                 try { const c = EmailAuthProvider.credential(user.value.email, fv[0]); await reauthenticateWithCredential(user.value, c); await updatePassword(user.value, fv[1]); Swal.fire('Sucesso!', 'Senha alterada.', 'success'); } catch (error) { Swal.fire('Erro', 'Senha incorreta.', 'error'); }
             }
         };
+        // --- FUNÇÃO QUE FALTAVA ---
+        const checklistProgress = (app) => {
+            if (!app.checklist || app.checklist.length === 0) return 0;
+            const total = app.checklist.length;
+            const done = app.checklist.filter(t => t.done).length;
+            return Math.round((done / total) * 100);
+        };
 
         return {
             user, userRole, userStatus, daysRemaining, authForm, authLoading, view, catalogView, isDark, 
@@ -409,7 +416,10 @@ createApp({
             handleLogin, logout, toggleDarkMode,
             startNewSchedule, editAppointment, saveAppointment, changeStatus, addExpense, deleteExpense, 
             openClientModal, deleteClient, openServiceModal, deleteService,
-            addTask, removeTask, checklistProgress,
+            
+            // REMOVIDO: addTask, removeTask (pois não existem e causam erro)
+            checklistProgress, // ADICIONADO (necessário para a barra de progresso)
+            
             addServiceToApp, removeServiceFromApp, handleLogoUpload, saveCompany,
             showReceipt, downloadReceiptImage, generateContractPDF, 
             getClientName, getClientPhone, formatCurrency, formatDate, getDay, getMonth, statusText, statusClass, getCategoryIcon,
@@ -418,7 +428,6 @@ createApp({
             selectedAppointment, detailTaskInput, openDetails, saveTaskInDetail, toggleTaskDone, deleteTaskInDetail,
             
             dashboardMonth, loadDashboardData, isLoadingDashboard,
-            // NOVOS EXPORTS DO CALENDÁRIO
             appointmentViewMode, calendarCursor, changeCalendarMonth, calendarGrid, calendarTitle, selectCalendarDay, selectedCalendarDate, appointmentsOnSelectedDate
         };
     }
