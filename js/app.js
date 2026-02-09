@@ -93,9 +93,10 @@ createApp({
         onMounted(() => {
             onAuthStateChanged(auth, async (u) => {
                 if (u) {
-                    const userDoc = await getDoc(doc(db, "users", u.uid));
+                    const userRef = doc(db, "users", u.uid);
+                    const userDoc = await getDoc(userRef);
                     if (!userDoc.exists()) {
-                         await setDoc(doc(db, "users", u.uid), {
+                         await setDoc(userRef, {
                             email: u.email,
                             displayName: u.displayName || 'Novo Usuário',
                             role: 'user',
@@ -104,7 +105,10 @@ createApp({
                             companyConfig: { fantasia: u.displayName || 'Minha Empresa' }
                         });
                     }
-                    const updatedDoc = await getDoc(doc(db, "users", u.uid));
+                    // Atualiza último acesso
+                    await updateDoc(userRef, { lastLogin: new Date().toISOString() });
+                    
+                    const updatedDoc = await getDoc(userRef);
                     if (!updatedDoc.exists()) { await signOut(auth); user.value = null; return; }
                     user.value = u;
                     const data = updatedDoc.data();
@@ -126,36 +130,21 @@ createApp({
 
         const handleAuth = async () => {
             if (!authForm.email || !authForm.password) return Swal.fire('Ops', 'Preencha email e senha', 'warning');
-            
-            // Validações extras para cadastro
             if (isRegistering.value) {
                 if (!authForm.name) return Swal.fire('Ops', 'Informe seu nome', 'warning');
                 if (!authForm.phone || authForm.phone.length < 14) return Swal.fire('Ops', 'Informe um WhatsApp válido', 'warning');
             }
-
             authLoading.value = true;
             try {
                 if (isRegistering.value) {
-                    // CADASTRO
                     const userCredential = await createUserWithEmailAndPassword(auth, authForm.email, authForm.password);
                     const newUser = userCredential.user;
-                    
                     await updateProfile(newUser, { displayName: authForm.name });
-                    
-                    // Salvando no Banco de Dados com o TELEFONE 👇
                     await setDoc(doc(db, "users", newUser.uid), {
-                        email: authForm.email,
-                        displayName: authForm.name,
-                        phone: authForm.phone, // <--- NOVO CAMPO SALVO
-                        role: 'user',
-                        status: 'trial',
-                        createdAt: new Date().toISOString(),
-                        companyConfig: { fantasia: authForm.name }
+                        email: authForm.email, displayName: authForm.name, phone: authForm.phone, role: 'user', status: 'trial', createdAt: new Date().toISOString(), companyConfig: { fantasia: authForm.name }
                     });
-                    
                     Swal.fire({ icon: 'success', title: 'Bem-vinda!', text: 'Seu teste de 30 dias começou.', timer: 2000 });
                 } else {
-                    // LOGIN
                     await signInWithEmailAndPassword(auth, authForm.email, authForm.password);
                 }
             } catch (error) {
@@ -251,8 +240,8 @@ createApp({
         };
 
         const searchCatalogClients = async () => {
-            if(catalogClientSearch.value.length < 3) return Swal.fire('Ops', 'Digite pelo menos 3 letras ou CPF', 'info');
-            const term = catalogClientSearch.value.toLowerCase();
+            if(catalogClientSearch.value && catalogClientSearch.value.length < 3) return Swal.fire('Ops', 'Digite pelo menos 3 letras ou CPF', 'info');
+            const term = (catalogClientSearch.value || '').toLowerCase();
             const q = query(collection(db, "clients"), where("userId", "==", user.value.uid));
             const snap = await getDocs(q);
             const allClients = snap.docs.map(d => ({id: d.id, ...d.data()}));
@@ -261,7 +250,7 @@ createApp({
         };
 
         watch(clientSearchTerm, async (newVal) => {
-            if(newVal.length >= 3) {
+            if(newVal && newVal.length >= 3) {
                 const term = newVal.toLowerCase();
                 const q = query(collection(db, "clients"), where("userId", "==", user.value.uid));
                 const snap = await getDocs(q);
@@ -285,8 +274,16 @@ createApp({
         const totalServices = computed(() => tempApp.selectedServices.reduce((s,i) => s + i.price, 0));
         const finalBalance = computed(() => totalServices.value - (tempApp.details.entryFee || 0));
         const filteredClientsSearch = computed(() => scheduleClientsList.value);
-        // Barra de Progresso
-        const checklistProgress = (app) => { if(!app.checklist?.length) return 0; return Math.round((app.checklist.filter(t=>t.done).length/app.checklist.length)*100); };
+        
+        // --- BARRA DE PROGRESSO BLINDADA ---
+        const checklistProgress = (app) => { 
+            if (!app || !app.checklist || !Array.isArray(app.checklist) || app.checklist.length === 0) return 0;
+            try {
+                const total = app.checklist.length;
+                const done = app.checklist.filter(t => t && t.done).length;
+                return Math.round((done / total) * 100); 
+            } catch (e) { return 0; }
+        };
 
         const saveAppointment = async () => {
             const total = tempApp.selectedServices.reduce((sum, i) => sum + i.price, 0);
@@ -313,7 +310,6 @@ createApp({
         const toggleTaskDone = async (index) => { if (!selectedAppointment.value) return; selectedAppointment.value.checklist[index].done = !selectedAppointment.value.checklist[index].done; await updateAppInFirebase(selectedAppointment.value); };
         const deleteTaskInDetail = async (index) => { if (!selectedAppointment.value) return; selectedAppointment.value.checklist.splice(index, 1); await updateAppInFirebase(selectedAppointment.value); };
 
-        // --- FUNÇÕES DE SERVIÇOS (RESTAURADAS) ---
         const addServiceToApp = () => { if(tempServiceSelect.value) { tempApp.selectedServices.push({...tempServiceSelect.value}); tempServiceSelect.value = ''; } };
         const removeServiceFromApp = (i) => tempApp.selectedServices.splice(i,1);
 
@@ -340,7 +336,7 @@ createApp({
             if (vals) { const d = { name: vals[0], phone: vals[1], cpf: vals[2], userId: user.value.uid }; if (c) await updateDoc(doc(db, "clients", c.id), d); else await addDoc(collection(db, "clients"), d); Swal.fire('Salvo', '', 'success'); } 
         };
         const deleteClient = async (id) => { if ((await Swal.fire({ title: 'Excluir?', showCancelButton: true })).isConfirmed) { await deleteDoc(doc(db, "clients", id)); catalogClientsList.value = catalogClientsList.value.filter(x => x.id !== id); } };
-        const openServiceModal = async (s) => { const d = s && s.description ? s.description : ''; const p = s && s.price ? s.price : ''; const html = '<input id="d" class="swal2-input" value="' + d + '" placeholder="Descrição">' + '<input id="p" type="number" class="swal2-input" value="' + p + '" placeholder="Preço (R$)">'; const { value: v } = await Swal.fire({ title: s ? 'Editar Serviço' : 'Novo Serviço', html: html, showCancelButton: true, confirmButtonText: 'Salvar', preConfirm: () => [ document.getElementById('d').value, document.getElementById('p').value ] }); if (v) { const data = { description: v[0], price: Number(v[1]), userId: user.value.uid }; if (s) await updateDoc(doc(db, "services", s.id), data); else await addDoc(collection(db, "services"), data); } };
+        const openServiceModal = async (s) => { const d = s && s.description ? s.description : ''; const p = s && s.price ? s.price : ''; const html = '<input id="d" class="swal2-input" value="' + d + '" placeholder="Descrição">' + '<input id="p" type="number" class="swal2-input" value="' + p + '" placeholder="Preço (R$)">'; const { value: v } = await Swal.fire({ title: s ? 'Editar Serviço' : 'Novo Serviço', html: html, showCancelButton: true, confirmButtonText: 'Salvar', preConfirm: () => [ document.getElementById('d').value, document.getElementById('p').value ] }); if (v) { const data = { description: v[0], price: Number(v[1]), userId: user.value.uid }; if (s) await updateDoc(doc(db, "services", s.id), data); else await addDoc(collection(db, "services", data)); } };
         const deleteService = async (id) => { await deleteDoc(doc(db,"services",id)); };
         const downloadReceiptImage = () => { html2canvas(document.getElementById('receipt-capture-area'),{scale:2}).then(c=>{const l=document.createElement('a');l.download='Recibo.png';l.href=c.toDataURL();l.click();}); };
         
@@ -373,7 +369,7 @@ createApp({
             user, userRole, userStatus, daysRemaining, authForm, authLoading, view, catalogView, isDark, 
             services, appointments: pendingAppointments, expensesList, catalogClientsList, company,
             tempApp, tempServiceSelect, newExpense, showExpenseModal, currentReceipt, 
-            isEditing, expenseCategories, // <--- Aqui estava o problema, removi newTaskText
+            isEditing, expenseCategories,
             kpiRevenue, kpiExpenses, kpiReceivables, kpiProfit, next7DaysApps, pendingCount,
             filteredListAppointments, totalServices, finalBalance,
             currentTab, historyFilter, searchHistory, isLoadingHistory, expensesFilter,
