@@ -39,9 +39,9 @@ createApp({
         const catalogClientsList = ref([]); 
         const scheduleClientsList = ref([]);
         
-        // VARIÁVEIS QUE FALTAVAM E CAUSAVAM ERRO (Financeiro/Extrato)
-        const statementList = ref([]);
-        const financeData = reactive({ incomes: [] }); 
+        // --- VARIÁVEIS DO EXTRATO ---
+        const rawStatementData = ref([]); // Armazena dados brutos de App + Exp
+        const financeData = reactive({ incomes: [] }); // Compatibilidade com HTML
 
         // Cache local para nomes de clientes
         const clientCache = reactive({}); 
@@ -218,19 +218,48 @@ createApp({
             } catch (error) { console.error(error); Swal.fire('Erro', 'Tente novamente.', 'error'); } finally { isLoadingHistory.value = false; }
         };
 
+        // --- FUNÇÃO ATUALIZADA: BUSCA UNIFICADA PARA EXTRATO ---
         const searchExpenses = async () => {
             if(!expensesFilter.start || !expensesFilter.end) return Swal.fire('Data', 'Selecione o período', 'info');
+            
             try {
-                const q = query(collection(db, "expenses"), where("userId", "==", user.value.uid));
-                const snap = await getDocs(q);
-                const allExpenses = snap.docs.map(d => ({id: d.id, ...d.data()}));
-                expensesList.value = allExpenses.filter(e => {
-                    const dateOk = e.date >= expensesFilter.start && e.date <= expensesFilter.end;
-                    const categoryOk = !expensesFilter.category || e.category === expensesFilter.category;
-                    return dateOk && categoryOk;
+                // 1. Buscar Despesas
+                const qExp = query(collection(db, "expenses"), where("userId", "==", user.value.uid));
+                const snapExp = await getDocs(qExp);
+                const allExpenses = snapExp.docs.map(d => ({id: d.id, ...d.data()}));
+                
+                const filteredExp = allExpenses.filter(e => {
+                    return e.date >= expensesFilter.start && e.date <= expensesFilter.end &&
+                           (!expensesFilter.category || e.category === expensesFilter.category);
                 });
-                expensesList.value.sort((a,b) => new Date(b.date) - new Date(a.date));
-                if(expensesList.value.length === 0) Swal.fire('Vazio', 'Nenhuma despesa encontrada.', 'info');
+                
+                // Atualiza a lista da tela de "Financeiro"
+                expensesList.value = filteredExp.sort((a,b) => new Date(b.date) - new Date(a.date));
+
+                // 2. Buscar Agendamentos (Receita)
+                const qApp = query(collection(db, "appointments"), where("userId", "==", user.value.uid));
+                const snapApp = await getDocs(qApp);
+                const allApps = snapApp.docs.map(d => ({id: d.id, ...d.data()}));
+                
+                const filteredApps = allApps.filter(a => {
+                    return a.status !== 'cancelled' && 
+                           a.date >= expensesFilter.start && 
+                           a.date <= expensesFilter.end;
+                });
+                
+                // Carrega nomes dos clientes para o extrato
+                filteredApps.forEach(app => fetchClientToCache(app.clientId));
+                financeData.incomes = filteredApps; // Garante que a caixa de resumo apareça
+
+                // 3. Montar Dados Brutos para o Extrato e Saldo
+                const raw = [];
+                filteredExp.forEach(e => raw.push({ source: 'expense', data: e }));
+                filteredApps.forEach(a => raw.push({ source: 'app', data: a }));
+                
+                rawStatementData.value = raw;
+
+                if(raw.length === 0) Swal.fire('Vazio', 'Nenhuma movimentação no período.', 'info');
+
             } catch(e) { console.error(e); }
         };
 
@@ -257,7 +286,6 @@ createApp({
         // --- COMPUTEDS GERAIS ---
         const filteredListAppointments = computed(() => { 
             let list = currentTab.value === 'pending' ? pendingAppointments.value : historyList.value;
-            // Segurança: Garante que list seja um array antes de filtrar
             if (!list) return [];
             return [...list].sort((a,b) => new Date(a.date) - new Date(b.date)); 
         });
@@ -279,34 +307,72 @@ createApp({
             return scheduleClientsList.value;
         });
 
-        // --- NOVOS COMPUTEDS QUE FALTAVAM E CAUSAVAM ERRO ---
-        const filteredExpensesList = computed(() => expensesList.value || []);
+        // --- NOVOS COMPUTEDS PARA O EXTRATO UNIFICADO ---
         
+        // Lista Unificada (Apps + Exp) formatada para a View 'statement'
+        const statementList = computed(() => {
+            return rawStatementData.value.map(item => {
+                if(item.source === 'expense') {
+                     return {
+                         uniqueId: 'exp_' + item.data.id,
+                         type: 'out',
+                         date: item.data.date,
+                         description: item.data.description,
+                         category: item.data.category,
+                         value: item.data.value
+                     };
+                } else {
+                     return {
+                         uniqueId: 'app_' + item.data.id,
+                         type: 'in',
+                         date: item.data.date,
+                         description: getClientName(item.data.clientId), // Reativo ao cache
+                         category: 'Serviço',
+                         value: item.data.totalServices || 0
+                     };
+                }
+            }).sort((a,b) => new Date(b.date) - new Date(a.date));
+        });
+
+        // Saldo baseada na busca atual (Respeita o filtro de data)
         const financeSummary = computed(() => {
+            const income = rawStatementData.value
+                .filter(i => i.source === 'app')
+                .reduce((sum, i) => sum + (i.data.totalServices || 0), 0);
+            
+            const expense = rawStatementData.value
+                .filter(i => i.source === 'expense')
+                .reduce((sum, i) => sum + (i.data.value || 0), 0);
+                
             return {
-                income: kpiRevenue.value || 0,
-                expense: kpiExpenses.value || 0,
-                balance: kpiProfit.value || 0
+                income,
+                expense,
+                balance: income - expense
             };
         });
+
+        const filteredExpensesList = computed(() => expensesList.value || []);
 
         const expensesByCategoryStats = computed(() => {
              if (!expensesList.value || expensesList.value.length === 0) return [];
              const stats = {};
+             // Calcula total apenas das despesas listadas
+             const totalExp = expensesList.value.reduce((acc, e) => acc + (e.value || 0), 0);
+             
              expensesList.value.forEach(e => {
                  const cat = e.category || 'outros';
                  if (!stats[cat]) stats[cat] = 0;
                  stats[cat] += e.value;
              });
+             
              return Object.keys(stats).map(key => {
                  const catObj = expenseCategories.find(c => c.id === key) || {label: 'Outros', icon: 'fa-money-bill'};
-                 const total = kpiExpenses.value || 1;
                  return {
                      id: key,
                      label: catObj.label,
                      icon: catObj.icon,
                      value: stats[key],
-                     percentage: Math.round((stats[key] / total) * 100)
+                     percentage: totalExp > 0 ? Math.round((stats[key] / totalExp) * 100) : 0
                  };
              }).sort((a,b) => b.value - a.value);
         });
@@ -471,7 +537,7 @@ createApp({
             
             checklistProgress, addServiceToApp, removeServiceFromApp,
             
-            // Retornando as variáveis que faltavam para evitar o erro de 'length'
+            // Retorna as novas variáveis e computeds do Extrato
             statementList, financeData, filteredExpensesList, financeSummary, expensesByCategoryStats,
 
             handleLogoUpload, saveCompany,
