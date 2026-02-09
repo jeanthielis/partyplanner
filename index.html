@@ -53,7 +53,7 @@
                     <button @click="view='schedule'; startNewSchedule()" :class="view==='schedule'?'bg-brand-50 text-brand-600':''" class="w-full text-left p-3 rounded-xl hover:bg-gray-50"><i class="fa-solid fa-calendar w-6"></i> Agenda</button>
                     <button @click="view='finance'" :class="view==='finance'?'bg-brand-50 text-brand-600':''" class="w-full text-left p-3 rounded-xl hover:bg-gray-50"><i class="fa-solid fa-wallet w-6"></i> Financeiro</button>
                     <button @click="view='clients'" :class="view==='clients'?'bg-brand-50 text-brand-600':''" class="w-full text-left p-3 rounded-xl hover:bg-gray-50"><i class="fa-solid fa-users w-6"></i> Clientes</button>
-                    <button @click="view='settings'" :class="view==='settings'?'bg-brand-50 text-brand-600':''" class="w-full text-left p-3 rounded-xl hover:bg-gray-50"><i class="fa-solid fa-gear w-6"></i> Configurações</button>
+                    <button @click="view='settings'" :class="view==='settings'?'bg-brand-50 text-brand-600':''" class="w-full text-left p-3 rounded-xl hover:bg-gray-50"><i class="fa-solid fa-gear w-6"></i> Ajustes</button>
                 </nav>
                 <div class="p-4"><button @click="logout" class="text-red-500 w-full text-left p-2"><i class="fa-solid fa-power-off"></i> Sair</button></div>
             </aside>
@@ -63,16 +63,17 @@
                     <div class="font-bold text-brand-600">PartyPlanner</div>
                     <div class="flex gap-4">
                         <button @click="view='dashboard'"><i class="fa-solid fa-home text-gray-500"></i></button>
-                        <button @click="view='schedule'"><i class="fa-solid fa-plus-circle text-brand-600 text-xl"></i></button>
+                        <button @click="view='finance'"><i class="fa-solid fa-wallet text-gray-500"></i></button>
                         <button @click="logout"><i class="fa-solid fa-power-off text-red-500"></i></button>
                     </div>
                 </header>
 
                 <div v-if="view === 'dashboard'" class="p-6 space-y-6">
                     <div class="flex justify-between items-center">
-                        <h2 class="text-2xl font-bold">Dashboard</h2>
-                        <input type="month" v-model="dashboardMonth" class="p-2 rounded border">
+                        <h2 class="text-2xl font-bold">Visão Geral</h2>
+                        <input type="month" v-model="dashboardMonth" class="p-2 rounded border text-sm">
                     </div>
+                    
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div class="bg-white p-4 rounded-2xl shadow-sm border-l-4 border-green-500">
                             <div class="text-gray-400 text-xs uppercase">Receita</div>
@@ -91,8 +92,16 @@
                             <div class="text-xl font-bold">{{ formatCurrency(financeData.receivables) }}</div>
                         </div>
                     </div>
+
+                    <div class="flex justify-end">
+                        <button @click="view = 'finance'" class="bg-gray-800 text-white px-6 py-3 rounded-xl font-bold hover:bg-gray-700 flex items-center gap-2">
+                            <i class="fa-solid fa-list"></i> Ver Extrato Completo
+                        </button>
+                    </div>
+
                     <div class="bg-white p-6 rounded-2xl shadow-sm">
-                        <h3 class="font-bold mb-4">Próximos Eventos</h3>
+                        <h3 class="font-bold mb-4">Agenda Recente</h3>
+                        <div v-if="next7DaysApps.length === 0" class="text-gray-400 text-sm">Nenhum evento próximo.</div>
                         <div v-for="app in next7DaysApps" :key="app.id" @click="showReceipt(app)" class="flex justify-between items-center p-3 hover:bg-gray-50 cursor-pointer border-b last:border-0">
                             <div>
                                 <div class="font-bold">{{ getClientName(app.clientId) }}</div>
@@ -104,21 +113,39 @@
                 </div>
 
                 <div v-if="view === 'finance'" class="p-6 space-y-6">
-                    <div class="flex justify-between">
-                        <h2 class="text-2xl font-bold">Financeiro</h2>
-                        <button @click="showExpenseModal=true" class="bg-red-500 text-white px-4 py-2 rounded-lg">+ Despesa</button>
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-2xl font-bold">Extrato Financeiro</h2>
+                        <button @click="showExpenseModal=true" class="bg-red-500 text-white px-4 py-2 rounded-lg text-sm">+ Despesa</button>
                     </div>
-                    <div class="bg-white p-4 rounded-2xl shadow-sm">
-                        <h3 class="font-bold border-b pb-2 mb-2">Extrato</h3>
-                        <div v-for="item in statementList" :key="item.id" class="flex justify-between items-center p-3 border-b last:border-0">
-                            <div class="flex items-center gap-3">
-                                <i class="fa-solid" :class="item.icon + ' ' + item.color"></i>
-                                <div>
-                                    <div class="font-bold text-sm">{{ item.description }}</div>
-                                    <div class="text-xs text-gray-400">{{ formatDate(item.date) }}</div>
+
+                    <div class="bg-white p-4 rounded-2xl shadow-sm overflow-hidden">
+                        <div class="flex gap-4 mb-4 border-b pb-4">
+                            <input type="date" v-model="expensesFilter.start" class="border p-2 rounded text-sm">
+                            <input type="date" v-model="expensesFilter.end" class="border p-2 rounded text-sm">
+                            <button @click="searchExpenses" class="bg-blue-600 text-white px-4 rounded text-sm">Filtrar</button>
+                        </div>
+
+                        <div v-if="statementList.length === 0" class="text-center text-gray-400 py-10">Nenhuma movimentação neste período.</div>
+                        
+                        <div v-else class="space-y-2">
+                            <div v-for="item in statementList" :key="item.id" class="flex justify-between items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs" :class="item.type === 'income' ? 'bg-green-500' : 'bg-red-500'">
+                                        <i class="fa-solid" :class="item.type === 'income' ? 'fa-arrow-up' : 'fa-arrow-down'"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-bold text-sm">{{ item.description }}</div>
+                                        <div class="text-xs text-gray-500">{{ formatDate(item.date) }}</div>
+                                    </div>
+                                </div>
+                                <div class="font-mono font-bold" :class="item.type === 'income' ? 'text-green-600' : 'text-red-500'">
+                                    {{ item.type === 'income' ? '+' : '-' }} {{ formatCurrency(item.value) }}
                                 </div>
                             </div>
-                            <div class="font-bold" :class="item.color">{{ formatCurrency(item.value) }}</div>
+                        </div>
+                        
+                        <div class="mt-4 pt-4 border-t text-right font-bold">
+                            Saldo: <span :class="financeData.profit >= 0 ? 'text-green-600' : 'text-red-600'">{{ formatCurrency(financeData.profit) }}</span>
                         </div>
                     </div>
                 </div>
@@ -129,14 +156,16 @@
                         <button @click="openClientModal()" class="bg-brand-600 text-white px-4 py-2 rounded-lg">+ Novo</button>
                     </div>
                     <div class="bg-white p-4 rounded-2xl shadow-sm">
-                        <input v-model="catalogClientSearch" placeholder="Buscar..." class="w-full p-2 border rounded mb-4">
-                        <button @click="searchCatalogClients" class="bg-gray-800 text-white px-4 py-2 rounded w-full mb-4">Pesquisar</button>
-                        <div v-for="c in catalogClientsList" :key="c.id" class="flex justify-between p-3 border-b">
+                        <div class="flex gap-2 mb-4">
+                            <input v-model="catalogClientSearch" placeholder="Buscar por nome..." class="w-full p-2 border rounded">
+                            <button @click="searchCatalogClients" class="bg-gray-800 text-white px-4 rounded">Buscar</button>
+                        </div>
+                        <div v-for="c in catalogClientsList" :key="c.id" class="flex justify-between p-3 border-b items-center">
                             <div>
                                 <div class="font-bold">{{ c.name }}</div>
                                 <div class="text-xs text-gray-500">{{ c.phone }}</div>
                             </div>
-                            <button @click="deleteClient(c.id)" class="text-red-500"><i class="fa-solid fa-trash"></i></button>
+                            <button @click="deleteClient(c.id)" class="text-red-500 p-2"><i class="fa-solid fa-trash"></i></button>
                         </div>
                     </div>
                 </div>
@@ -146,14 +175,14 @@
                         <h2 class="text-xl font-bold mb-4">{{ isEditing ? 'Editar' : 'Novo' }} Evento</h2>
                         
                         <div class="mb-4 relative">
-                            <label class="text-xs font-bold text-gray-500">Cliente</label>
-                            <input v-model="clientSearchTerm" placeholder="Buscar nome..." class="w-full p-2 border rounded">
-                            <div v-if="filteredClientsSearch.length" class="absolute bg-white border w-full mt-1 max-h-40 overflow-y-auto shadow-xl z-50">
+                            <label class="text-xs font-bold text-gray-500">CLIENTE</label>
+                            <input v-model="clientSearchTerm" placeholder="Digite para buscar..." class="w-full p-2 border rounded bg-gray-50">
+                            <div v-if="filteredClientsSearch.length > 0" class="absolute w-full bg-white border shadow-lg max-h-40 overflow-y-auto z-50 mt-1 rounded">
                                 <div v-for="c in filteredClientsSearch" @click="tempApp.clientId=c.id; clientSearchTerm=c.name; filteredClientsSearch=[]" class="p-2 hover:bg-gray-100 cursor-pointer border-b">
                                     {{ c.name }}
                                 </div>
                             </div>
-                            <button v-if="!tempApp.clientId" @click="openClientModal()" class="text-xs text-blue-600 mt-1">+ Cadastrar Cliente</button>
+                            <button v-if="!tempApp.clientId" @click="openClientModal()" class="text-xs text-blue-600 mt-1 font-bold">+ Cadastrar Novo Cliente</button>
                         </div>
 
                         <div class="grid grid-cols-2 gap-4 mb-4">
@@ -165,7 +194,7 @@
                         </div>
 
                         <div class="mb-4 bg-gray-50 p-4 rounded">
-                            <label class="text-xs font-bold">Serviços</label>
+                            <label class="text-xs font-bold block mb-2">SERVIÇOS</label>
                             <div class="flex gap-2 mb-2">
                                 <select v-model="tempServiceSelect" class="flex-1 p-2 border rounded">
                                     <option :value="''">Selecione...</option>
@@ -179,18 +208,21 @@
                             </div>
                         </div>
 
-                        <div class="flex justify-between items-center text-lg font-bold mb-4">
-                            <span>Total: {{ formatCurrency(totalServices) }}</span>
-                            <button @click="saveAppointment" class="bg-brand-600 text-white px-6 py-2 rounded-xl">Salvar</button>
+                        <div class="bg-gray-100 p-4 rounded mb-4">
+                            <div class="flex justify-between mb-2"><span>Total:</span> <strong>{{ formatCurrency(totalServices) }}</strong></div>
+                            <div class="flex justify-between items-center mb-2"><span>Entrada:</span> <input v-model="tempApp.details.entryFee" type="number" class="w-24 p-1 rounded text-right"></div>
+                            <div class="flex justify-between text-brand-600 font-bold border-t pt-2"><span>A Pagar:</span> <span>{{ formatCurrency(finalBalance) }}</span></div>
                         </div>
+
+                        <button @click="saveAppointment" class="w-full bg-brand-600 text-white py-3 rounded-xl font-bold shadow-lg">Salvar Evento</button>
                     </div>
                 </div>
 
                 <div v-if="view === 'receipt' && currentReceipt" class="p-6 flex justify-center">
                     <div class="bg-white p-8 shadow-2xl w-full max-w-lg relative" id="receipt-capture-area">
                         <div class="text-center border-b pb-4 mb-4">
-                            <img v-if="company.logo" :src="company.logo" class="h-16 mx-auto">
-                            <h1 class="text-2xl font-bold">{{ company.fantasia || 'Minha Empresa' }}</h1>
+                            <img v-if="company.logo" :src="company.logo" class="h-16 mx-auto mb-2">
+                            <h1 class="text-2xl font-bold text-brand-600">{{ company.fantasia || 'Minha Empresa' }}</h1>
                             <p class="text-xs text-gray-500">Recibo de Serviço</p>
                         </div>
                         <div class="space-y-2 text-sm mb-6">
@@ -198,31 +230,34 @@
                             <div class="flex justify-between"><span>Data:</span> <b>{{ formatDate(currentReceipt.date) }}</b></div>
                         </div>
                         <div class="bg-gray-50 p-4 rounded mb-4">
-                            <div v-for="s in currentReceipt.selectedServices" class="flex justify-between text-sm">
+                            <div v-for="s in currentReceipt.selectedServices" class="flex justify-between text-sm mb-1">
                                 <span>{{ s.description }}</span><span>{{ formatCurrency(s.price) }}</span>
                             </div>
                             <div class="border-t my-2"></div>
                             <div class="flex justify-between font-bold"><span>Total</span><span>{{ formatCurrency(currentReceipt.totalServices) }}</span></div>
+                            <div class="flex justify-between text-green-600 text-sm"><span>Pago</span><span>- {{ formatCurrency(currentReceipt.entryFee) }}</span></div>
+                            <div class="flex justify-between font-bold text-brand-600 pt-2 border-t mt-2"><span>Restante</span><span>{{ formatCurrency(currentReceipt.finalBalance) }}</span></div>
                         </div>
-                        <div class="text-center text-xs text-gray-400">Gerado por PartyPlanner Pro</div>
                     </div>
-                    <div class="fixed bottom-4 right-4 flex flex-col gap-2">
-                        <button @click="downloadReceiptImage" class="bg-blue-600 text-white p-4 rounded-full shadow-xl"><i class="fa-solid fa-image"></i></button>
-                        <button @click="generateContractPDF" class="bg-red-600 text-white p-4 rounded-full shadow-xl"><i class="fa-solid fa-file-pdf"></i></button>
-                        <button @click="view='dashboard'" class="bg-gray-800 text-white p-4 rounded-full shadow-xl"><i class="fa-solid fa-times"></i></button>
+                    <div class="fixed bottom-6 right-6 flex flex-col gap-3">
+                        <button @click="downloadReceiptImage" class="bg-blue-600 text-white w-12 h-12 rounded-full shadow-lg"><i class="fa-solid fa-image"></i></button>
+                        <button @click="generateContractPDF" class="bg-red-600 text-white w-12 h-12 rounded-full shadow-lg"><i class="fa-solid fa-file-pdf"></i></button>
+                        <button @click="view='dashboard'" class="bg-gray-800 text-white w-12 h-12 rounded-full shadow-lg"><i class="fa-solid fa-times"></i></button>
                     </div>
                 </div>
 
                 <div v-if="view === 'settings'" class="p-6">
                     <div class="bg-white p-6 rounded-2xl shadow space-y-4">
                         <h2 class="font-bold text-xl">Ajustes</h2>
-                        <input type="file" @change="handleLogoUpload">
-                        <img v-if="company.logo" :src="company.logo" class="h-16">
+                        <input type="file" @change="handleLogoUpload" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100">
+                        <img v-if="company.logo" :src="company.logo" class="h-20 border rounded">
                         <input v-model="company.fantasia" placeholder="Nome da Empresa" class="w-full p-2 border rounded">
-                        <button @click="saveCompany" class="bg-brand-600 text-white px-4 py-2 rounded">Salvar</button>
-                        <hr>
-                        <button @click="handleChangePassword" class="text-brand-600 font-bold">Alterar Senha</button>
-                        <button @click="toggleDarkMode" class="text-gray-500 font-bold ml-4">Tema Escuro</button>
+                        <input v-model="company.cnpj" placeholder="CNPJ / CPF" class="w-full p-2 border rounded">
+                        <button @click="saveCompany" class="bg-brand-600 text-white px-4 py-2 rounded font-bold w-full">Salvar Configurações</button>
+                        <div class="flex justify-between pt-4 border-t">
+                            <button @click="toggleDarkMode" class="text-gray-500 font-bold">Alternar Tema</button>
+                            <button @click="handleChangePassword" class="text-brand-600 font-bold">Alterar Senha</button>
+                        </div>
                     </div>
                 </div>
 
@@ -231,16 +266,16 @@
 
         <div v-if="showExpenseModal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
             <div class="bg-white p-6 rounded-2xl w-full max-w-sm">
-                <h3 class="font-bold mb-4">Nova Despesa</h3>
-                <input v-model="newExpense.description" placeholder="Descrição" class="w-full p-2 border rounded mb-2">
-                <input v-model="newExpense.value" type="number" placeholder="Valor" class="w-full p-2 border rounded mb-2">
-                <input v-model="newExpense.date" type="date" class="w-full p-2 border rounded mb-4">
-                <select v-model="newExpense.category" class="w-full p-2 border rounded mb-4">
+                <h3 class="font-bold mb-4 text-lg">Nova Despesa</h3>
+                <input v-model="newExpense.description" placeholder="Descrição (ex: Aluguel)" class="w-full p-3 border rounded-xl mb-3">
+                <input v-model="newExpense.value" type="number" placeholder="Valor (R$)" class="w-full p-3 border rounded-xl mb-3">
+                <input v-model="newExpense.date" type="date" class="w-full p-3 border rounded-xl mb-3">
+                <select v-model="newExpense.category" class="w-full p-3 border rounded-xl mb-4">
                     <option v-for="c in expenseCategories" :value="c.id">{{ c.label }}</option>
                 </select>
                 <div class="flex gap-2">
-                    <button @click="addExpense" class="flex-1 bg-red-500 text-white py-2 rounded">Salvar</button>
-                    <button @click="showExpenseModal=false" class="flex-1 bg-gray-200 py-2 rounded">Cancelar</button>
+                    <button @click="addExpense" class="flex-1 bg-red-500 text-white py-3 rounded-xl font-bold">Salvar</button>
+                    <button @click="showExpenseModal=false" class="flex-1 bg-gray-200 text-gray-700 py-3 rounded-xl font-bold">Cancelar</button>
                 </div>
             </div>
         </div>
@@ -248,6 +283,6 @@
     </div>
 
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script type="module" src="js/app.js?v=50.0"></script>
+    <script type="module" src="js/app.js?v=100.0"></script>
 </body>
 </html>
