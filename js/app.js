@@ -9,16 +9,16 @@ import {
 
 createApp({
     setup() {
-        // --- ESTADOS ---
         const user = ref(null);
         const view = ref('dashboard');
         const isDark = ref(false);
         const authLoading = ref(false);
         const isRegistering = ref(false);
         const authForm = reactive({ email: '', password: '', name: '' });
-        const company = reactive({ fantasia: '', logo: '', cnpj: '' });
         
-        // Dados
+        // Dados da Empresa (Com Novos Campos)
+        const company = reactive({ fantasia: '', logo: '', cnpj: '', rua: '', cidade: '', estado: '' });
+        
         const dashboardMonth = ref(new Date().toISOString().slice(0, 7));
         const dashboardData = reactive({ appointments: [], expenses: [] });
         const isLoadingDashboard = ref(false);
@@ -31,13 +31,19 @@ createApp({
         const scheduleClientsList = ref([]);
         const clientCache = reactive({});
 
-        // Modais e Controles
-        const showAppointmentModal = ref(false); // NOVO
-        const showServiceModal = ref(false); // NOVO
+        const showAppointmentModal = ref(false);
+        const showServiceModal = ref(false);
         const showExpenseModal = ref(false);
-        const newService = reactive({ description: '', price: '' }); // NOVO
+        const newService = reactive({ description: '', price: '' });
 
-        const tempApp = reactive({ clientId: '', date: '', time: '', location: { bairro: '' }, details: { entryFee: 0 }, selectedServices: [], checklist: [] });
+        // App Temp com Novos Campos
+        const tempApp = reactive({ 
+            clientId: '', date: '', time: '', 
+            location: { bairro: '' }, 
+            details: { entryFee: 0, balloonColors: '' }, // Cores dos balões
+            notes: '', // Observações
+            selectedServices: [], checklist: [] 
+        });
         const tempServiceSelect = ref('');
         const newExpense = reactive({ description: '', value: '', date: new Date().toISOString().split('T')[0], category: 'outros' });
         const expensesFilter = reactive({ start: '', end: '' });
@@ -84,7 +90,15 @@ createApp({
             let entry = toNum(data.entryFee || data.details?.entryFee);
             let balance = toNum(data.finalBalance);
             if (balance === 0 && total > 0) balance = total - entry;
-            return { id: docSnapshot.id || data.id, ...data, selectedServices: safeServices, totalServices: total, finalBalance: balance, entryFee: entry, checklist: data.checklist || [] };
+            
+            // Garante que campos novos existam no objeto para não dar erro
+            return { 
+                id: docSnapshot.id || data.id, ...data, 
+                selectedServices: safeServices, totalServices: total, finalBalance: balance, entryFee: entry, 
+                checklist: data.checklist || [],
+                details: { ...data.details, balloonColors: data.details?.balloonColors || '' },
+                notes: data.notes || ''
+            };
         };
 
         const sanitizeExpense = (docSnapshot) => { const data = docSnapshot.data ? docSnapshot.data() : docSnapshot; return { id: docSnapshot.id || data.id, ...data, value: toNum(data.value) }; };
@@ -145,7 +159,6 @@ createApp({
             return pendingAppointments.value.filter(a => a.date >= todayStr && a.date <= nextWeekStr).sort((a,b) => a.date.localeCompare(b.date));
         });
 
-        // --- EXTRATO FILTRADO ---
         const searchExpenses = async () => {
             if(!expensesFilter.start || !expensesFilter.end) return Swal.fire('Data', 'Selecione o período', 'info');
             const qExp = query(collection(db, "expenses"), where("userId", "==", user.value.uid), where("date", ">=", expensesFilter.start), where("date", "<=", expensesFilter.end));
@@ -161,7 +174,6 @@ createApp({
         const statementList = computed(() => { if (!isExtractLoaded.value) return []; return expensesList.value.sort((a, b) => b.date.localeCompare(a.date)); });
         const financeSummary = computed(() => statementList.value.reduce((acc, item) => item.type === 'income' ? acc + item.value : acc - item.value, 0));
 
-        // --- CALENDÁRIO ---
         const calendarGrid = computed(() => {
             const year = calendarCursor.value.getFullYear(); const month = calendarCursor.value.getMonth();
             const firstDay = new Date(year, month, 1).getDay(); const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -179,7 +191,6 @@ createApp({
         const calendarTitle = computed(() => `${['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'][calendarCursor.value.getMonth()]} ${calendarCursor.value.getFullYear()}`);
         const filteredListAppointments = computed(() => { let list = pendingAppointments.value; if(clientSearchTerm.value) list = list.filter(a => getClientName(a.clientId).toLowerCase().includes(clientSearchTerm.value.toLowerCase())); return list.sort((a,b) => a.date.localeCompare(b.date)); });
 
-        // --- ACOES ---
         const handleAuth = async () => { authLoading.value = true; try { if (isRegistering.value) { const c=await createUserWithEmailAndPassword(auth, authForm.email, authForm.password); await updateProfile(c.user,{displayName:authForm.name}); await setDoc(doc(db,"users",c.user.uid),{email:authForm.email}); } else { await signInWithEmailAndPassword(auth,authForm.email,authForm.password); } } catch(e){Swal.fire('Erro','Dados inválidos','error');} finally{authLoading.value=false;} };
         
         const saveAppointment = async () => {
@@ -198,7 +209,16 @@ createApp({
 
         const addExpense = async () => { await addDoc(collection(db, "expenses"), { ...newExpense, value: toNum(newExpense.value), userId: user.value.uid }); showExpenseModal.value = false; Swal.fire('Salvo','','success'); };
         const deleteClient = async (id) => { if((await Swal.fire({title:'Excluir?',showCancelButton:true})).isConfirmed) { await deleteDoc(doc(db,"clients",id)); searchCatalogClients(); }};
-        const openClientModal = async () => { const {value:v}=await Swal.fire({title:'Novo Cliente', html:'<input id="n" placeholder="Nome" class="swal2-input"><input id="p" placeholder="Tel" class="swal2-input">', preConfirm:()=>[document.getElementById('n').value,document.getElementById('p').value]}); if(v) await addDoc(collection(db,"clients"),{name:v[0],phone:v[1],userId:user.value.uid}); };
+        
+        // --- CLIENTE COM CPF ---
+        const openClientModal = async () => { 
+            const {value:v}=await Swal.fire({
+                title:'Novo Cliente', 
+                html:'<input id="n" placeholder="Nome" class="swal2-input"><input id="p" placeholder="Tel" class="swal2-input"><input id="cpf" placeholder="CPF" class="swal2-input">', 
+                preConfirm:()=>[document.getElementById('n').value,document.getElementById('p').value,document.getElementById('cpf').value]
+            }); 
+            if(v) await addDoc(collection(db,"clients"),{name:v[0],phone:v[1],cpf:v[2],userId:user.value.uid}); 
+        };
         
         const searchCatalogClients = async () => {
             const q = query(collection(db, "clients"), where("userId", "==", user.value.uid));
@@ -225,21 +245,28 @@ createApp({
         });
 
         const downloadReceiptImage = () => { html2canvas(document.getElementById('receipt-capture-area')).then(c => { const l = document.createElement('a'); l.download = 'Recibo.png'; l.href = c.toDataURL(); l.click(); }); };
+        
+        // Contrato Atualizado
         const generateContractPDF = () => { 
-            const doc = new window.jspdf.jsPDF(); const app = currentReceipt.value; const cli = clientCache[app.clientId] || {name:'...'};
+            const { jsPDF } = window.jspdf; const doc = new jsPDF(); const app = currentReceipt.value; const cli = clientCache[app.clientId] || {name:'...',cpf:'...'};
             doc.setFontSize(18); doc.text("CONTRATO DE PRESTAÇÃO DE SERVIÇOS", 105, 20, {align:"center"});
-            doc.setFontSize(12); doc.text(`CONTRATADA: ${company.fantasia}, CNPJ: ${company.cnpj}`, 20, 40);
-            doc.text(`CONTRATANTE: ${cli.name}, Telefone: ${cli.phone}`, 20, 50);
-            doc.text(`Data do Evento: ${formatDate(app.date)} às ${app.time}`, 20, 65);
-            doc.text(`Local: ${app.location.bairro}`, 20, 75);
+            doc.setFontSize(12); 
+            doc.text(`CONTRATADA: ${company.fantasia}, CNPJ: ${company.cnpj}`, 20, 40);
+            doc.text(`Endereço: ${company.rua} - ${company.cidade}/${company.estado}`, 20, 46);
+            doc.text(`CONTRATANTE: ${cli.name}, CPF: ${cli.cpf}`, 20, 56);
+            doc.text(`Data do Evento: ${formatDate(app.date)} às ${app.time}`, 20, 70);
+            doc.text(`Local: ${app.location.bairro}`, 20, 76);
             const body = app.selectedServices.map(s => [s.description, formatCurrency(s.price)]);
             doc.autoTable({startY: 85, head: [['Serviço', 'Valor']], body: body});
             let y = doc.lastAutoTable.finalY + 10;
             doc.text(`Total: ${formatCurrency(app.totalServices)}`, 20, y);
             doc.text(`Sinal: ${formatCurrency(app.entryFee)}`, 20, y+10);
             doc.text(`Restante: ${formatCurrency(app.finalBalance)}`, 20, y+20);
+            if(app.details.balloonColors) doc.text(`Cores: ${app.details.balloonColors}`, 20, y+30);
+            if(app.notes) doc.text(`Obs: ${app.notes}`, 20, y+36);
             doc.save("Contrato.pdf");
         };
+        
         const handleLogoUpload = (e) => { const f = e.target.files[0]; if(f){ const r=new FileReader(); r.onload=x=>{company.logo=x.target.result; updateDoc(doc(db,"users",user.value.uid),{companyConfig:company});}; r.readAsDataURL(f); }};
         const saveCompany = () => { updateDoc(doc(db, "users", user.value.uid), { companyConfig: company }); Swal.fire('Salvo', '', 'success'); };
         const handleChangePassword = async () => { Swal.fire('Info', 'Utilize o reset de senha na tela de login.', 'info'); };
@@ -250,7 +277,7 @@ createApp({
             showExpenseModal, newExpense, addExpense, deleteExpense: async(id)=>{await deleteDoc(doc(db,"expenses",id)); loadDashboardData();},
             showAppointmentModal, showServiceModal, newService, saveService, deleteService,
             tempApp, tempServiceSelect, services, totalServices, finalBalance, isEditing, clientSearchTerm, filteredClientsSearch,
-            startNewSchedule: () => { isEditing.value=false; Object.assign(tempApp, {clientId:'', date:'', time:'', location:{bairro:''}, details:{entryFee:0}, selectedServices:[], checklist:[]}); showAppointmentModal.value=true; },
+            startNewSchedule: () => { isEditing.value=false; Object.assign(tempApp, {clientId:'', date:'', time:'', location:{bairro:''}, details:{entryFee:0, balloonColors:''}, notes: '', selectedServices:[], checklist:[]}); showAppointmentModal.value=true; },
             editAppointment: (app) => { isEditing.value=true; editingId.value=app.id; Object.assign(tempApp, JSON.parse(JSON.stringify(app))); showAppointmentModal.value=true; },
             saveAppointment, addServiceToApp: () => { if(tempServiceSelect.value) tempApp.selectedServices.push(tempServiceSelect.value); tempServiceSelect.value=''; },
             removeServiceFromApp: (i) => tempApp.selectedServices.splice(i,1),
