@@ -74,24 +74,42 @@ createApp({
         const isEditing = ref(false);
         const editingId = ref(null);
 
-        // --- UTILS MATEMÁTICOS (ESSENCIAL PARA KPIs) ---
+        // --- UTILS MATEMÁTICOS (CORRIGIDO PARA FORÇAR NÚMEROS) ---
         const toNum = (val) => {
-            if (!val) return 0;
+            if (val === null || val === undefined) return 0;
             if (typeof val === 'number') return val;
+            // Remove tudo que não for número, ponto ou traço. Substitui vírgula por ponto.
             const clean = String(val).replace(',', '.').replace(/[^0-9.-]/g, '');
-            return parseFloat(clean) || 0;
+            const parsed = parseFloat(clean);
+            return isNaN(parsed) ? 0 : parsed;
         };
 
+        // --- VACINA DE DADOS (INTELEGENTE) ---
         const sanitizeApp = (docSnapshot) => {
             const data = docSnapshot.data ? docSnapshot.data() : docSnapshot;
+            const safeServices = Array.isArray(data.selectedServices) ? data.selectedServices : [];
+            
+            // CÁLCULO DE SEGURANÇA: Se o totalServices vier zerado do banco, recalcula somando os serviços
+            let total = toNum(data.totalServices);
+            if (total === 0 && safeServices.length > 0) {
+                total = safeServices.reduce((sum, item) => sum + toNum(item.price), 0);
+            }
+
+            // MESMA COISA PARA O SALDO FINAL
+            let entry = toNum(data.entryFee || data.details?.entryFee);
+            let balance = toNum(data.finalBalance);
+            if (balance === 0 && total > 0) {
+                balance = total - entry;
+            }
+
             return {
                 id: docSnapshot.id || data.id,
                 ...data,
                 checklist: Array.isArray(data.checklist) ? data.checklist : [],
-                selectedServices: Array.isArray(data.selectedServices) ? data.selectedServices : [],
-                totalServices: toNum(data.totalServices),
-                finalBalance: toNum(data.finalBalance),
-                entryFee: toNum(data.entryFee)
+                selectedServices: safeServices,
+                totalServices: total,
+                finalBalance: balance,
+                entryFee: entry
             };
         };
 
@@ -106,7 +124,10 @@ createApp({
 
         // --- UTILS FORMATADORES ---
         const formatCurrency = (v) => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(toNum(v));
-        const formatDate = (d) => d ? d.split('-').reverse().join('/') : '';
+        const formatDate = (d) => {
+            if (!d || typeof d !== 'string') return '';
+            try { return d.split('-').reverse().join('/'); } catch (e) { return ''; }
+        };
         const getDay = (d) => d ? d.split('-')[2] : '';
         const getMonth = (d) => ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'][parseInt(d.split('-')[1])-1];
         const statusText = (s) => s === 'concluded' ? 'Concluída' : (s === 'cancelled' ? 'Cancelada' : 'Pendente');
@@ -178,8 +199,12 @@ createApp({
                 dashboardData.appointments = snapApps.docs.map(sanitizeApp).filter(app => app.status !== 'cancelled');
                 dashboardData.expenses = snapExp.docs.map(sanitizeExpense);
                 
-                // Atualiza a lista do financeiro automaticamente para bater com o dashboard
+                // Força a atualização da lista de despesas
                 expensesList.value = [...dashboardData.expenses].sort((a,b) => b.date.localeCompare(a.date));
+                
+                // Carrega nomes dos clientes para o extrato
+                dashboardData.appointments.forEach(a => fetchClientToCache(a.clientId));
+
             } catch (e) { console.error("Erro Dashboard:", e); } finally { isLoadingDashboard.value = false; }
         };
         watch(dashboardMonth, () => { loadDashboardData(); });
@@ -193,19 +218,34 @@ createApp({
             const qApps = query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "pending"));
             unsubscribeListeners.push(onSnapshot(qApps, (snap) => { 
                 pendingAppointments.value = snap.docs.map(sanitizeApp); 
-                // Dispara cache de nomes para garantir que o extrato tenha nomes
-                pendingAppointments.value.forEach(a => fetchClientToCache(a.clientId));
+                if(view.value === 'appointment_details' && selectedAppointment.value) {
+                    const updated = pendingAppointments.value.find(a => a.id === selectedAppointment.value.id);
+                    if(updated) selectedAppointment.value = updated;
+                }
             }));
         };
 
         // --- COMPUTEDS E KPIs (MÁXIMA PRECISÃO) ---
         
-        const kpiRevenue = computed(() => dashboardData.appointments.reduce((acc, a) => acc + toNum(a.totalServices), 0));
-        const kpiExpenses = computed(() => dashboardData.expenses.reduce((acc, e) => acc + toNum(e.value), 0));
+        // Receita Total (Soma de totalServices de todos agendamentos ativos)
+        const kpiRevenue = computed(() => {
+            if (!dashboardData.appointments) return 0;
+            return dashboardData.appointments.reduce((acc, a) => acc + toNum(a.totalServices), 0);
+        });
+
+        // Despesa Total
+        const kpiExpenses = computed(() => {
+            if (!dashboardData.expenses) return 0;
+            return dashboardData.expenses.reduce((acc, e) => acc + toNum(e.value), 0);
+        });
+
         const kpiProfit = computed(() => kpiRevenue.value - kpiExpenses.value); 
-        const kpiReceivables = computed(() => dashboardData.appointments.reduce((acc, a) => acc + toNum(a.finalBalance), 0));
+        const kpiReceivables = computed(() => {
+            if (!dashboardData.appointments) return 0;
+            return dashboardData.appointments.reduce((acc, a) => acc + toNum(a.finalBalance), 0);
+        });
         
-        // Objeto unificado para o HTML usar {{ financeData.revenue }} etc.
+        // OBJETO UNIFICADO PARA O HTML
         const financeData = computed(() => ({
             revenue: kpiRevenue.value,
             expenses: kpiExpenses.value,
@@ -230,8 +270,8 @@ createApp({
             const income = dashboardData.appointments.map(a => ({
                 id: a.id,
                 date: a.date,
-                description: `Festa: ${clientCache[a.clientId]?.name || 'Carregando...'}`,
-                value: toNum(a.totalServices),
+                description: `Receita: ${clientCache[a.clientId]?.name || 'Cliente'}`,
+                value: toNum(a.totalServices), // Garante que pega o valor calculado
                 type: 'income',
                 icon: 'fa-circle-arrow-up',
                 color: 'text-green-500'
@@ -240,17 +280,18 @@ createApp({
             const expense = dashboardData.expenses.map(e => ({
                 id: e.id,
                 date: e.date,
-                description: e.description,
+                description: e.description || 'Despesa',
                 value: toNum(e.value),
                 type: 'expense',
                 icon: 'fa-circle-arrow-down',
                 color: 'text-red-500'
             }));
 
+            // Ordena decrescente (mais recente primeiro)
             return [...income, ...expense].sort((a, b) => b.date.localeCompare(a.date));
         });
 
-        // --- OUTRAS AÇÕES ---
+        // --- AÇÕES ---
         const searchExpenses = async () => {
             if(!expensesFilter.start || !expensesFilter.end) return;
             try {
@@ -274,7 +315,23 @@ createApp({
             } catch (error) { console.error(error); Swal.fire('Erro', 'Verifique seus dados.', 'error'); } finally { authLoading.value = false; }
         };
 
+        const handleChangePassword = async () => { 
+            const html = '<input id="currentPass" type="password" class="swal2-input" placeholder="Senha Atual"><input id="newPass" type="password" class="swal2-input" placeholder="Nova Senha">'; 
+            const { value: fv } = await Swal.fire({ title: 'Alterar Senha', html: html, showCancelButton: true, confirmButtonText: 'Alterar', preConfirm: () => { return [document.getElementById('currentPass').value, document.getElementById('newPass').value]; } }); 
+            if (fv && fv[0] && fv[1]) { 
+                try { 
+                    const c = EmailAuthProvider.credential(user.value.email, fv[0]); 
+                    await reauthenticateWithCredential(user.value, c); 
+                    await updatePassword(user.value, fv[1]); 
+                    Swal.fire('Sucesso!', 'Senha alterada.', 'success'); 
+                } catch (error) { Swal.fire('Erro', 'Senha incorreta.', 'error'); } 
+            } 
+        };
+
         const logout = async () => { await signOut(auth); window.location.href = "index.html"; };
+        const toggleDarkMode = () => { isDark.value = !isDark.value; document.documentElement.classList.toggle('dark'); localStorage.setItem('pp_dark', isDark.value); };
+
+        // --- OUTRAS COMPUTEDS E HELPERS ---
         const changeCalendarMonth = (offset) => { const d = new Date(calendarCursor.value); d.setMonth(d.getMonth() + offset); calendarCursor.value = d; };
         const calendarGrid = computed(() => {
             const year = calendarCursor.value.getFullYear(); const month = calendarCursor.value.getMonth();
@@ -288,7 +345,7 @@ createApp({
             }
             return days;
         });
-        const calendarTitle = computed(() => { const m = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']; return `${m[calendarCursor.value.getMonth()]} ${calendarCursor.value.getFullYear()}`; });
+        const calendarTitle = computed(() => `${['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][calendarCursor.value.getMonth()]} ${calendarCursor.value.getFullYear()}`);
         const selectCalendarDay = (dayObj) => { if (!dayObj.day) return; selectedCalendarDate.value = dayObj.date; };
         const appointmentsOnSelectedDate = computed(() => { if (!selectedCalendarDate.value) return []; return pendingAppointments.value.filter(a => a.date === selectedCalendarDate.value); });
         
@@ -328,7 +385,15 @@ createApp({
         const startNewSchedule = () => { isEditing.value=false; editingId.value=null; Object.assign(tempApp, { clientId: '', date: '', time: '', location: { bairro: '', cidade: '', numero: '' }, details: { balloonColors: '', entryFee: 0 }, notes: '', selectedServices: [] }); view.value='schedule'; };
         const editAppointment = (app) => { isEditing.value=true; editingId.value=app.id; Object.assign(tempApp, JSON.parse(JSON.stringify(app))); view.value='schedule'; };
         const showReceipt = (app) => { currentReceipt.value = sanitizeApp(app); view.value = 'receipt'; };
-        const toggleDarkMode = () => { isDark.value = !isDark.value; document.documentElement.classList.toggle('dark'); localStorage.setItem('pp_dark', isDark.value); };
+        const searchCatalogClients = async () => { if(catalogClientSearch.value && catalogClientSearch.value.length < 3) return Swal.fire('Ops', 'Digite pelo menos 3 letras', 'info'); const term = (catalogClientSearch.value || '').toLowerCase(); const q = query(collection(db, "clients"), where("userId", "==", user.value.uid)); const snap = await getDocs(q); const all = snap.docs.map(d => ({id: d.id, ...d.data()})); catalogClientsList.value = all.filter(c => (c.name && c.name.toLowerCase().includes(term)) || (c.cpf && c.cpf.includes(term))); if(catalogClientsList.value.length===0) Swal.fire('Nada encontrado','','info'); };
+        const deleteClient = async (id) => { if ((await Swal.fire({ title: 'Excluir?', showCancelButton: true })).isConfirmed) { await deleteDoc(doc(db, "clients", id)); catalogClientsList.value = catalogClientsList.value.filter(x => x.id !== id); } };
+        const openClientModal = async (c) => { const n = c ? c.name : ''; const p = c ? c.phone : ''; const cpf = c ? c.cpf : ''; const html = `<input id="n" class="swal2-input" value="${n}" placeholder="Nome"><input id="p" class="swal2-input" value="${p}" placeholder="Telefone"><input id="cpf" class="swal2-input" value="${cpf}" placeholder="CPF">`; const { value: vals } = await Swal.fire({ title: c ? 'Editar' : 'Novo Cliente', html: html, showCancelButton: true, confirmButtonText: 'Salvar', didOpen: () => { const phoneInput = Swal.getPopup().querySelector('#p'); phoneInput.addEventListener('input', (e) => { let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,5})(\d{0,4})/); e.target.value = !x[2] ? x[1] : '(' + x[1] + ') ' + x[2] + (x[3] ? '-' + x[3] : ''); }); }, preConfirm: () => [ document.getElementById('n').value, document.getElementById('p').value, document.getElementById('cpf').value ] }); if (vals) { const d = { name: vals[0], phone: vals[1], cpf: vals[2], userId: user.value.uid }; if (c) await updateDoc(doc(db, "clients", c.id), d); else await addDoc(collection(db, "clients"), d); Swal.fire('Salvo', '', 'success'); } };
+        const openServiceModal = async (s) => { const d = s ? s.description : ''; const p = s ? s.price : ''; const html = `<input id="d" class="swal2-input" value="${d}" placeholder="Descrição"><input id="p" type="number" class="swal2-input" value="${p}" placeholder="Preço">`; const { value: v } = await Swal.fire({ title: s ? 'Editar' : 'Novo Serviço', html: html, showCancelButton: true, confirmButtonText: 'Salvar', preConfirm: () => [ document.getElementById('d').value, document.getElementById('p').value ] }); if (v) { const data = { description: v[0], price: toNum(v[1]), userId: user.value.uid }; if (s) await updateDoc(doc(db, "services", s.id), data); else await addDoc(collection(db, "services"), data); } };
+        const deleteService = async (id) => { await deleteDoc(doc(db,"services",id)); };
+        const downloadReceiptImage = () => { html2canvas(document.getElementById('receipt-capture-area'),{scale:2}).then(c=>{const l=document.createElement('a');l.download='Recibo.png';l.href=c.toDataURL();l.click();}); };
+        const addServiceToApp = () => { if(tempServiceSelect.value) { tempApp.selectedServices.push({...tempServiceSelect.value}); tempServiceSelect.value = ''; } };
+        const removeServiceFromApp = (i) => tempApp.selectedServices.splice(i,1);
+        const searchHistory = async () => { if(!historyFilter.start || !historyFilter.end) return Swal.fire('Atenção', 'Selecione as datas', 'warning'); isLoadingHistory.value = true; historyList.value = []; try { const q = query(collection(db, "appointments"), where("userId", "==", user.value.uid)); const snap = await getDocs(q); const allApps = snap.docs.map(sanitizeApp); historyList.value = allApps.filter(app => app.status === currentTab.value && app.date >= historyFilter.start && app.date <= historyFilter.end); if(historyList.value.length === 0) Swal.fire('Info', 'Nenhum registro encontrado.', 'info'); } catch (error) { console.error(error); Swal.fire('Erro', 'Tente novamente.', 'error'); } finally { isLoadingHistory.value = false; } };
 
         return {
             user, userRole, userStatus, daysRemaining, authForm, authLoading, view, catalogView, isDark, showLanding,
@@ -345,7 +410,8 @@ createApp({
             clientSearchTerm, filteredClientsSearch: computed(() => scheduleClientsList.value),
             searchExpenses, dashboardMonth, loadDashboardData, isLoadingDashboard,
             appointmentViewMode, calendarCursor, changeCalendarMonth, calendarGrid, calendarTitle, selectCalendarDay, selectedCalendarDate, appointmentsOnSelectedDate,
-            filteredExpensesList, financeSummary, expensesByCategoryStats, statementList, financeData
+            filteredExpensesList, financeSummary, expensesByCategoryStats, statementList, financeData,
+            handleChangePassword, searchCatalogClients, deleteClient, openClientModal, openServiceModal, deleteService, downloadReceiptImage, addServiceToApp, removeServiceFromApp, generateContractPDF, searchHistory
         };
     }
 }).mount('#app');
