@@ -74,18 +74,19 @@ createApp({
         const editingId = ref(null);
 
         // --- VACINA DE DADOS (IMPEDE O ERRO 'UNDEFINED') ---
+        // Essa função garante que NENHUM campo essencial esteja faltando
         const sanitizeApp = (docSnapshot) => {
-            const data = docSnapshot.data();
+            const data = docSnapshot.data ? docSnapshot.data() : docSnapshot; // Suporta snapshot ou objeto puro
             return {
-                id: docSnapshot.id,
+                id: docSnapshot.id || data.id,
                 ...data,
-                // Se não tiver checklist, cria uma lista vazia para não quebrar o .length no HTML
+                // Garante listas vazias se vierem nulas
                 checklist: Array.isArray(data.checklist) ? data.checklist : [],
-                // Mesma coisa para serviços
                 selectedServices: Array.isArray(data.selectedServices) ? data.selectedServices : [],
-                // Garante que valores numéricos existam
+                // Garante números
                 totalServices: Number(data.totalServices) || 0,
-                finalBalance: Number(data.finalBalance) || 0
+                finalBalance: Number(data.finalBalance) || 0,
+                entryFee: Number(data.entryFee) || 0
             };
         };
 
@@ -187,7 +188,7 @@ createApp({
                 const qExp = query(collection(db, "expenses"), where("userId", "==", user.value.uid), where("date", ">=", startStr), where("date", "<=", endStr));
                 const [snapApps, snapExp] = await Promise.all([getDocs(qApps), getDocs(qExp)]);
                 
-                // USANDO A VACINA sanitizeApp AQUI
+                // VACINA APLICADA AQUI
                 dashboardData.appointments = snapApps.docs.map(sanitizeApp).filter(app => app.status !== 'cancelled');
                 
                 dashboardData.expenses = snapExp.docs.map(d => ({id: d.id, ...d.data()}));
@@ -221,7 +222,7 @@ createApp({
             unsubscribeListeners.push(onSnapshot(query(collection(db, "services"), where("userId", "==", myId)), (snap) => { services.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); }));
             const qApps = query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "pending"));
             unsubscribeListeners.push(onSnapshot(qApps, (snap) => { 
-                // USANDO A VACINA sanitizeApp AQUI TAMBÉM
+                // VACINA APLICADA AQUI
                 pendingAppointments.value = snap.docs.map(sanitizeApp); 
                 if(view.value === 'appointment_details' && selectedAppointment.value) {
                     const updated = pendingAppointments.value.find(a => a.id === selectedAppointment.value.id);
@@ -237,7 +238,7 @@ createApp({
             try {
                 const q = query(collection(db, "appointments"), where("userId", "==", user.value.uid));
                 const snap = await getDocs(q);
-                // USANDO A VACINA sanitizeApp AQUI TAMBÉM
+                // VACINA APLICADA AQUI
                 const allApps = snap.docs.map(sanitizeApp);
                 historyList.value = allApps.filter(app => app.status === currentTab.value && app.date >= historyFilter.start && app.date <= historyFilter.end);
                 if(historyList.value.length === 0) Swal.fire('Info', 'Nenhum registro encontrado.', 'info');
@@ -329,21 +330,33 @@ createApp({
 
         const filteredClientsSearch = computed(() => scheduleClientsList.value);
         
+        // --- BARRA DE PROGRESSO SUPER BLINDADA ---
         const checklistProgress = (app) => { 
-            // AQUI ESTÁ A PROTEÇÃO FINAL CONTRA O ERRO DE LENGTH
-            if (!app || !app.checklist || !Array.isArray(app.checklist) || app.checklist.length === 0) return 0;
+            // Proteção Máxima: Verifica se o app existe, se tem checklist e se é uma array
+            if (!app) return 0;
+            // Se checklist não existir ou não for array, retorna 0 (não quebra)
+            if (!app.checklist || !Array.isArray(app.checklist)) return 0;
+            // Se estiver vazio, 0
+            if (app.checklist.length === 0) return 0;
+            
             try {
                 const total = app.checklist.length;
+                // Filtra itens nulos dentro da lista
                 const done = app.checklist.filter(t => t && t.done).length;
                 return Math.round((done / total) * 100); 
-            } catch (e) { return 0; }
+            } catch (e) { 
+                return 0; // Em caso de pânico, retorna 0
+            }
         };
 
         const saveAppointment = async () => {
             const total = tempApp.selectedServices.reduce((sum, i) => sum + i.price, 0);
             const appData = { ...JSON.parse(JSON.stringify(tempApp)), totalServices: total, entryFee: tempApp.details.entryFee, finalBalance: total - tempApp.details.entryFee, userId: user.value.uid };
+            // Garante que checklist existe ao salvar
+            if(!appData.checklist) appData.checklist = [{text:'Separar Materiais', done:false}];
+            
             if(isEditing.value && editingId.value) { await updateDoc(doc(db, "appointments", editingId.value), appData); Swal.fire({icon:'success', title:'Atualizado', timer:1000}); } 
-            else { appData.status = 'pending'; appData.checklist = [{text:'Separar Materiais', done:false}]; await addDoc(collection(db, "appointments"), appData); Swal.fire({icon:'success', title:'Agendado!', timer:1000}); }
+            else { appData.status = 'pending'; await addDoc(collection(db, "appointments"), appData); Swal.fire({icon:'success', title:'Agendado!', timer:1000}); }
             if(appData.date.startsWith(dashboardMonth.value)) loadDashboardData();
             view.value = 'appointments_list'; currentTab.value = 'pending';
         };
@@ -359,7 +372,16 @@ createApp({
         };
 
         const updateAppInFirebase = async (app) => { await updateDoc(doc(db, "appointments", app.id), { checklist: app.checklist }); };
-        const openDetails = (app) => { fetchClientToCache(app.clientId); selectedAppointment.value = app; if (!selectedAppointment.value.checklist) selectedAppointment.value.checklist = []; detailTaskInput.value = ''; view.value = 'appointment_details'; };
+        const openDetails = (app) => { 
+            fetchClientToCache(app.clientId); 
+            // CLONA o objeto para evitar reatividade quebrada
+            const safeApp = JSON.parse(JSON.stringify(app));
+            // Garante que checklist existe na visualização
+            if (!safeApp.checklist || !Array.isArray(safeApp.checklist)) safeApp.checklist = [];
+            selectedAppointment.value = safeApp; 
+            detailTaskInput.value = ''; 
+            view.value = 'appointment_details'; 
+        };
         const saveTaskInDetail = async () => { if (!detailTaskInput.value.trim() || !selectedAppointment.value) return; const newTask = { text: detailTaskInput.value, done: false }; if (!selectedAppointment.value.checklist) selectedAppointment.value.checklist = []; selectedAppointment.value.checklist.push(newTask); await updateAppInFirebase(selectedAppointment.value); detailTaskInput.value = ''; };
         const toggleTaskDone = async (index) => { if (!selectedAppointment.value) return; selectedAppointment.value.checklist[index].done = !selectedAppointment.value.checklist[index].done; await updateAppInFirebase(selectedAppointment.value); };
         const deleteTaskInDetail = async (index) => { if (!selectedAppointment.value) return; selectedAppointment.value.checklist.splice(index, 1); await updateAppInFirebase(selectedAppointment.value); };
@@ -378,7 +400,22 @@ createApp({
         const deleteExpense = async (id) => { await deleteDoc(doc(db, "expenses", id)); expensesList.value = expensesList.value.filter(e => e.id !== id); loadDashboardData(); };
         
         const startNewSchedule = () => { isEditing.value=false; editingId.value=null; clientSearchTerm.value = ''; Object.assign(tempApp, { clientId: '', date: '', time: '', location: { bairro: '', cidade: '', numero: '' }, details: { balloonColors: '', entryFee: 0 }, notes: '', selectedServices: [] }); view.value='schedule'; };
-        const editAppointment = (app) => { isEditing.value=true; editingId.value=app.id; clientSearchTerm.value = ''; fetchClientToCache(app.clientId); const dataToLoad = JSON.parse(JSON.stringify(app)); if(!dataToLoad.details) dataToLoad.details = { balloonColors: '', entryFee: 0 }; if(!dataToLoad.details.balloonColors) dataToLoad.details.balloonColors = ''; if(!dataToLoad.notes) dataToLoad.notes = ''; Object.assign(tempApp, dataToLoad); view.value='schedule'; };
+        const editAppointment = (app) => { 
+            isEditing.value=true; 
+            editingId.value=app.id; 
+            clientSearchTerm.value = ''; 
+            fetchClientToCache(app.clientId); 
+            // CLONE SEGURO
+            const dataToLoad = JSON.parse(JSON.stringify(app)); 
+            if(!dataToLoad.details) dataToLoad.details = { balloonColors: '', entryFee: 0 }; 
+            if(!dataToLoad.details.balloonColors) dataToLoad.details.balloonColors = ''; 
+            if(!dataToLoad.notes) dataToLoad.notes = ''; 
+            // GARANTIA DE LISTAS
+            if(!dataToLoad.selectedServices) dataToLoad.selectedServices = [];
+            
+            Object.assign(tempApp, dataToLoad); 
+            view.value='schedule'; 
+        };
         const showReceipt = (app) => { currentReceipt.value = app; fetchClientToCache(app.clientId); view.value = 'receipt'; };
         const selectClientFromSearch = (client) => { tempApp.clientId = client.id; clientSearchTerm.value = ''; clientCache[client.id] = client; };
         const clearClientSelection = () => { tempApp.clientId = ''; clientSearchTerm.value = ''; };
