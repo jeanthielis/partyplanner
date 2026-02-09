@@ -17,7 +17,7 @@ createApp({
         const view = ref('dashboard');
         const catalogView = ref('company'); 
         const isDark = ref(false);
-        const showLanding = ref(true); // Controle da Landing Page
+        const showLanding = ref(true);
         
         // --- AUTENTICAÇÃO ---
         const authLoading = ref(false);
@@ -158,7 +158,6 @@ createApp({
 
         const logout = async () => { 
             await signOut(auth); 
-            // Redireciona para a Landing Page (index.html) ao sair
             window.location.href = "index.html"; 
         };
 
@@ -202,8 +201,13 @@ createApp({
         const appointmentsOnSelectedDate = computed(() => { if (!selectedCalendarDate.value) return []; return pendingAppointments.value.filter(a => a.date === selectedCalendarDate.value); });
 
         // --- SYNC ---
+        
+        // >>>>>> AQUI ESTÁ A CORREÇÃO: DECLARAÇÃO DA VARIÁVEL <<<<<<
+        let unsubscribeListeners = []; 
+
         const syncData = () => {
             unsubscribeListeners.forEach(unsub => unsub()); unsubscribeListeners = [];
+            
             const myId = user.value.uid; 
             unsubscribeListeners.push(onSnapshot(query(collection(db, "services"), where("userId", "==", myId)), (snap) => { 
                 services.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
@@ -302,7 +306,7 @@ createApp({
             const docRef = await addDoc(collection(db, "expenses"), {...newExpense, userId: user.value.uid}); 
             expensesList.value.unshift({id: docRef.id, ...newExpense});
             if(newExpense.date.startsWith(dashboardMonth.value)) loadDashboardData();
-            Object.assign(newExpense, {description: '', value: '', category: ''}); showExpenseModal.value = false; Swal.fire({icon:'success', title:'Registrado', timer:1000}); 
+            Object.assign(newExpense, {description: '', value: '', category: ''}); showExpenseModal.value = false; Swal.fire({icon:'success', title:'Salvo', timer:1000}); 
         };
         const deleteExpense = async (id) => { await deleteDoc(doc(db, "expenses", id)); expensesList.value = expensesList.value.filter(e => e.id !== id); loadDashboardData(); };
         
