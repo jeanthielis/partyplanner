@@ -404,6 +404,17 @@ createApp({
             const done = app.checklist.filter(t => t.done).length;
             return Math.round((done / total) * 100);
         };
+        // --- FUNÇÕES DE SERVIÇOS (QUE FALTARAM) ---
+        const addServiceToApp = () => {
+            if (!tempServiceSelect.value) return;
+            // Clona o objeto para evitar referência cruzada
+            tempApp.selectedServices.push({ ...tempServiceSelect.value }); 
+            tempServiceSelect.value = ""; // Limpa a seleção
+        };
+
+        const removeServiceFromApp = (index) => {
+            tempApp.selectedServices.splice(index, 1);
+        };
 
         return {
             user, userRole, userStatus, daysRemaining, authForm, authLoading, view, catalogView, isDark, 
