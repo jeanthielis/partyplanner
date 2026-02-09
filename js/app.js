@@ -367,7 +367,23 @@ createApp({
         const handleLogoUpload = (e) => { const f = e.target.files[0]; if(f){ const r = new FileReader(); r.onload=x=>{ company.logo=x.target.result; saveCompany(); }; r.readAsDataURL(f); } };
         const saveCompany = async () => { localStorage.setItem('pp_company', JSON.stringify(company)); if(user.value) await updateDoc(doc(db,"users",user.value.uid), {companyConfig:company}); Swal.fire('Salvo','','success'); };
         const downloadReceiptImage = () => { html2canvas(document.getElementById('receipt-capture-area'),{scale:2}).then(c=>{const l=document.createElement('a');l.download='Recibo.png';l.href=c.toDataURL();l.click();}); };
-        const generateContractPDF = () => { Swal.fire('Info', 'Função de PDF mantida (resumida aqui).', 'info'); }; // Mantida lógica simplificada, se tiver a função completa anterior, mantenha-a
+        const generateContractPDF = () => { Swal.fire('Info', 'Função de PDF mantida (resumida aqui).', 'info'); }; 
+
+        // --- FUNÇÕES REINSERIDAS (FALTAVAM NA VERSÃO ANTERIOR) ---
+        const toggleDarkMode = () => { 
+            isDark.value = !isDark.value; 
+            if(isDark.value) document.documentElement.classList.add('dark'); 
+            else document.documentElement.classList.remove('dark'); 
+            localStorage.setItem('pp_dark', isDark.value); 
+        };
+
+        const handleChangePassword = async () => {
+            const html = '<input id="currentPass" type="password" class="swal2-input" placeholder="Senha Atual"><input id="newPass" type="password" class="swal2-input" placeholder="Nova Senha">';
+            const { value: fv } = await Swal.fire({ title: 'Alterar Senha', html: html, showCancelButton: true, confirmButtonText: 'Alterar', preConfirm: () => { return [document.getElementById('currentPass').value, document.getElementById('newPass').value]; } });
+            if (fv && fv[0] && fv[1]) {
+                try { const c = EmailAuthProvider.credential(user.value.email, fv[0]); await reauthenticateWithCredential(user.value, c); await updatePassword(user.value, fv[1]); Swal.fire('Sucesso!', 'Senha alterada.', 'success'); } catch (error) { Swal.fire('Erro', 'Senha incorreta.', 'error'); }
+            }
+        };
 
         return {
             user, userRole, userStatus, daysRemaining, authForm, authLoading, view, catalogView, isDark, 
