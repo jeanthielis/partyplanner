@@ -253,6 +253,8 @@ createApp({
         // --- COMPUTEDS GERAIS ---
         const filteredListAppointments = computed(() => { 
             let list = currentTab.value === 'pending' ? pendingAppointments.value : historyList.value;
+            // Segurança: Garante que list seja um array antes de filtrar
+            if (!list) return [];
             return [...list].sort((a,b) => new Date(a.date) - new Date(b.date)); 
         });
         
@@ -267,7 +269,12 @@ createApp({
         });
         const totalServices = computed(() => tempApp.selectedServices.reduce((s,i) => s + i.price, 0));
         const finalBalance = computed(() => totalServices.value - (tempApp.details.entryFee || 0));
-        const filteredClientsSearch = computed(() => scheduleClientsList.value);
+        
+        // --- CORREÇÃO DE SEGURANÇA AQUI ---
+        const filteredClientsSearch = computed(() => {
+            if (!scheduleClientsList.value) return [];
+            return scheduleClientsList.value;
+        });
 
         // --- ACTIONS ---
         const saveAppointment = async () => {
@@ -397,23 +404,25 @@ createApp({
                 try { const c = EmailAuthProvider.credential(user.value.email, fv[0]); await reauthenticateWithCredential(user.value, c); await updatePassword(user.value, fv[1]); Swal.fire('Sucesso!', 'Senha alterada.', 'success'); } catch (error) { Swal.fire('Erro', 'Senha incorreta.', 'error'); }
             }
         };
-        // --- FUNÇÃO QUE FALTAVA ---
-        const checklistProgress = (app) => {
-            if (!app.checklist || app.checklist.length === 0) return 0;
-            const total = app.checklist.length;
-            const done = app.checklist.filter(t => t.done).length;
-            return Math.round((done / total) * 100);
-        };
-        // --- FUNÇÕES DE SERVIÇOS (QUE FALTARAM) ---
+
+        // --- FUNÇÕES QUE ESTAVAM FALTANDO OU CAUSANDO ERRO ---
+        
         const addServiceToApp = () => {
             if (!tempServiceSelect.value) return;
-            // Clona o objeto para evitar referência cruzada
             tempApp.selectedServices.push({ ...tempServiceSelect.value }); 
-            tempServiceSelect.value = ""; // Limpa a seleção
+            tempServiceSelect.value = ""; 
         };
 
         const removeServiceFromApp = (index) => {
             tempApp.selectedServices.splice(index, 1);
+        };
+
+        // Função corrigida para evitar erro de 'undefined length'
+        const checklistProgress = (app) => {
+            if (!app || !Array.isArray(app.checklist) || app.checklist.length === 0) return 0;
+            const total = app.checklist.length;
+            const done = app.checklist.filter(t => t.done).length;
+            return Math.round((done / total) * 100);
         };
 
         return {
@@ -428,10 +437,10 @@ createApp({
             startNewSchedule, editAppointment, saveAppointment, changeStatus, addExpense, deleteExpense, 
             openClientModal, deleteClient, openServiceModal, deleteService,
             
-            // REMOVIDO: addTask, removeTask (pois não existem e causam erro)
-            checklistProgress, // ADICIONADO (necessário para a barra de progresso)
+            // Funções adicionadas/corrigidas no return
+            checklistProgress, addServiceToApp, removeServiceFromApp,
             
-            addServiceToApp, removeServiceFromApp, handleLogoUpload, saveCompany,
+            handleLogoUpload, saveCompany,
             showReceipt, downloadReceiptImage, generateContractPDF, 
             getClientName, getClientPhone, formatCurrency, formatDate, getDay, getMonth, statusText, statusClass, getCategoryIcon,
             clientSearchTerm, filteredClientsSearch, selectClientFromSearch, clearClientSelection,
