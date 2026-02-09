@@ -112,7 +112,27 @@ createApp({
 
         watch([pendingAppointments, historyList], ([newPending, newHistory]) => { if(newPending) newPending.forEach(app => fetchClientToCache(app.clientId)); if(newHistory) newHistory.forEach(app => fetchClientToCache(app.clientId)); }, { deep: true });
 
-        // --- AUTH & SYNC ---
+        // --- SYNC DATA (FUNÇÃO QUE FALTAVA) ---
+        let unsubscribeListeners = [];
+        const syncData = () => {
+            unsubscribeListeners.forEach(unsub => unsub()); unsubscribeListeners = [];
+            const myId = user.value.uid; 
+            
+            // Sincroniza Serviços
+            unsubscribeListeners.push(onSnapshot(query(collection(db, "services"), where("userId", "==", myId)), (snap) => { services.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); }));
+            
+            // Sincroniza Agendamentos Pendentes
+            const qApps = query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "pending"));
+            unsubscribeListeners.push(onSnapshot(qApps, (snap) => { 
+                pendingAppointments.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
+                if(view.value === 'appointment_details' && selectedAppointment.value) {
+                    const updated = pendingAppointments.value.find(a => a.id === selectedAppointment.value.id);
+                    if(updated) selectedAppointment.value = updated;
+                }
+            }));
+        };
+
+        // --- AUTH ---
         onMounted(() => {
             onAuthStateChanged(auth, async (u) => {
                 if (u) {
@@ -142,7 +162,7 @@ createApp({
         const handleLogin = async () => { authLoading.value = true; try { await signInWithEmailAndPassword(auth, authForm.email, authForm.password); } catch (error) { Swal.fire('Erro', 'Dados incorretos', 'error'); } finally { authLoading.value = false; } };
         const logout = async () => { await signOut(auth); window.location.href = "index.html"; };
 
-        // --- AUTO-CADASTRO (NOVO) ---
+        // --- AUTO-CADASTRO ---
         const handleRegister = async () => {
             if (registerForm.password !== registerForm.confirmPassword) {
                 return Swal.fire('Erro', 'As senhas não conferem.', 'warning');
@@ -165,12 +185,11 @@ createApp({
                     status: 'trial', // Inicia como TRIAL
                     createdAt: new Date().toISOString(),
                     companyConfig: { 
-                        fantasia: registerForm.name, // Usa nome como fantasia inicial
+                        fantasia: registerForm.name, 
                         logo: '', cnpj: '', razao: '', cidade: '', rua: '', estado: '' 
                     }
                 });
 
-                // Sucesso: AuthStateChanged vai logar automaticamente
                 Swal.fire({
                     icon: 'success',
                     title: 'Conta Criada!',
@@ -369,7 +388,6 @@ createApp({
         const downloadReceiptImage = () => { html2canvas(document.getElementById('receipt-capture-area'),{scale:2}).then(c=>{const l=document.createElement('a');l.download='Recibo.png';l.href=c.toDataURL();l.click();}); };
         const generateContractPDF = () => { Swal.fire('Info', 'Função de PDF mantida (resumida aqui).', 'info'); }; 
 
-        // --- FUNÇÕES REINSERIDAS (FALTAVAM NA VERSÃO ANTERIOR) ---
         const toggleDarkMode = () => { 
             isDark.value = !isDark.value; 
             if(isDark.value) document.documentElement.classList.add('dark'); 
