@@ -74,7 +74,7 @@ createApp({
         const isEditing = ref(false);
         const editingId = ref(null);
 
-        // --- VACINA DE DADOS ---
+        // --- VACINA DE DADOS (IMPEDE O SISTEMA DE TRAVAR) ---
         const sanitizeApp = (docSnapshot) => {
             const data = docSnapshot.data ? docSnapshot.data() : docSnapshot;
             return {
@@ -90,7 +90,15 @@ createApp({
 
         // --- UTILS ---
         const formatCurrency = (v) => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v||0);
-        const formatDate = (d) => d ? d.split('-').reverse().join('/') : '';
+        
+        // CORREÇÃO: FormatDate blindada contra erros
+        const formatDate = (d) => {
+            if (!d || typeof d !== 'string') return '';
+            try {
+                return d.split('-').reverse().join('/');
+            } catch (e) { return ''; }
+        };
+
         const getDay = (d) => d ? d.split('-')[2] : '';
         const getMonth = (d) => ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'][parseInt(d.split('-')[1])-1];
         const statusText = (s) => s === 'concluded' ? 'Concluída' : (s === 'cancelled' ? 'Cancelada' : 'Pendente');
@@ -177,7 +185,14 @@ createApp({
                 const [snapApps, snapExp] = await Promise.all([getDocs(qApps), getDocs(qExp)]);
                 
                 dashboardData.appointments = snapApps.docs.map(sanitizeApp).filter(app => app.status !== 'cancelled');
-                dashboardData.expenses = snapExp.docs.map(d => ({id: d.id, ...d.data()}));
+                
+                // Carrega as despesas
+                const loadedExpenses = snapExp.docs.map(d => ({id: d.id, ...d.data()}));
+                dashboardData.expenses = loadedExpenses;
+                
+                // CORREÇÃO: Preenche a lista do Financeiro automaticamente
+                expensesList.value = [...loadedExpenses].sort((a,b) => new Date(b.date) - new Date(a.date));
+
             } catch (e) { console.error(e); } finally { isLoadingDashboard.value = false; }
         };
         watch(dashboardMonth, () => { loadDashboardData(); });
@@ -201,8 +216,6 @@ createApp({
         const appointmentsOnSelectedDate = computed(() => { if (!selectedCalendarDate.value) return []; return pendingAppointments.value.filter(a => a.date === selectedCalendarDate.value); });
 
         // --- SYNC ---
-        
-        // >>>>>> AQUI ESTÁ A CORREÇÃO: DECLARAÇÃO DA VARIÁVEL <<<<<<
         let unsubscribeListeners = []; 
 
         const syncData = () => {
@@ -312,7 +325,13 @@ createApp({
         
         const startNewSchedule = () => { isEditing.value=false; editingId.value=null; clientSearchTerm.value = ''; Object.assign(tempApp, { clientId: '', date: '', time: '', location: { bairro: '', cidade: '', numero: '' }, details: { balloonColors: '', entryFee: 0 }, notes: '', selectedServices: [] }); view.value='schedule'; };
         const editAppointment = (app) => { isEditing.value=true; editingId.value=app.id; clientSearchTerm.value = ''; fetchClientToCache(app.clientId); const dataToLoad = JSON.parse(JSON.stringify(app)); if(!dataToLoad.details) dataToLoad.details = { balloonColors: '', entryFee: 0 }; if(!dataToLoad.selectedServices) dataToLoad.selectedServices = []; Object.assign(tempApp, dataToLoad); view.value='schedule'; };
-        const showReceipt = (app) => { currentReceipt.value = app; fetchClientToCache(app.clientId); view.value = 'receipt'; };
+        const showReceipt = (app) => { 
+            // CORREÇÃO: Vacina no recibo também
+            const safeApp = sanitizeApp(app);
+            currentReceipt.value = safeApp; 
+            fetchClientToCache(app.clientId); 
+            view.value = 'receipt'; 
+        };
         const selectClientFromSearch = (client) => { tempApp.clientId = client.id; clientSearchTerm.value = ''; clientCache[client.id] = client; };
         const clearClientSelection = () => { tempApp.clientId = ''; clientSearchTerm.value = ''; };
         
