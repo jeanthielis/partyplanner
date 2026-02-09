@@ -74,7 +74,7 @@ createApp({
         const isEditing = ref(false);
         const editingId = ref(null);
 
-        // --- VACINA DE DADOS (SEGURANÇA) ---
+        // --- VACINA DE DADOS ---
         const sanitizeApp = (docSnapshot) => {
             const data = docSnapshot.data ? docSnapshot.data() : docSnapshot;
             return {
@@ -249,31 +249,47 @@ createApp({
             } catch(e) { console.error(e); }
         };
 
-        // --- COMPUTEDS (CORREÇÃO DOS ERROS) ---
-        
-        // 1. Alias para a lista de despesas
+        // --- COMPUTEDS (TODOS OS CÁLCULOS QUE FALTAVAM) ---
         const filteredExpensesList = computed(() => expensesList.value);
         
-        // 2. Somatório do rodapé
         const financeSummary = computed(() => {
             return expensesList.value.reduce((acc, item) => acc + (Number(item.value) || 0), 0);
         });
 
-        // 3. (NOVO) Estatísticas por Categoria - RESOLVE O ERRO 'expensesByCategoryStats is not defined'
+        // RESOLVIDO: Cálculo de categorias para o gráfico
         const expensesByCategoryStats = computed(() => {
             if (!dashboardData.expenses || dashboardData.expenses.length === 0) return [];
-            
-            // Agrupa e soma
-            const stats = expenseCategories.map(cat => {
+            return expenseCategories.map(cat => {
                 const total = dashboardData.expenses
                     .filter(e => e.category === cat.id)
                     .reduce((sum, e) => sum + (Number(e.value) || 0), 0);
-                
                 return { ...cat, total };
-            });
+            }).filter(c => c.total > 0).sort((a, b) => b.total - a.total);
+        });
 
-            // Filtra só o que tem valor > 0 e ordena
-            return stats.filter(c => c.total > 0).sort((a, b) => b.total - a.total);
+        // RESOLVIDO: Lista unificada de Extrato (Statement)
+        const statementList = computed(() => {
+            const income = (dashboardData.appointments || []).map(a => ({
+                id: a.id,
+                date: a.date,
+                description: 'Receita: ' + (clientCache[a.clientId]?.name || 'Cliente'),
+                value: Number(a.totalServices) || 0,
+                type: 'income',
+                icon: 'fa-circle-arrow-up',
+                color: 'text-green-500'
+            }));
+
+            const expense = (dashboardData.expenses || []).map(e => ({
+                id: e.id,
+                date: e.date,
+                description: e.description || 'Despesa',
+                value: Number(e.value) || 0,
+                type: 'expense',
+                icon: 'fa-circle-arrow-down',
+                color: 'text-red-500'
+            }));
+
+            return [...income, ...expense].sort((a, b) => new Date(b.date) - new Date(a.date));
         });
 
         const filteredListAppointments = computed(() => { 
@@ -385,7 +401,7 @@ createApp({
             selectedAppointment, detailTaskInput, openDetails, saveTaskInDetail, toggleTaskDone, deleteTaskInDetail,
             dashboardMonth, loadDashboardData, isLoadingDashboard,
             appointmentViewMode, calendarCursor, changeCalendarMonth, calendarGrid, calendarTitle, selectCalendarDay, selectedCalendarDate, appointmentsOnSelectedDate,
-            filteredExpensesList, financeSummary, expensesByCategoryStats // <--- TODAS AS VARIÁVEIS INCLUÍDAS
+            filteredExpensesList, financeSummary, expensesByCategoryStats, statementList // <--- TUDO INCLUÍDO AQUI
         };
     }
 }).mount('#app');
