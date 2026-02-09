@@ -16,7 +16,7 @@ createApp({
         const isRegistering = ref(false);
         const authForm = reactive({ email: '', password: '', name: '' });
         
-        // Dados da Empresa (Com Novos Campos)
+        // Dados da Empresa
         const company = reactive({ fantasia: '', logo: '', cnpj: '', rua: '', cidade: '', estado: '' });
         
         const dashboardMonth = ref(new Date().toISOString().slice(0, 7));
@@ -27,7 +27,7 @@ createApp({
         const expensesList = ref([]); 
         const isExtractLoaded = ref(false);
         
-        // Abas da Agenda e Histórico
+        // Agenda e Histórico
         const agendaTab = ref('pending');
         const agendaFilter = reactive({ start: '', end: '' });
         const historyList = ref([]);
@@ -41,11 +41,10 @@ createApp({
         const showExpenseModal = ref(false);
         const newService = reactive({ description: '', price: '' });
 
-        // App Temp com Novos Campos
         const tempApp = reactive({ 
             clientId: '', date: '', time: '', 
             location: { bairro: '' }, 
-            details: { entryFee: 0, balloonColors: '' }, // Cores dos balões
+            details: { entryFee: 0, balloonColors: '' }, // Cores
             notes: '', // Observações
             selectedServices: [], checklist: [] 
         });
@@ -96,7 +95,6 @@ createApp({
             let balance = toNum(data.finalBalance);
             if (balance === 0 && total > 0) balance = total - entry;
             
-            // Garante que campos novos existam no objeto para não dar erro
             return { 
                 id: docSnapshot.id || data.id, ...data, 
                 selectedServices: safeServices, totalServices: total, finalBalance: balance, entryFee: entry, 
@@ -176,7 +174,6 @@ createApp({
             isExtractLoaded.value = true;
         };
 
-        // --- BUSCA HISTÓRICO AGENDA ---
         const searchHistory = async () => {
             if(!agendaFilter.start || !agendaFilter.end) return Swal.fire('Atenção', 'Selecione datas', 'warning');
             const q = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("status", "==", agendaTab.value), where("date", ">=", agendaFilter.start), where("date", "<=", agendaFilter.end));
@@ -204,7 +201,6 @@ createApp({
         const changeCalendarMonth = (off) => { const d = new Date(calendarCursor.value); d.setMonth(d.getMonth() + off); calendarCursor.value = d; };
         const calendarTitle = computed(() => `${['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'][calendarCursor.value.getMonth()]} ${calendarCursor.value.getFullYear()}`);
         
-        // --- FILTRO INTELIGENTE DA LISTA ---
         const filteredListAppointments = computed(() => { 
             let list = agendaTab.value === 'pending' ? pendingAppointments.value : historyList.value;
             if(clientSearchTerm.value) list = list.filter(a => getClientName(a.clientId).toLowerCase().includes(clientSearchTerm.value.toLowerCase())); 
@@ -226,7 +222,6 @@ createApp({
             if(isConfirmed) {
                 await updateDoc(doc(db,"appointments",app.id), {status:status});
                 Swal.fire('Feito','','success');
-                // Se saiu do pendente, a lista reativa atualiza sozinha pelo snapshot.
             }
         };
 
@@ -240,7 +235,6 @@ createApp({
         const addExpense = async () => { await addDoc(collection(db, "expenses"), { ...newExpense, value: toNum(newExpense.value), userId: user.value.uid }); showExpenseModal.value = false; Swal.fire('Salvo','','success'); };
         const deleteClient = async (id) => { if((await Swal.fire({title:'Excluir?',showCancelButton:true})).isConfirmed) { await deleteDoc(doc(db,"clients",id)); searchCatalogClients(); }};
         
-        // --- CLIENTE COM CPF ---
         const openClientModal = async () => { 
             const {value:v}=await Swal.fire({
                 title:'Novo Cliente', 
@@ -276,7 +270,6 @@ createApp({
 
         const downloadReceiptImage = () => { html2canvas(document.getElementById('receipt-capture-area')).then(c => { const l = document.createElement('a'); l.download = 'Recibo.png'; l.href = c.toDataURL(); l.click(); }); };
         
-        // Contrato Atualizado
         const generateContractPDF = () => { 
             const { jsPDF } = window.jspdf; const doc = new jsPDF(); const app = currentReceipt.value; const cli = clientCache[app.clientId] || {name:'...',cpf:'...'};
             doc.setFontSize(18); doc.text("CONTRATO DE PRESTAÇÃO DE SERVIÇOS", 105, 20, {align:"center"});
