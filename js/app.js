@@ -177,7 +177,6 @@ createApp({
                 const [snapApps, snapExp] = await Promise.all([getDocs(qApps), getDocs(qExp)]);
                 
                 dashboardData.appointments = snapApps.docs.map(sanitizeApp).filter(app => app.status !== 'cancelled');
-                
                 const loadedExpenses = snapExp.docs.map(d => ({id: d.id, ...d.data()}));
                 dashboardData.expenses = loadedExpenses;
                 expensesList.value = [...loadedExpenses].sort((a,b) => new Date(b.date) - new Date(a.date));
@@ -249,14 +248,13 @@ createApp({
             } catch(e) { console.error(e); }
         };
 
-        // --- COMPUTEDS (TODOS OS CÁLCULOS QUE FALTAVAM) ---
+        // --- COMPUTEDS E TOTAIS ---
         const filteredExpensesList = computed(() => expensesList.value);
         
         const financeSummary = computed(() => {
             return expensesList.value.reduce((acc, item) => acc + (Number(item.value) || 0), 0);
         });
 
-        // RESOLVIDO: Cálculo de categorias para o gráfico
         const expensesByCategoryStats = computed(() => {
             if (!dashboardData.expenses || dashboardData.expenses.length === 0) return [];
             return expenseCategories.map(cat => {
@@ -267,7 +265,6 @@ createApp({
             }).filter(c => c.total > 0).sort((a, b) => b.total - a.total);
         });
 
-        // RESOLVIDO: Lista unificada de Extrato (Statement)
         const statementList = computed(() => {
             const income = (dashboardData.appointments || []).map(a => ({
                 id: a.id,
@@ -278,7 +275,6 @@ createApp({
                 icon: 'fa-circle-arrow-up',
                 color: 'text-green-500'
             }));
-
             const expense = (dashboardData.expenses || []).map(e => ({
                 id: e.id,
                 date: e.date,
@@ -288,9 +284,21 @@ createApp({
                 icon: 'fa-circle-arrow-down',
                 color: 'text-red-500'
             }));
-
             return [...income, ...expense].sort((a, b) => new Date(b.date) - new Date(a.date));
         });
+
+        const kpiRevenue = computed(() => { if (!dashboardData.appointments) return 0; return dashboardData.appointments.reduce((acc, a) => acc + (Number(a?.totalServices) || 0), 0); });
+        const kpiExpenses = computed(() => { if (!dashboardData.expenses) return 0; return dashboardData.expenses.reduce((acc, e) => acc + (Number(e?.value) || 0), 0); });
+        const kpiProfit = computed(() => kpiRevenue.value - kpiExpenses.value); 
+        const kpiReceivables = computed(() => { if (!dashboardData.appointments) return 0; return dashboardData.appointments.reduce((acc, a) => acc + (Number(a?.finalBalance) || 0), 0); });
+        
+        // >>>>>> AQUI ESTÁ A CORREÇÃO: OBJETO FINANCE_DATA <<<<<<
+        const financeData = computed(() => ({
+            revenue: kpiRevenue.value,
+            expenses: kpiExpenses.value,
+            profit: kpiProfit.value,
+            receivables: kpiReceivables.value
+        }));
 
         const filteredListAppointments = computed(() => { 
             let list = currentTab.value === 'pending' ? pendingAppointments.value : historyList.value;
@@ -298,10 +306,6 @@ createApp({
             return [...list].sort((a,b) => new Date(a.date) - new Date(b.date)); 
         });
         
-        const kpiRevenue = computed(() => { if (!dashboardData.appointments) return 0; return dashboardData.appointments.reduce((acc, a) => acc + (Number(a?.totalServices) || 0), 0); });
-        const kpiExpenses = computed(() => { if (!dashboardData.expenses) return 0; return dashboardData.expenses.reduce((acc, e) => acc + (Number(e?.value) || 0), 0); });
-        const kpiProfit = computed(() => kpiRevenue.value - kpiExpenses.value); 
-        const kpiReceivables = computed(() => { if (!dashboardData.appointments) return 0; return dashboardData.appointments.reduce((acc, a) => acc + (Number(a?.finalBalance) || 0), 0); });
         const pendingCount = computed(() => pendingAppointments.value ? pendingAppointments.value.length : 0);
         const next7DaysApps = computed(() => { 
             if (!pendingAppointments.value) return [];
@@ -401,7 +405,7 @@ createApp({
             selectedAppointment, detailTaskInput, openDetails, saveTaskInDetail, toggleTaskDone, deleteTaskInDetail,
             dashboardMonth, loadDashboardData, isLoadingDashboard,
             appointmentViewMode, calendarCursor, changeCalendarMonth, calendarGrid, calendarTitle, selectCalendarDay, selectedCalendarDate, appointmentsOnSelectedDate,
-            filteredExpensesList, financeSummary, expensesByCategoryStats, statementList // <--- TUDO INCLUÍDO AQUI
+            filteredExpensesList, financeSummary, expensesByCategoryStats, statementList, financeData // <--- ADICIONADO AQUI
         };
     }
 }).mount('#app');
