@@ -3,202 +3,419 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PartyPlanner Pro - O Sistema da Decoradora Profissional</title>
-    <meta name="description" content="Organize sua agenda, gere contratos automáticos e controle seu financeiro. O fim da agenda de papel para decoradoras.">
-    
+    <title>PartyPlanner Pro - Sistema de Gestão</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
     <script>
         tailwind.config = {
+            darkMode: 'class',
             theme: {
                 extend: {
+                    fontFamily: { sans: ['Plus Jakarta Sans', 'sans-serif'] },
                     colors: {
-                        primary: '#8B5CF6',
-                        secondary: '#EC4899',
-                        darkbg: '#1F2937'
-                    },
-                    animation: {
-                        'float': 'float 6s ease-in-out infinite',
-                    },
-                    keyframes: {
-                        float: {
-                            '0%, 100%': { transform: 'translateY(0)' },
-                            '50%': { transform: 'translateY(-20px)' },
-                        }
+                        brand: { 50: '#f5f3ff', 100: '#ede9fe', 500: '#8b5cf6', 600: '#7c3aed', 900: '#4c1d95' }
                     }
                 }
             }
         }
     </script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; scroll-behavior: smooth; }
-        .hero-bg { background: radial-gradient(circle at top right, #f3e8ff, #ffffff); }
+        [v-cloak] { display: none; }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
     </style>
 </head>
-<body class="text-gray-800 bg-white">
-
-    <nav class="fixed w-full z-50 bg-white/90 backdrop-blur-md border-b border-gray-100">
-        <div class="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
-            <div class="flex items-center gap-2">
-                <div class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white shadow-lg">
-                    <i class="fa-solid fa-champagne-glasses"></i>
+<body class="bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100 transition-colors duration-300">
+    
+    <div id="app" v-cloak>
+        
+        <div v-if="!user" class="min-h-screen flex items-center justify-center bg-brand-600 p-4">
+            <div class="bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-2xl w-full max-w-md text-center transition-all">
+                <div class="mb-6">
+                    <div class="w-16 h-16 bg-brand-100 text-brand-600 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    </div>
+                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">PartyPlanner Pro</h1>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">
+                        {{ isRegistering ? 'Crie sua conta para começar' : 'Bem-vinda de volta!' }}
+                    </p>
                 </div>
-                <span class="text-xl font-black tracking-tight text-gray-900">PartyPlanner<span class="text-primary">Pro</span></span>
-            </div>
-            <div class="flex gap-4">
-                <a href="#funcionalidades" class="hidden md:block py-2 px-4 text-gray-600 font-bold hover:text-primary transition">Funcionalidades</a>
-                <a href="app.html" class="bg-primary hover:bg-purple-700 text-white py-2 px-6 rounded-full font-bold shadow-lg shadow-purple-200 transition transform hover:scale-105">
-                    Acessar Sistema
-                </a>
+
+                <form @submit.prevent="handleAuth" class="space-y-4">
+                    <div v-if="isRegistering" class="text-left">
+                        <label class="text-xs font-bold uppercase text-gray-500 ml-1">Nome da Empresa/Pessoa</label>
+                        <input v-model="authForm.name" type="text" class="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 dark:bg-gray-900 focus:ring-2 focus:ring-brand-500 outline-none transition" required placeholder="Ex: Doce Festa">
+                    </div>
+                    <div class="text-left">
+                        <label class="text-xs font-bold uppercase text-gray-500 ml-1">E-mail</label>
+                        <input v-model="authForm.email" type="email" class="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 dark:bg-gray-900 focus:ring-2 focus:ring-brand-500 outline-none transition" required placeholder="seu@email.com">
+                    </div>
+                    <div class="text-left">
+                        <label class="text-xs font-bold uppercase text-gray-500 ml-1">Senha</label>
+                        <input v-model="authForm.password" type="password" class="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 dark:bg-gray-900 focus:ring-2 focus:ring-brand-500 outline-none transition" required placeholder="******">
+                    </div>
+
+                    <button type="submit" :disabled="authLoading" class="w-full bg-brand-600 hover:bg-brand-500 text-white py-3 rounded-xl font-bold shadow-lg shadow-brand-500/30 transition transform active:scale-95 flex justify-center items-center gap-2">
+                        <i v-if="authLoading" class="fa-solid fa-circle-notch fa-spin"></i>
+                        <span>{{ isRegistering ? 'Criar Conta Grátis' : 'Entrar no Sistema' }}</span>
+                    </button>
+                </form>
+
+                <div class="mt-6 border-t border-gray-100 dark:border-gray-700 pt-4">
+                    <button @click="isRegistering = !isRegistering" class="text-sm text-brand-600 hover:text-brand-500 font-semibold">
+                        {{ isRegistering ? 'Já tenho conta? Entrar' : 'Não tem conta? Testar Grátis' }}
+                    </button>
+                </div>
             </div>
         </div>
-    </nav>
 
-    <header class="hero-bg pt-32 pb-20 px-6">
-        <div class="max-w-6xl mx-auto grid md:grid-cols-2 gap-12 items-center">
-            <div class="text-left animate-fade-in-up">
-                <span class="bg-purple-100 text-primary px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest mb-6 inline-block">Chega de Caderninho</span>
-                <h1 class="text-4xl md:text-6xl font-black text-gray-900 mb-6 leading-tight">
-                    Profissionalize suas <br>
-                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">Festas e Decorações.</span>
-                </h1>
-                <p class="text-lg text-gray-500 mb-8 leading-relaxed">
-                    Abandone a agenda de papel rabiscada. Gere contratos em PDF, controle pagamentos e organize sua agenda em um único aplicativo simples e bonito.
-                </p>
-                <div class="flex flex-col sm:flex-row gap-4">
-                    <a href="app.html" class="bg-primary text-white text-center px-8 py-4 rounded-2xl font-bold text-lg shadow-xl shadow-purple-300 hover:bg-purple-700 transition transform hover:-translate-y-1">
-                        Começar Teste Grátis
-                    </a>
-                    <a href="#video-demo" class="bg-white text-gray-700 text-center border border-gray-200 px-8 py-4 rounded-2xl font-bold text-lg hover:bg-gray-50 transition flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-play text-secondary"></i> Ver como funciona
-                    </a>
-                </div>
-                <p class="mt-4 text-xs text-gray-400 font-bold uppercase"><i class="fa-solid fa-check text-green-500 mr-1"></i> 30 dias grátis • Sem cartão de crédito</p>
-            </div>
+        <div v-else class="flex h-screen overflow-hidden">
             
-            <div class="relative hidden md:block animate-float">
-                <div class="absolute inset-0 bg-gradient-to-tr from-primary to-secondary rounded-full opacity-20 blur-3xl"></div>
-                <div class="relative bg-gray-900 rounded-[2.5rem] border-[8px] border-gray-900 overflow-hidden shadow-2xl mx-auto w-[300px] h-[600px]">
-                    <div class="bg-white h-full w-full flex flex-col">
-                        <div class="bg-primary p-6 text-white pb-8 rounded-b-3xl">
-                            <p class="text-xs opacity-80">Olá, Decoradora!</p>
-                            <p class="font-bold text-xl">Dashboard</p>
+            <aside class="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col hidden md:flex z-20">
+                <div class="p-6 flex items-center gap-3">
+                    <div class="w-10 h-10 bg-brand-600 text-white rounded-lg flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    </div>
+                    <span class="font-bold text-lg tracking-tight">PartyPlanner</span>
+                </div>
+
+                <nav class="flex-1 px-4 space-y-2 mt-4">
+                    <button @click="view = 'dashboard'" :class="view === 'dashboard' ? 'bg-brand-50 text-brand-600 dark:bg-gray-700 dark:text-white' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'" class="w-full flex items-center gap-3 p-3 rounded-xl transition font-medium">
+                        <i class="fa-solid fa-chart-pie w-5"></i> Dashboard
+                    </button>
+                    <button @click="view = 'schedule'; startNewSchedule()" :class="view === 'schedule' ? 'bg-brand-50 text-brand-600 dark:bg-gray-700 dark:text-white' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'" class="w-full flex items-center gap-3 p-3 rounded-xl transition font-medium">
+                        <i class="fa-solid fa-calendar-days w-5"></i> Agenda
+                    </button>
+                    <button @click="view = 'finance'" :class="view === 'finance' ? 'bg-brand-50 text-brand-600 dark:bg-gray-700 dark:text-white' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'" class="w-full flex items-center gap-3 p-3 rounded-xl transition font-medium">
+                        <i class="fa-solid fa-wallet w-5"></i> Financeiro
+                    </button>
+                    <button @click="view = 'clients'" :class="view === 'clients' ? 'bg-brand-50 text-brand-600 dark:bg-gray-700 dark:text-white' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'" class="w-full flex items-center gap-3 p-3 rounded-xl transition font-medium">
+                        <i class="fa-solid fa-users w-5"></i> Clientes
+                    </button>
+                    <button @click="view = 'settings'" :class="view === 'settings' ? 'bg-brand-50 text-brand-600 dark:bg-gray-700 dark:text-white' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'" class="w-full flex items-center gap-3 p-3 rounded-xl transition font-medium">
+                        <i class="fa-solid fa-gear w-5"></i> Ajustes
+                    </button>
+                </nav>
+
+                <div class="p-4 border-t border-gray-100 dark:border-gray-700">
+                    <button @click="logout" class="w-full flex items-center gap-3 p-3 text-red-500 hover:bg-red-50 rounded-xl transition font-medium">
+                        <i class="fa-solid fa-right-from-bracket"></i> Sair
+                    </button>
+                </div>
+            </aside>
+
+            <main class="flex-1 overflow-y-auto relative">
+                <header class="md:hidden bg-white dark:bg-gray-800 p-4 flex justify-between items-center shadow-sm sticky top-0 z-10">
+                    <div class="font-bold text-brand-600 flex items-center gap-2">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> PartyPlanner
+                    </div>
+                    <div class="flex gap-4">
+                        <button @click="toggleDarkMode" class="text-gray-500"><i class="fa-solid fa-moon"></i></button>
+                        <button @click="logout" class="text-red-500"><i class="fa-solid fa-right-from-bracket"></i></button>
+                    </div>
+                </header>
+
+                <div v-if="view === 'dashboard'" class="p-6 md:p-10 max-w-7xl mx-auto space-y-8">
+                    <div class="flex justify-between items-end">
+                        <div>
+                            <h2 class="text-2xl font-bold">Visão Geral</h2>
+                            <p class="text-gray-500">Resumo financeiro e operacional.</p>
                         </div>
-                        <div class="p-4 space-y-4 -mt-6">
-                            <div class="bg-white p-4 rounded-2xl shadow-lg border border-gray-100 flex items-center justify-between">
-                                <div>
-                                    <p class="text-xs text-gray-400 font-bold">FESTAS HOJE</p>
-                                    <p class="text-2xl font-black text-gray-800">2 Eventos</p>
+                        <input type="month" v-model="dashboardMonth" class="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg p-2 text-sm">
+                    </div>
+
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                            <div class="text-gray-400 text-xs font-bold uppercase mb-1">Receita Total</div>
+                            <div class="text-xl md:text-2xl font-bold text-green-600">{{ formatCurrency(financeData.revenue) }}</div>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                            <div class="text-gray-400 text-xs font-bold uppercase mb-1">Despesas</div>
+                            <div class="text-xl md:text-2xl font-bold text-red-500">{{ formatCurrency(financeData.expenses) }}</div>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                            <div class="text-gray-400 text-xs font-bold uppercase mb-1">Lucro Líquido</div>
+                            <div class="text-xl md:text-2xl font-bold text-brand-600">{{ formatCurrency(financeData.profit) }}</div>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                            <div class="text-gray-400 text-xs font-bold uppercase mb-1">A Receber</div>
+                            <div class="text-xl md:text-2xl font-bold text-orange-500">{{ formatCurrency(financeData.receivables) }}</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+                        <h3 class="font-bold mb-4">Próximos 7 Dias</h3>
+                        <div v-if="next7DaysApps.length === 0" class="text-center py-8 text-gray-400">Nenhum evento próximo.</div>
+                        <div v-else class="space-y-3">
+                            <div v-for="app in next7DaysApps" :key="app.id" class="flex items-center gap-4 p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl transition cursor-pointer" @click="showReceipt(app)">
+                                <div class="w-12 h-12 bg-brand-100 text-brand-600 rounded-xl flex flex-col items-center justify-center font-bold">
+                                    <span class="text-xs">{{ getMonth(app.date) }}</span>
+                                    <span class="text-lg leading-none">{{ getDay(app.date) }}</span>
                                 </div>
-                                <div class="bg-purple-100 text-primary w-10 h-10 rounded-full flex items-center justify-center"><i class="fa-solid fa-calendar"></i></div>
-                            </div>
-                            <div class="bg-white p-4 rounded-2xl shadow-sm border-l-4 border-secondary">
-                                <p class="text-xs text-gray-400">Próxima: 16:00h</p>
-                                <p class="font-bold text-gray-800">Festa da Alice (1 ano)</p>
-                                <p class="text-xs text-green-500 font-bold mt-1"><i class="fa-solid fa-check"></i> Contrato Assinado</p>
-                            </div>
-                             <div class="bg-gray-50 p-4 rounded-2xl border border-dashed border-gray-300 text-center">
-                                <p class="text-gray-400 text-sm">Lucro do Mês</p>
-                                <p class="text-xl font-bold text-green-600">R$ 4.250,00</p>
+                                <div>
+                                    <div class="font-bold">{{ getClientName(app.clientId) }}</div>
+                                    <div class="text-sm text-gray-500">{{ app.time }}h - {{ app.location.bairro }}</div>
+                                </div>
+                                <div class="ml-auto text-right">
+                                    <div class="text-sm font-bold text-brand-600">{{ formatCurrency(app.totalServices) }}</div>
+                                    <span class="text-xs px-2 py-1 rounded-full" :class="statusClass(app.status)">{{ statusText(app.status) }}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
+
+                <div v-if="view === 'finance'" class="p-6 md:p-10 max-w-5xl mx-auto space-y-6">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-2xl font-bold">Financeiro</h2>
+                        <button @click="showExpenseModal = true" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition shadow-lg shadow-red-500/30 flex items-center gap-2">
+                            <i class="fa-solid fa-minus"></i> Nova Despesa
+                        </button>
+                    </div>
+
+                    <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm flex flex-wrap gap-4 items-end">
+                        <div><label class="text-xs text-gray-500">De</label><input type="date" v-model="expensesFilter.start" class="w-full bg-gray-50 dark:bg-gray-900 border dark:border-gray-700 rounded-lg p-2 text-sm"></div>
+                        <div><label class="text-xs text-gray-500">Até</label><input type="date" v-model="expensesFilter.end" class="w-full bg-gray-50 dark:bg-gray-900 border dark:border-gray-700 rounded-lg p-2 text-sm"></div>
+                        <button @click="searchExpenses" class="bg-gray-900 dark:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm h-10">Filtrar</button>
+                    </div>
+
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+                        <div class="p-4 border-b dark:border-gray-700 font-bold bg-gray-50 dark:bg-gray-900">Extrato de Movimentações</div>
+                        <div v-if="statementList.length === 0" class="p-8 text-center text-gray-400">Nenhum registro no período.</div>
+                        <div v-else>
+                            <div v-for="item in statementList" :key="item.id" class="flex items-center justify-between p-4 border-b dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-full flex items-center justify-center bg-opacity-10" :class="item.type === 'income' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-500'">
+                                        <i class="fa-solid" :class="item.icon"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-bold text-sm">{{ item.description }}</div>
+                                        <div class="text-xs text-gray-400">{{ formatDate(item.date) }}</div>
+                                    </div>
+                                </div>
+                                <div class="font-bold" :class="item.color">
+                                    {{ item.type === 'income' ? '+' : '-' }} {{ formatCurrency(item.value) }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="p-4 bg-gray-50 dark:bg-gray-900 text-right font-bold text-sm">
+                            Saldo do Período: <span class="text-brand-600">{{ formatCurrency(financeData.profit) }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="view === 'schedule' || view === 'appointments_list'" class="p-6 md:p-10 max-w-4xl mx-auto">
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700">
+                        <h2 class="text-xl font-bold mb-6 flex items-center gap-2">
+                            <i class="fa-solid fa-calendar-plus text-brand-500"></i> {{ isEditing ? 'Editar Evento' : 'Novo Evento' }}
+                        </h2>
+                        
+                        <div class="relative mb-4">
+                            <label class="block text-xs font-bold text-gray-500 mb-1">CLIENTE</label>
+                            <input v-model="clientSearchTerm" type="text" placeholder="Busque por nome..." class="w-full p-3 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-brand-500 outline-none">
+                            <div v-if="filteredClientsSearch.length > 0" class="absolute z-50 w-full bg-white dark:bg-gray-800 border shadow-xl rounded-xl mt-1 max-h-48 overflow-y-auto">
+                                <div v-for="client in filteredClientsSearch" @click="tempApp.clientId = client.id; clientSearchTerm = client.name; filteredClientsSearch = []" class="p-3 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer border-b last:border-0">
+                                    {{ client.name }} <span class="text-xs text-gray-400">({{ client.phone }})</span>
+                                </div>
+                            </div>
+                            <button v-if="!tempApp.clientId" @click="openClientModal()" class="text-xs text-brand-600 font-bold mt-1 hover:underline">+ Cadastrar Novo Cliente</button>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="text-xs font-bold text-gray-500">DATA</label>
+                                <input v-model="tempApp.date" type="date" class="w-full p-3 rounded-xl bg-gray-50 dark:bg-gray-900 border dark:border-gray-700 outline-none">
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-gray-500">HORA</label>
+                                <input v-model="tempApp.time" type="time" class="w-full p-3 rounded-xl bg-gray-50 dark:bg-gray-900 border dark:border-gray-700 outline-none">
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="text-xs font-bold text-gray-500">SERVIÇOS</label>
+                            <div class="flex gap-2 mb-2">
+                                <select v-model="tempServiceSelect" class="flex-1 p-3 rounded-xl bg-gray-50 dark:bg-gray-900 border dark:border-gray-700 outline-none">
+                                    <option value="">Selecione...</option>
+                                    <option v-for="s in services" :key="s.id" :value="s">{{ s.description }} - {{ formatCurrency(s.price) }}</option>
+                                </select>
+                                <button @click="addServiceToApp" class="bg-brand-600 text-white w-12 rounded-xl flex items-center justify-center"><i class="fa-solid fa-plus"></i></button>
+                            </div>
+                            <div class="space-y-2">
+                                <div v-for="(s, i) in tempApp.selectedServices" class="flex justify-between bg-gray-50 dark:bg-gray-900 p-2 rounded-lg text-sm">
+                                    <span>{{ s.description }}</span>
+                                    <div class="flex gap-3">
+                                        <b>{{ formatCurrency(s.price) }}</b>
+                                        <button @click="removeServiceFromApp(i)" class="text-red-500"><i class="fa-solid fa-times"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-brand-50 dark:bg-gray-700 p-4 rounded-xl mb-6">
+                            <div class="flex justify-between mb-2">
+                                <span>Total:</span>
+                                <span class="font-bold">{{ formatCurrency(totalServices) }}</span>
+                            </div>
+                            <div class="flex justify-between items-center mb-2">
+                                <span>Sinal (Entrada):</span>
+                                <input v-model="tempApp.details.entryFee" type="number" class="w-24 p-1 rounded text-right text-black" placeholder="0.00">
+                            </div>
+                            <div class="flex justify-between text-brand-700 dark:text-brand-300 font-bold text-lg border-t border-brand-200 dark:border-gray-600 pt-2">
+                                <span>A Pagar:</span>
+                                <span>{{ formatCurrency(finalBalance) }}</span>
+                            </div>
+                        </div>
+
+                        <button @click="saveAppointment" class="w-full bg-black dark:bg-white dark:text-black text-white py-4 rounded-xl font-bold shadow-lg hover:shadow-xl transition transform active:scale-95">
+                            <i class="fa-solid fa-check"></i> {{ isEditing ? 'Atualizar Evento' : 'Agendar Evento' }}
+                        </button>
+                    </div>
+                </div>
+
+                <div v-if="view === 'receipt' && currentReceipt" class="p-6 md:p-10 flex justify-center bg-gray-100 dark:bg-gray-900 min-h-full">
+                    <div class="bg-white p-8 rounded-none shadow-2xl w-full max-w-lg text-gray-800 relative" id="receipt-capture-area">
+                        <div class="text-center border-b-2 border-brand-500 pb-6 mb-6">
+                            <img v-if="company.logo" :src="company.logo" class="h-20 mx-auto mb-3">
+                            <h1 class="text-3xl font-bold text-brand-600">{{ company.fantasia || 'Sua Empresa' }}</h1>
+                            <p class="text-sm text-gray-500">Recibo de Prestação de Serviços</p>
+                        </div>
+
+                        <div class="space-y-4 mb-8 text-sm">
+                            <div class="flex justify-between border-b border-gray-100 pb-2">
+                                <span class="text-gray-500">Cliente</span>
+                                <span class="font-bold">{{ getClientName(currentReceipt.clientId) }}</span>
+                            </div>
+                            <div class="flex justify-between border-b border-gray-100 pb-2">
+                                <span class="text-gray-500">Data do Evento</span>
+                                <span class="font-bold">{{ formatDate(currentReceipt.date) }}</span>
+                            </div>
+                            <div class="flex justify-between border-b border-gray-100 pb-2">
+                                <span class="text-gray-500">Local</span>
+                                <span class="font-bold text-right w-1/2">{{ currentReceipt.location?.bairro || '-' }}</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-gray-50 p-4 rounded-lg mb-6">
+                            <div v-for="item in currentReceipt.selectedServices" class="flex justify-between text-sm mb-2">
+                                <span>{{ item.description }}</span>
+                                <span class="font-mono">{{ formatCurrency(item.price) }}</span>
+                            </div>
+                            <div class="border-t border-gray-300 my-2"></div>
+                            <div class="flex justify-between font-bold text-lg">
+                                <span>Total</span>
+                                <span>{{ formatCurrency(currentReceipt.totalServices) }}</span>
+                            </div>
+                            <div class="flex justify-between text-sm text-green-600 mt-2">
+                                <span>Sinal Pago</span>
+                                <span>- {{ formatCurrency(currentReceipt.entryFee) }}</span>
+                            </div>
+                            <div class="flex justify-between font-bold text-brand-600 mt-2 pt-2 border-t border-gray-200">
+                                <span>Restante a Pagar</span>
+                                <span>{{ formatCurrency(currentReceipt.finalBalance) }}</span>
+                            </div>
+                        </div>
+
+                        <div class="text-center text-xs text-gray-400 mt-8">
+                            <p>Obrigado pela preferência!</p>
+                            <p>Gerado digitalmente por PartyPlanner Pro</p>
+                        </div>
+                    </div>
+
+                    <div class="fixed bottom-6 right-6 flex flex-col gap-3">
+                        <button @click="downloadReceiptImage" class="bg-blue-600 text-white w-14 h-14 rounded-full shadow-xl flex items-center justify-center text-xl hover:bg-blue-700 transition" title="Baixar Imagem">
+                            <i class="fa-solid fa-image"></i>
+                        </button>
+                        <button @click="generateContractPDF" class="bg-red-600 text-white w-14 h-14 rounded-full shadow-xl flex items-center justify-center text-xl hover:bg-red-700 transition" title="Baixar Contrato PDF">
+                            <i class="fa-solid fa-file-pdf"></i>
+                        </button>
+                        <button @click="view = 'dashboard'" class="bg-gray-800 text-white w-14 h-14 rounded-full shadow-xl flex items-center justify-center text-xl hover:bg-gray-900 transition" title="Fechar">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div v-if="view === 'clients'" class="p-10 max-w-4xl mx-auto">
+                    <div class="flex justify-between mb-6">
+                        <h2 class="text-2xl font-bold">Gerenciar Clientes</h2>
+                        <button @click="openClientModal()" class="bg-brand-600 text-white px-4 py-2 rounded-lg">+ Novo</button>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow">
+                        <input v-model="catalogClientSearch" placeholder="Buscar cliente..." class="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600">
+                        <button @click="searchCatalogClients" class="mt-2 text-brand-600 font-bold">Buscar</button>
+                        
+                        <div class="mt-4 space-y-2">
+                            <div v-for="c in catalogClientsList" :key="c.id" class="flex justify-between items-center p-3 border-b dark:border-gray-700">
+                                <div>
+                                    <div class="font-bold">{{ c.name }}</div>
+                                    <div class="text-sm text-gray-500">{{ c.phone }}</div>
+                                </div>
+                                <div class="flex gap-3">
+                                    <button @click="openClientModal(c)" class="text-blue-500"><i class="fa-solid fa-pen"></i></button>
+                                    <button @click="deleteClient(c.id)" class="text-red-500"><i class="fa-solid fa-trash"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="view === 'settings'" class="p-10 max-w-2xl mx-auto">
+                    <h2 class="text-2xl font-bold mb-6">Configurações da Empresa</h2>
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm space-y-4">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-500 mb-1">Logo</label>
+                            <input type="file" @change="handleLogoUpload" class="text-sm">
+                            <img v-if="company.logo" :src="company.logo" class="h-16 mt-2 rounded border">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-500 mb-1">Nome Fantasia</label>
+                            <input v-model="company.fantasia" class="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-500 mb-1">CNPJ</label>
+                            <input v-model="company.cnpj" class="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600">
+                        </div>
+                        <button @click="saveCompany" class="bg-brand-600 text-white px-6 py-2 rounded-lg font-bold">Salvar Dados</button>
+                        
+                        <hr class="my-6 border-gray-200 dark:border-gray-700">
+                        
+                        <div class="flex gap-4">
+                            <button @click="handleChangePassword" class="text-brand-600 font-bold hover:underline">Alterar Senha</button>
+                            <button @click="toggleDarkMode" class="text-gray-500 font-bold hover:underline">Alternar Tema</button>
+                        </div>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+
+        <div v-if="showExpenseModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div class="bg-white dark:bg-gray-800 w-full max-w-sm rounded-2xl p-6 shadow-2xl">
+                <h3 class="font-bold text-lg mb-4">Nova Despesa</h3>
+                <div class="space-y-3">
+                    <input v-model="newExpense.description" placeholder="Descrição (ex: Gasolina)" class="w-full p-3 rounded-lg border dark:bg-gray-700 dark:border-gray-600">
+                    <input v-model="newExpense.value" type="number" placeholder="Valor (R$)" class="w-full p-3 rounded-lg border dark:bg-gray-700 dark:border-gray-600">
+                    <select v-model="newExpense.category" class="w-full p-3 rounded-lg border dark:bg-gray-700 dark:border-gray-600">
+                        <option value="" disabled>Categoria</option>
+                        <option v-for="cat in expenseCategories" :value="cat.id">{{ cat.label }}</option>
+                    </select>
+                    <input type="date" v-model="newExpense.date" class="w-full p-3 rounded-lg border dark:bg-gray-700 dark:border-gray-600">
+                </div>
+                <div class="flex gap-3 mt-6">
+                    <button @click="showExpenseModal = false" class="flex-1 py-3 text-gray-500 font-bold">Cancelar</button>
+                    <button @click="addExpense" class="flex-1 py-3 bg-red-500 text-white rounded-xl font-bold">Salvar</button>
+                </div>
             </div>
         </div>
-    </header>
 
-    <section class="py-20 bg-white">
-        <div class="max-w-6xl mx-auto px-6">
-            <div class="text-center mb-16 max-w-2xl mx-auto">
-                <h2 class="text-3xl font-black mb-4 text-gray-900">Você se identifica com isso?</h2>
-                <p class="text-gray-500">A vida de quem trabalha com eventos é corrida. Se você ainda usa papel, provavelmente passa por estes perrengues:</p>
-            </div>
+    </div>
 
-            <div class="grid md:grid-cols-3 gap-8">
-                <div class="p-8 rounded-3xl bg-red-50 border border-red-100">
-                    <div class="text-4xl mb-4">😰</div>
-                    <h3 class="font-bold text-xl mb-2 text-red-900">Insegurança</h3>
-                    <p class="text-sm text-red-800/70">"Será que o cliente vai pagar o restante? Fechei de boca e não tenho contrato assinado."</p>
-                </div>
-                <div class="p-8 rounded-3xl bg-orange-50 border border-orange-100">
-                    <div class="text-4xl mb-4">🤯</div>
-                    <h3 class="font-bold text-xl mb-2 text-orange-900">Esquecimento</h3>
-                    <p class="text-sm text-orange-800/70">"Cheguei na montagem e esqueci a cor exata dos balões ou o painel que a cliente pediu."</p>
-                </div>
-                <div class="p-8 rounded-3xl bg-gray-50 border border-gray-100">
-                    <div class="text-4xl mb-4">💸</div>
-                    <h3 class="font-bold text-xl mb-2 text-gray-900">Descontrole</h3>
-                    <p class="text-sm text-gray-600">"Entra dinheiro, sai dinheiro com Uber e materiais, e no fim do mês não sei quanto lucrei."</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section id="funcionalidades" class="py-20 bg-gray-900 text-white rounded-t-[3rem]">
-        <div class="max-w-6xl mx-auto px-6">
-            <div class="text-center mb-16">
-                <span class="text-primary font-bold tracking-widest uppercase text-xs">Solução Completa</span>
-                <h2 class="text-3xl md:text-4xl font-black mt-2">Tudo o que você precisa em um app</h2>
-            </div>
-
-            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div class="bg-gray-800 p-6 rounded-2xl hover:bg-gray-750 transition border border-gray-700">
-                    <div class="w-12 h-12 bg-primary/20 text-primary rounded-xl flex items-center justify-center mb-4 text-xl"><i class="fa-solid fa-file-pdf"></i></div>
-                    <h3 class="font-bold text-lg mb-2">Contratos em PDF</h3>
-                    <p class="text-gray-400 text-sm">Gere contratos automáticos com seus dados e do cliente. Passe profissionalismo e segurança.</p>
-                </div>
-                <div class="bg-gray-800 p-6 rounded-2xl hover:bg-gray-750 transition border border-gray-700">
-                    <div class="w-12 h-12 bg-secondary/20 text-secondary rounded-xl flex items-center justify-center mb-4 text-xl"><i class="fa-solid fa-calendar-days"></i></div>
-                    <h3 class="font-bold text-lg mb-2">Agenda Visual</h3>
-                    <p class="text-gray-400 text-sm">Calendário interativo para ver dias livres e ocupados. Nunca mais marque duas festas na mesma hora.</p>
-                </div>
-                <div class="bg-gray-800 p-6 rounded-2xl hover:bg-gray-750 transition border border-gray-700">
-                    <div class="w-12 h-12 bg-green-500/20 text-green-400 rounded-xl flex items-center justify-center mb-4 text-xl"><i class="fa-solid fa-sack-dollar"></i></div>
-                    <h3 class="font-bold text-lg mb-2">Financeiro Real</h3>
-                    <p class="text-gray-400 text-sm">Lance despesas (Uber, materiais) e saiba o lucro líquido de cada evento e do mês.</p>
-                </div>
-                <div class="bg-gray-800 p-6 rounded-2xl hover:bg-gray-750 transition border border-gray-700">
-                    <div class="w-12 h-12 bg-blue-500/20 text-blue-400 rounded-xl flex items-center justify-center mb-4 text-xl"><i class="fa-solid fa-list-check"></i></div>
-                    <h3 class="font-bold text-lg mb-2">Checklist</h3>
-                    <p class="text-gray-400 text-sm">Crie listas de tarefas para cada festa. Não esqueça mais nenhum item da decoração.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section class="py-24 bg-white text-center px-6">
-        <div class="max-w-3xl mx-auto">
-            <h2 class="text-4xl font-black text-gray-900 mb-6">Pronta para organizar sua empresa?</h2>
-            <p class="text-lg text-gray-500 mb-10">Junte-se a outras decoradoras, decoradores Desing de balões e donos de salão de festasque já abandonaram o papel e estão lucrando mais com organização.</p>
-            <a href="app.html" class="inline-block bg-gradient-to-r from-primary to-secondary text-white px-10 py-5 rounded-full font-bold text-xl shadow-2xl hover:shadow-primary/50 transition transform hover:scale-105">
-                Criar Minha Conta Grátis
-            </a>
-            <p class="mt-6 text-sm text-gray-400">Teste gratuito de 30 dias. Cancele quando quiser.</p>
-        </div>
-    </section>
-
-    <footer class="bg-gray-50 py-12 border-t border-gray-200">
-        <div class="max-w-6xl mx-auto px-6 grid md:grid-cols-2 gap-8 items-center">
-            
-            <div class="text-center md:text-left">
-                <span class="text-xl font-black tracking-tight text-gray-900 block mb-2">PartyPlanner<span class="text-primary">Pro</span></span>
-                <p class="text-gray-400 text-sm">&copy; 2026 PartyPlanner Pro. Feito para você.</p>
-            </div>
-
-            <div class="text-center md:text-right">
-                <p class="text-xs font-bold text-gray-400 uppercase mb-2">Suporte Técnico</p>
-                <div class="flex flex-col items-center md:items-end gap-1">
-                    <p class="font-bold text-gray-700">Jean Thielis Braga Felipe</p>
-                    <a href="https://wa.me/5527981071336?text=Ol%C3%A1%2C%20preciso%20de%20ajuda%20com%20o%20PartyPlanner!" target="_blank" class="flex items-center gap-2 text-green-600 font-bold hover:underline bg-green-50 px-3 py-1 rounded-full border border-green-100 transition hover:bg-green-100">
-                        <i class="fa-brands fa-whatsapp text-lg"></i> (27) 98107-1336
-                    </a>
-                </div>
-            </div>
-
-        </div>
-    </footer>
-
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script type="module" src="js/app.js?v=20.0"></script>
 </body>
 </html>
