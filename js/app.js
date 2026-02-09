@@ -27,6 +27,11 @@ createApp({
         const expensesList = ref([]); 
         const isExtractLoaded = ref(false);
         
+        // Abas da Agenda e Histórico
+        const agendaTab = ref('pending');
+        const agendaFilter = reactive({ start: '', end: '' });
+        const historyList = ref([]);
+        
         const catalogClientsList = ref([]);
         const scheduleClientsList = ref([]);
         const clientCache = reactive({});
@@ -73,7 +78,7 @@ createApp({
         const formatDate = (d) => d ? d.split('-').reverse().join('/') : '';
         const getDay = (d) => d ? d.split('-')[2] : '';
         const getMonth = (d) => d ? ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'][parseInt(d.split('-')[1])-1] : '';
-        const statusText = (s) => s === 'concluded' ? 'Concluído' : 'Pendente';
+        const statusText = (s) => s === 'concluded' ? 'Concluído' : (s === 'cancelled' ? 'Cancelado' : 'Pendente');
         const getClientName = (id) => clientCache[id]?.name || '...';
         const getClientPhone = (id) => clientCache[id]?.phone || '';
 
@@ -171,6 +176,15 @@ createApp({
             isExtractLoaded.value = true;
         };
 
+        // --- BUSCA HISTÓRICO AGENDA ---
+        const searchHistory = async () => {
+            if(!agendaFilter.start || !agendaFilter.end) return Swal.fire('Atenção', 'Selecione datas', 'warning');
+            const q = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("status", "==", agendaTab.value), where("date", ">=", agendaFilter.start), where("date", "<=", agendaFilter.end));
+            const snap = await getDocs(q);
+            historyList.value = snap.docs.map(sanitizeApp);
+            historyList.value.forEach(a => fetchClientToCache(a.clientId));
+        };
+
         const statementList = computed(() => { if (!isExtractLoaded.value) return []; return expensesList.value.sort((a, b) => b.date.localeCompare(a.date)); });
         const financeSummary = computed(() => statementList.value.reduce((acc, item) => item.type === 'income' ? acc + item.value : acc - item.value, 0));
 
@@ -189,7 +203,13 @@ createApp({
         const selectCalendarDay = (d) => { if(d.day) selectedCalendarDate.value = d.date; };
         const changeCalendarMonth = (off) => { const d = new Date(calendarCursor.value); d.setMonth(d.getMonth() + off); calendarCursor.value = d; };
         const calendarTitle = computed(() => `${['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'][calendarCursor.value.getMonth()]} ${calendarCursor.value.getFullYear()}`);
-        const filteredListAppointments = computed(() => { let list = pendingAppointments.value; if(clientSearchTerm.value) list = list.filter(a => getClientName(a.clientId).toLowerCase().includes(clientSearchTerm.value.toLowerCase())); return list.sort((a,b) => a.date.localeCompare(b.date)); });
+        
+        // --- FILTRO INTELIGENTE DA LISTA ---
+        const filteredListAppointments = computed(() => { 
+            let list = agendaTab.value === 'pending' ? pendingAppointments.value : historyList.value;
+            if(clientSearchTerm.value) list = list.filter(a => getClientName(a.clientId).toLowerCase().includes(clientSearchTerm.value.toLowerCase())); 
+            return list.sort((a,b) => a.date.localeCompare(b.date)); 
+        });
 
         const handleAuth = async () => { authLoading.value = true; try { if (isRegistering.value) { const c=await createUserWithEmailAndPassword(auth, authForm.email, authForm.password); await updateProfile(c.user,{displayName:authForm.name}); await setDoc(doc(db,"users",c.user.uid),{email:authForm.email}); } else { await signInWithEmailAndPassword(auth,authForm.email,authForm.password); } } catch(e){Swal.fire('Erro','Dados inválidos','error');} finally{authLoading.value=false;} };
         
@@ -198,6 +218,16 @@ createApp({
             if(!appData.checklist.length) appData.checklist = [{text:'Materiais', done:false}];
             if (isEditing.value) await updateDoc(doc(db, "appointments", editingId.value), appData); else await addDoc(collection(db, "appointments"), appData);
             loadDashboardData(); showAppointmentModal.value = false; Swal.fire('Salvo!', '', 'success');
+        };
+
+        const changeStatus = async (app, status) => {
+            const action = status === 'concluded' ? 'Concluir' : 'Cancelar';
+            const {isConfirmed} = await Swal.fire({title: action + '?', text: 'Deseja alterar o status?', icon:'question', showCancelButton:true});
+            if(isConfirmed) {
+                await updateDoc(doc(db,"appointments",app.id), {status:status});
+                Swal.fire('Feito','','success');
+                // Se saiu do pendente, a lista reativa atualiza sozinha pelo snapshot.
+            }
         };
 
         const saveService = async () => {
@@ -251,9 +281,9 @@ createApp({
             const { jsPDF } = window.jspdf; const doc = new jsPDF(); const app = currentReceipt.value; const cli = clientCache[app.clientId] || {name:'...',cpf:'...'};
             doc.setFontSize(18); doc.text("CONTRATO DE PRESTAÇÃO DE SERVIÇOS", 105, 20, {align:"center"});
             doc.setFontSize(12); 
-            doc.text(`CONTRATADA: ${company.fantasia}, CNPJ: ${company.cnpj}`, 20, 40);
-            doc.text(`Endereço: ${company.rua} - ${company.cidade}/${company.estado}`, 20, 46);
-            doc.text(`CONTRATANTE: ${cli.name}, CPF: ${cli.cpf}`, 20, 56);
+            doc.text(`CONTRATADA: ${company.fantasia}, CNPJ: ${company.cnpj || '...'}`, 20, 40);
+            doc.text(`Endereço: ${company.rua || ''} - ${company.cidade || ''}/${company.estado || ''}`, 20, 46);
+            doc.text(`CONTRATANTE: ${cli.name}, CPF: ${cli.cpf || '...'}`, 20, 56);
             doc.text(`Data do Evento: ${formatDate(app.date)} às ${app.time}`, 20, 70);
             doc.text(`Local: ${app.location.bairro}`, 20, 76);
             const body = app.selectedServices.map(s => [s.description, formatCurrency(s.price)]);
@@ -287,7 +317,8 @@ createApp({
             company, handleLogoUpload, saveCompany, handleChangePassword, downloadReceiptImage, generateContractPDF,
             formatCurrency, formatDate, getDay, getMonth, statusText, getClientName, getClientPhone,
             toggleDarkMode: () => { isDark.value=!isDark.value; document.documentElement.classList.toggle('dark'); },
-            expenseCategories, expensesByCategoryStats
+            expenseCategories, expensesByCategoryStats,
+            agendaTab, agendaFilter, searchHistory, changeStatus
         };
     }
 }).mount('#app');
