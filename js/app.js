@@ -105,9 +105,7 @@ createApp({
                             companyConfig: { fantasia: u.displayName || 'Minha Empresa' }
                         });
                     }
-                    // Atualiza último acesso
                     await updateDoc(userRef, { lastLogin: new Date().toISOString() });
-                    
                     const updatedDoc = await getDoc(userRef);
                     if (!updatedDoc.exists()) { await signOut(auth); user.value = null; return; }
                     user.value = u;
@@ -162,11 +160,13 @@ createApp({
         const loadDashboardData = async () => {
             if (!user.value) return;
             isLoadingDashboard.value = true;
-            const [year, month] = dashboardMonth.value.split('-');
-            const startStr = `${year}-${month}-01`;
-            const lastDay = new Date(year, month, 0).getDate();
-            const endStr = `${year}-${month}-${lastDay}`;
             try {
+                if(!dashboardMonth.value) dashboardMonth.value = new Date().toISOString().slice(0, 7);
+                const [year, month] = dashboardMonth.value.split('-');
+                const startStr = `${year}-${month}-01`;
+                const lastDay = new Date(year, month, 0).getDate();
+                const endStr = `${year}-${month}-${lastDay}`;
+
                 const qApps = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("date", ">=", startStr), where("date", "<=", endStr));
                 const qExp = query(collection(db, "expenses"), where("userId", "==", user.value.uid), where("date", ">=", startStr), where("date", "<=", endStr));
                 const [snapApps, snapExp] = await Promise.all([getDocs(qApps), getDocs(qExp)]);
@@ -259,23 +259,55 @@ createApp({
             } else { scheduleClientsList.value = []; }
         });
 
-        // --- COMPUTEDS GERAIS ---
+        // --- COMPUTEDS BLINDADOS (SEGURANÇA CONTRA ERROS) ---
         const filteredListAppointments = computed(() => { 
             let list = currentTab.value === 'pending' ? pendingAppointments.value : historyList.value;
+            if (!list) return [];
             return [...list].sort((a,b) => new Date(a.date) - new Date(b.date)); 
         });
         
-        const kpiRevenue = computed(() => dashboardData.appointments.reduce((acc, a) => acc + (a.totalServices || 0), 0));
-        const kpiExpenses = computed(() => dashboardData.expenses.reduce((acc, e) => acc + (e.value || 0), 0)); 
+        const kpiRevenue = computed(() => {
+            if (!dashboardData.appointments) return 0;
+            return dashboardData.appointments.reduce((acc, a) => acc + (Number(a?.totalServices) || 0), 0);
+        });
+
+        const kpiExpenses = computed(() => {
+            if (!dashboardData.expenses) return 0;
+            return dashboardData.expenses.reduce((acc, e) => acc + (Number(e?.value) || 0), 0);
+        });
+
         const kpiProfit = computed(() => kpiRevenue.value - kpiExpenses.value); 
-        const kpiReceivables = computed(() => dashboardData.appointments.reduce((acc, a) => acc + (a.finalBalance || 0), 0));
-        const pendingCount = computed(() => pendingAppointments.value.length);
-        const next7DaysApps = computed(() => { const t = new Date(); t.setHours(0,0,0,0); const w = new Date(t); w.setDate(t.getDate() + 7); return pendingAppointments.value.filter(a => { return new Date(a.date) >= t && new Date(a.date) <= w; }).sort((a,b) => new Date(a.date) - new Date(b.date)); });
-        const totalServices = computed(() => tempApp.selectedServices.reduce((s,i) => s + i.price, 0));
-        const finalBalance = computed(() => totalServices.value - (tempApp.details.entryFee || 0));
+
+        const kpiReceivables = computed(() => {
+            if (!dashboardData.appointments) return 0;
+            return dashboardData.appointments.reduce((acc, a) => acc + (Number(a?.finalBalance) || 0), 0);
+        });
+
+        const pendingCount = computed(() => pendingAppointments.value ? pendingAppointments.value.length : 0);
+        
+        const next7DaysApps = computed(() => { 
+            if (!pendingAppointments.value) return [];
+            const t = new Date(); t.setHours(0,0,0,0); 
+            const w = new Date(t); w.setDate(t.getDate() + 7); 
+            return pendingAppointments.value.filter(a => { 
+                if (!a || !a.date) return false;
+                const d = new Date(a.date);
+                return d >= t && d <= w; 
+            }).sort((a,b) => new Date(a.date) - new Date(b.date));
+        });
+
+        const totalServices = computed(() => {
+            if (!tempApp.selectedServices) return 0;
+            return tempApp.selectedServices.reduce((s,i) => s + (Number(i?.price) || 0), 0);
+        });
+
+        const finalBalance = computed(() => {
+            const entry = tempApp.details ? (Number(tempApp.details.entryFee) || 0) : 0;
+            return totalServices.value - entry;
+        });
+
         const filteredClientsSearch = computed(() => scheduleClientsList.value);
         
-        // --- BARRA DE PROGRESSO BLINDADA ---
         const checklistProgress = (app) => { 
             if (!app || !app.checklist || !Array.isArray(app.checklist) || app.checklist.length === 0) return 0;
             try {
