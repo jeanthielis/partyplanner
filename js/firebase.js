@@ -16,7 +16,7 @@ import {
 
 // Your web app's Firebase configuration
 // ⚠️ MANTENHA SUAS CHAVES AQUI (Não copie este bloco vazio por cima das suas chaves!)
-const firebaseConfig = {
+export const firebaseConfig = {
     apiKey: "AIzaSyAhHRcZwrzD36oEFaeQzD1Fd-685YRAxBA",
     authDomain: "partyplanner-3f352.firebaseapp.com",
     projectId: "partyplanner-3f352",
