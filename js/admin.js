@@ -1,16 +1,25 @@
-const { createApp, ref, computed, onMounted } = Vue;
+const { createApp, ref, computed, reactive, onMounted } = Vue;
 
+// Importar configurações e funções principais
 import { 
-    db, auth, 
-    collection, onSnapshot, doc, updateDoc, deleteDoc, getDoc, signOut, onAuthStateChanged 
+    db, auth, firebaseConfig, // <--- IMPORTANTE: Importar o firebaseConfig
+    collection, onSnapshot, doc, updateDoc, deleteDoc, getDoc, setDoc, signOut, onAuthStateChanged 
 } from './firebase.js';
+
+// Importar funções SDK diretas para a instância secundária
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 createApp({
     setup() {
         const users = ref([]);
         const searchTerm = ref('');
         const currentUser = ref(null);
-        const pricing = 97.00; // Valor da assinatura para cálculo de MRR
+        const showCreateModal = ref(false);
+        const loadingCreate = ref(false);
+        const pricing = 97.00;
+
+        const newUser = reactive({ name: '', email: '', password: '', status: 'trial' });
 
         // ============================================================
         // 1. CARREGAMENTO E SEGURANÇA
@@ -18,13 +27,12 @@ createApp({
         onMounted(() => {
             onAuthStateChanged(auth, async (u) => {
                 if (u) {
-                    // Verifica se é ADMIN antes de carregar dados
                     const docSnap = await getDoc(doc(db, "users", u.uid));
                     if (docSnap.exists() && docSnap.data().role === 'admin') {
                         currentUser.value = u;
                         loadUsers();
                     } else {
-                        Swal.fire('Acesso Negado', 'Você não tem permissão de administrador.', 'error')
+                        Swal.fire('Acesso Negado', 'Área restrita a administradores.', 'error')
                         .then(() => window.location.href = "index.html");
                     }
                 } else {
@@ -34,19 +42,16 @@ createApp({
         });
 
         const loadUsers = () => {
-            // Escuta em tempo real a coleção de usuários
             onSnapshot(collection(db, "users"), (snap) => {
                 users.value = snap.docs.map(d => {
                     const data = d.data();
                     return {
-                        id: d.id,
-                        ...data,
-                        // Normaliza dados para evitar erros no template
-                        displayName: data.companyConfig?.fantasia || data.email.split('@')[0],
+                        id: d.id, ...data,
+                        displayName: data.companyConfig?.fantasia || data.email?.split('@')[0] || 'Sem Nome',
                         phone: data.companyConfig?.phone || '',
                         status: data.status || 'trial',
                         createdAt: data.createdAt || new Date().toISOString(),
-                        lastLogin: data.lastLogin || data.createdAt, // Fallback se nunca logou
+                        lastLogin: data.lastLogin || null,
                         adminNotes: data.adminNotes || ''
                     };
                 });
@@ -54,93 +59,86 @@ createApp({
         };
 
         // ============================================================
-        // 2. COMPUTEDS (KPIS E FILTROS)
+        // 2. REGISTRAR NOVO USUÁRIO (SEM DESLOGAR ADMIN)
         // ============================================================
-        
-        // Filtro da Tabela
-        const filteredUsers = computed(() => {
-            if (!searchTerm.value) return users.value.sort((a,b) => new Date(b.lastLogin) - new Date(a.lastLogin));
-            const lower = searchTerm.value.toLowerCase();
-            return users.value.filter(u => 
-                u.displayName.toLowerCase().includes(lower) || 
-                u.email.toLowerCase().includes(lower) ||
-                u.phone.includes(lower)
-            );
-        });
+        const registerUser = async () => {
+            if (!newUser.name || !newUser.email || !newUser.password) {
+                return Swal.fire('Atenção', 'Preencha todos os campos', 'warning');
+            }
 
-        // KPIs
-        const newUsersToday = computed(() => {
-            const today = new Date().toISOString().split('T')[0];
-            return users.value.filter(u => u.createdAt && u.createdAt.startsWith(today)).length;
-        });
+            loadingCreate.value = true;
 
-        const activeCount = computed(() => users.value.filter(u => u.status === 'active').length);
-        
-        const mrr = computed(() => activeCount.value * pricing);
+            try {
+                // 1. Inicializar um App Secundário (Ghost App)
+                // Isso permite criar um usuário sem afetar a sessão atual (Admin)
+                const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
+                const secondaryAuth = getAuth(secondaryApp);
 
-        const expiringTrials = computed(() => {
-            return users.value.filter(u => {
-                if (u.status !== 'trial') return false;
-                const days = getTrialDaysLeft(u);
-                return days >= 0 && days <= 5;
-            }).length;
-        });
+                // 2. Criar usuário na Auth secundária
+                const cred = await createUserWithEmailAndPassword(secondaryAuth, newUser.email, newUser.password);
+                const uid = cred.user.uid;
 
-        const inactiveUsers = computed(() => {
-            const limitDate = new Date();
-            limitDate.setDate(limitDate.getDate() - 3); // 3 dias atrás
-            return users.value.filter(u => new Date(u.lastLogin) < limitDate).length;
-        });
+                // 3. Atualizar Profile na Auth secundária
+                await updateProfile(cred.user, { displayName: newUser.name });
 
-        // ============================================================
-        // 3. AÇÕES (MÉTODOS)
-        // ============================================================
+                // 4. Salvar no Firestore (Usando o DB principal do Admin, pois temos permissão)
+                await setDoc(doc(db, "users", uid), {
+                    email: newUser.email,
+                    role: 'user',
+                    status: newUser.status,
+                    createdAt: new Date().toISOString(),
+                    adminCreated: true, // Marcação interna
+                    companyConfig: {
+                        fantasia: newUser.name,
+                        logo: '', cnpj: '', email: newUser.email, phone: '',
+                        rua: '', bairro: '', cidade: '', estado: ''
+                    }
+                });
 
-        const toggleStatus = async (user) => {
-            const newStatus = user.status === 'active' ? 'trial' : 'active';
-            const action = newStatus === 'active' ? 'Aprovar (PRO)' : 'Rebaixar para Trial';
-            
-            const { isConfirmed } = await Swal.fire({
-                title: 'Alterar Plano?',
-                text: `Deseja mudar o status de ${user.displayName} para ${action}?`,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#8B5CF6'
-            });
+                // 5. Limpar App Secundário (logout forçado da sessão fantasma) e Resetar Form
+                await secondaryAuth.signOut();
+                // Não precisa 'deleteApp' no JS modules web simples, o garbage collector cuida, 
+                // mas signOut garante que não haja conflito.
 
-            if (isConfirmed) {
-                await updateDoc(doc(db, "users", user.id), { status: newStatus });
-                const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
-                Toast.fire({ icon: 'success', title: 'Status atualizado!' });
+                showCreateModal.value = false;
+                Object.assign(newUser, { name: '', email: '', password: '', status: 'trial' });
+
+                Swal.fire({
+                    title: 'Sucesso!',
+                    text: `Usuário ${newUser.email} criado e ativo.`,
+                    icon: 'success',
+                    timer: 2000
+                });
+
+            } catch (error) {
+                console.error(error);
+                let msg = 'Erro ao criar usuário.';
+                if (error.code === 'auth/email-already-in-use') msg = 'Este e-mail já está em uso.';
+                if (error.code === 'auth/weak-password') msg = 'Senha muito fraca (mínimo 6 dígitos).';
+                Swal.fire('Erro', msg, 'error');
+            } finally {
+                loadingCreate.value = false;
             }
         };
 
+        // ============================================================
+        // 3. AÇÕES DE GESTÃO
+        // ============================================================
+        const toggleStatus = async (user) => {
+            const newStatus = user.status === 'active' ? 'trial' : 'active';
+            await updateDoc(doc(db, "users", user.id), { status: newStatus });
+            const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+            Toast.fire({ icon: 'success', title: `Plano alterado para ${newStatus.toUpperCase()}` });
+        };
+
         const saveNote = async (user) => {
-            // Salva automaticamente ao perder o foco ou mudar o texto (Autosave)
-            try {
-                await updateDoc(doc(db, "users", user.id), { adminNotes: user.adminNotes });
-            } catch (e) { console.error("Erro ao salvar nota", e); }
+            try { await updateDoc(doc(db, "users", user.id), { adminNotes: user.adminNotes }); } catch (e) {}
         };
 
         const deleteUser = async (user) => {
-            const { isConfirmed } = await Swal.fire({
-                title: 'Tem certeza?',
-                text: `Isso apagará permanentemente ${user.displayName} e todos os seus dados.`,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#EF4444',
-                confirmButtonText: 'Sim, excluir'
-            });
-
-            if (isConfirmed) {
-                try {
-                    // Nota: No Firebase Client-side, deletar subcoleções é complexo.
-                    // Aqui deletamos apenas o registro do usuário para bloquear o acesso.
-                    await deleteDoc(doc(db, "users", user.id));
-                    Swal.fire('Excluído!', 'O usuário foi removido.', 'success');
-                } catch (e) {
-                    Swal.fire('Erro', 'Não foi possível excluir.', 'error');
-                }
+            if ((await Swal.fire({ title: 'Excluir?', text: 'Essa ação é irreversível.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33' })).isConfirmed) {
+                await deleteDoc(doc(db, "users", user.id));
+                Swal.fire('Excluído!', '', 'success');
             }
         };
 
@@ -150,68 +148,46 @@ createApp({
         };
 
         // ============================================================
-        // 4. HELPERS (FORMATAÇÃO)
+        // 4. COMPUTEDS E HELPERS
         // ============================================================
+        const filteredUsers = computed(() => {
+            if (!searchTerm.value) return users.value.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+            const lower = searchTerm.value.toLowerCase();
+            return users.value.filter(u => u.displayName.toLowerCase().includes(lower) || u.email.toLowerCase().includes(lower));
+        });
+
+        const newUsersToday = computed(() => users.value.filter(u => u.createdAt && u.createdAt.startsWith(new Date().toISOString().split('T')[0])).length);
+        const activeCount = computed(() => users.value.filter(u => u.status === 'active').length);
+        const mrr = computed(() => activeCount.value * pricing);
+        const expiringTrials = computed(() => users.value.filter(u => u.status === 'trial' && getTrialDaysLeft(u) >= 0 && getTrialDaysLeft(u) <= 5).length);
+        const inactiveUsers = computed(() => {
+            const limit = new Date(); limit.setDate(limit.getDate() - 3);
+            return users.value.filter(u => u.lastLogin && new Date(u.lastLogin) < limit).length;
+        });
 
         const formatCurrency = (val) => val.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-        
-        const formatDate = (dateStr) => {
-            if (!dateStr) return '-';
-            return new Date(dateStr).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+        const formatDate = (d) => d ? new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : '-';
+        const timeSince = (d) => {
+            if (!d) return '-';
+            const s = Math.floor((new Date() - new Date(d)) / 1000);
+            if (s > 86400) return Math.floor(s/86400) + "d atrás";
+            if (s > 3600) return Math.floor(s/3600) + "h atrás";
+            return "Agora";
         };
-
-        const timeSince = (dateStr) => {
-            if (!dateStr) return 'Nunca';
-            const seconds = Math.floor((new Date() - new Date(dateStr)) / 1000);
-            let interval = seconds / 31536000;
-            if (interval > 1) return Math.floor(interval) + " anos atrás";
-            interval = seconds / 2592000;
-            if (interval > 1) return Math.floor(interval) + " meses atrás";
-            interval = seconds / 86400;
-            if (interval > 1) return Math.floor(interval) + " dias atrás";
-            interval = seconds / 3600;
-            if (interval > 1) return Math.floor(interval) + " h atrás";
-            interval = seconds / 60;
-            if (interval > 1) return Math.floor(interval) + " min atrás";
-            return "Agora mesmo";
+        const getWhatsappLink = (p) => p ? `https://wa.me/55${p.replace(/\D/g, '')}` : '#';
+        const getTrialDaysLeft = (u) => {
+            const end = new Date(u.createdAt); end.setDate(end.getDate() + 7);
+            return Math.ceil((end - new Date()) / (1000 * 60 * 60 * 24));
         };
-
-        const getWhatsappLink = (phone) => {
-            if (!phone) return '#';
-            const clean = phone.replace(/\D/g, '');
-            return `https://wa.me/55${clean}`;
-        };
-
-        // Lógica de Trial (Ex: 7 dias grátis a partir do cadastro)
-        const getTrialDaysLeft = (user) => {
-            const created = new Date(user.createdAt);
-            const trialEnd = new Date(created);
-            trialEnd.setDate(trialEnd.getDate() + 7); // 7 dias de trial
-            const diffTime = trialEnd - new Date();
-            return Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-        };
-
-        const getTrialPercentage = (user) => {
-            const totalDays = 7;
-            const left = getTrialDaysLeft(user);
-            if (left < 0) return 100; // Expirou
-            const percentage = ((totalDays - left) / totalDays) * 100;
-            return Math.min(100, Math.max(0, percentage));
-        };
-
-        const getTrialProgressColor = (user) => {
-            const left = getTrialDaysLeft(user);
-            if (left <= 2) return 'bg-red-500';
-            if (left <= 4) return 'bg-yellow-500';
-            return 'bg-green-500';
-        };
+        const getTrialPercentage = (u) => Math.min(100, Math.max(0, ((7 - getTrialDaysLeft(u)) / 7) * 100));
+        const getTrialProgressColor = (u) => getTrialDaysLeft(u) <= 2 ? 'bg-red-500' : 'bg-green-500';
 
         return {
-            users, searchTerm, filteredUsers, logout,
+            users, searchTerm, filteredUsers, currentUser, logout,
             newUsersToday, activeCount, mrr, expiringTrials, inactiveUsers,
-            formatCurrency, formatDate, timeSince, getWhatsappLink,
+            showCreateModal, newUser, registerUser, loadingCreate, // Exports do Modal
             toggleStatus, saveNote, deleteUser,
-            getTrialDaysLeft, getTrialPercentage, getTrialProgressColor
+            formatCurrency, formatDate, timeSince, getWhatsappLink, getTrialDaysLeft, getTrialPercentage, getTrialProgressColor
         };
     }
 }).mount('#adminApp');
