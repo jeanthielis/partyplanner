@@ -208,22 +208,112 @@ createApp({
         };
         const filteredClientsSearch = computed(() => scheduleClientsList.value);
 
-        const handleAuth = async () => { authLoading.value = true; try { if (isRegistering.value) { const c=await createUserWithEmailAndPassword(auth, authForm.email, authForm.password); await updateProfile(c.user,{displayName:authForm.name}); await setDoc(doc(db,"users",c.user.uid),{email:authForm.email}); } else { await signInWithEmailAndPassword(auth,authForm.email,authForm.password); } } 
-
-} catch (error) {
-    console.error(error);
-    let mensagemErro = "Ocorreu um erro inesperado.";
-
-    if (error.code === 'auth/email-already-in-use') {
-        mensagemErro = "Este e-mail já está cadastrado. Tente fazer login.";
-    } else if (error.code === 'auth/weak-password') {
-        mensagemErro = "A senha deve ter pelo menos 6 caracteres.";
-    } else if (error.code === 'auth/invalid-email') {
-        mensagemErro = "O formato do e-mail é inválido.";
+       const handleAuth = async () => {
+    // 1. Validação simples antes de chamar o Firebase
+    if (!authForm.email || !authForm.password) {
+        return Swal.fire('Atenção', 'Por favor, preencha todos os campos.', 'warning');
     }
 
-    Swal.fire('Ops!', mensagemErro, 'error');
-}};
+    authLoading.value = true;
+
+    try {
+        if (isRegistering.value) {
+            // ===============================================
+            // CENÁRIO 1: CADASTRO (SIGN UP)
+            // ===============================================
+            
+            // Cria o usuário no Firebase Auth
+            const userCredential = await createUserWithEmailAndPassword(auth, authForm.email, authForm.password);
+            const newUser = userCredential.user;
+
+            // Atualiza o "Nome de Exibição" do usuário
+            await updateProfile(newUser, { displayName: authForm.name });
+
+            // Cria o banco de dados inicial (Firestore) para esse usuário
+            // Isso garante que a tela de configurações não quebre por falta de dados
+            await setDoc(doc(db, "users", newUser.uid), {
+                email: authForm.email,
+                role: 'admin',
+                createdAt: new Date().toISOString(),
+                companyConfig: {
+                    fantasia: authForm.name || 'Minha Empresa',
+                    logo: '',
+                    cnpj: '',
+                    email: authForm.email,
+                    phone: '',
+                    rua: '',
+                    bairro: '',
+                    cidade: '',
+                    estado: ''
+                }
+            });
+
+            await Swal.fire({
+                title: 'Sucesso!',
+                text: 'Conta criada com sucesso! Bem-vindo.',
+                icon: 'success',
+                timer: 2000,
+                showConfirmButton: false
+            });
+
+        } else {
+            // ===============================================
+            // CENÁRIO 2: LOGIN (SIGN IN)
+            // ===============================================
+            await signInWithEmailAndPassword(auth, authForm.email, authForm.password);
+            
+            // Toast discreto no canto superior direito para login
+            const Toast = Swal.mixin({
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true
+            });
+            
+            Toast.fire({
+                icon: 'success',
+                title: 'Login realizado com sucesso'
+            });
+        }
+
+    } catch (error) {
+        console.error("Erro de Autenticação:", error.code);
+        
+        let mensagemErro = "Ocorreu um erro inesperado. Tente novamente.";
+
+        // Tradução dos códigos de erro do Firebase para Português
+        switch (error.code) {
+            case 'auth/email-already-in-use':
+                mensagemErro = "Este e-mail já está cadastrado. Tente fazer login.";
+                break;
+            case 'auth/invalid-email':
+                mensagemErro = "O formato do e-mail é inválido.";
+                break;
+            case 'auth/weak-password':
+                mensagemErro = "A senha é muito fraca. Digite pelo menos 6 caracteres.";
+                break;
+            case 'auth/user-not-found':
+                mensagemErro = "Usuário não encontrado. Verifique o e-mail.";
+                break;
+            case 'auth/wrong-password':
+            case 'auth/invalid-credential': // Novo código padrão do Google para erro de senha
+                mensagemErro = "E-mail ou senha incorretos.";
+                break;
+            case 'auth/too-many-requests':
+                mensagemErro = "Muitas tentativas falhas. Aguarde alguns instantes antes de tentar novamente.";
+                break;
+            case 'auth/network-request-failed':
+                mensagemErro = "Erro de conexão. Verifique sua internet.";
+                break;
+        }
+
+        Swal.fire('Ops!', mensagemErro, 'error');
+
+    } finally {
+        authLoading.value = false;
+    }
+};
 
             
            
