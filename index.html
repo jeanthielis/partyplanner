@@ -6,7 +6,7 @@
     <title>PartyPlanner Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
@@ -33,7 +33,7 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
-        /* Ajuste do textarea para combinar com os inputs */
+        /* Ajuste do textarea */
         .textarea-dark {
             @apply w-full bg-input-light dark:bg-input-dark border border-slate-300 dark:border-slate-600 rounded-xl p-4 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all placeholder-slate-400 resize-none;
         }
@@ -111,17 +111,17 @@
                     </div>
 
                     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div class="bg-white dark:bg-card-dark p-5 rounded-2xl shadow-sm border-l-4 border-green-500 border border-slate-100 dark:border-slate-700/50">
-                            <p class="text-slate-400 text-xs font-bold uppercase mb-1">Receita</p><p class="text-2xl font-bold text-slate-900 dark:text-white">{{ formatCurrency(financeData.revenue) }}</p>
+                        <div class="bg-green-500/10 border border-green-500/20 p-5 rounded-2xl shadow-sm">
+                            <p class="text-green-600 dark:text-green-400 text-xs font-bold uppercase mb-1">Receita</p><p class="text-2xl font-bold text-green-700 dark:text-green-300">{{ formatCurrency(financeData.revenue) }}</p>
                         </div>
-                        <div class="bg-white dark:bg-card-dark p-5 rounded-2xl shadow-sm border-l-4 border-red-500 border border-slate-100 dark:border-slate-700/50">
-                            <p class="text-slate-400 text-xs font-bold uppercase mb-1">Despesas</p><p class="text-2xl font-bold text-slate-900 dark:text-white">{{ formatCurrency(financeData.expenses) }}</p>
+                        <div class="bg-red-500/10 border border-red-500/20 p-5 rounded-2xl shadow-sm">
+                            <p class="text-red-600 dark:text-red-400 text-xs font-bold uppercase mb-1">Despesas</p><p class="text-2xl font-bold text-red-700 dark:text-red-300">{{ formatCurrency(financeData.expenses) }}</p>
                         </div>
-                        <div class="bg-white dark:bg-card-dark p-5 rounded-2xl shadow-sm border-l-4 border-brand-500 border border-slate-100 dark:border-slate-700/50">
-                            <p class="text-brand-500 text-xs font-bold uppercase mb-1">Lucro</p><p class="text-2xl font-bold text-brand-600">{{ formatCurrency(financeData.profit) }}</p>
+                        <div class="bg-brand-500/10 border border-brand-500/20 p-5 rounded-2xl shadow-sm">
+                            <p class="text-brand-600 dark:text-brand-400 text-xs font-bold uppercase mb-1">Lucro</p><p class="text-2xl font-bold text-brand-700 dark:text-brand-300">{{ formatCurrency(financeData.profit) }}</p>
                         </div>
-                        <div class="bg-white dark:bg-card-dark p-5 rounded-2xl shadow-sm border-l-4 border-orange-400 border border-slate-100 dark:border-slate-700/50">
-                            <p class="text-slate-400 text-xs font-bold uppercase mb-1">A Receber</p><p class="text-2xl font-bold text-slate-900 dark:text-white">{{ formatCurrency(financeData.receivables) }}</p>
+                        <div class="bg-orange-500/10 border border-orange-500/20 p-5 rounded-2xl shadow-sm">
+                            <p class="text-orange-600 dark:text-orange-400 text-xs font-bold uppercase mb-1">A Receber</p><p class="text-2xl font-bold text-orange-700 dark:text-orange-300">{{ formatCurrency(financeData.receivables) }}</p>
                         </div>
                     </div>
 
@@ -145,26 +145,27 @@
                         <h2 class="text-3xl font-bold text-slate-900 dark:text-white">Agenda</h2>
                         <div class="flex gap-2">
                             <div class="bg-white dark:bg-card-dark p-1 rounded-xl border border-slate-200 dark:border-slate-700 flex">
-                                <button @click="appointmentViewMode='list'" :class="appointmentViewMode==='list'?'bg-brand-600 text-white':'text-slate-500 hover:text-slate-800 dark:hover:text-white'" class="px-4 py-2 rounded-lg text-lg transition"><i class="fa-solid fa-list"></i></button>
-                                <button @click="appointmentViewMode='calendar'" :class="appointmentViewMode==='calendar'?'bg-brand-600 text-white':'text-slate-500 hover:text-slate-800 dark:hover:text-white'" class="px-4 py-2 rounded-lg text-lg transition"><i class="fa-solid fa-calendar"></i></button>
+                                <button @click="appointmentViewMode='list'" :class="appointmentViewMode==='list'?'bg-brand-600 text-white':'text-slate-500 hover:text-slate-800 dark:hover:text-white'" class="w-10 h-10 rounded-lg text-lg transition flex items-center justify-center"><i class="fa-solid fa-list"></i></button>
+                                <button @click="appointmentViewMode='calendar'" :class="appointmentViewMode==='calendar'?'bg-brand-600 text-white':'text-slate-500 hover:text-slate-800 dark:hover:text-white'" class="w-10 h-10 rounded-lg text-lg transition flex items-center justify-center"><i class="fa-solid fa-calendar"></i></button>
                             </div>
                         </div>
                     </div>
 
                     <div v-if="appointmentViewMode === 'list'" class="space-y-6">
-                        <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-                            <button @click="agendaTab='pending'" :class="agendaTab==='pending'?'bg-brand-600 text-white border-brand-600':'bg-white dark:bg-card-dark text-slate-500 border border-slate-200 dark:border-slate-700'" class="px-5 py-2.5 rounded-full border font-bold text-sm whitespace-nowrap transition">Pendentes</button>
-                            <button @click="agendaTab='concluded'" :class="agendaTab==='concluded'?'bg-green-600 text-white border-green-600':'bg-white dark:bg-card-dark text-slate-500 border border-slate-200 dark:border-slate-700'" class="px-5 py-2.5 rounded-full border font-bold text-sm whitespace-nowrap transition">Concluídos</button>
-                            <button @click="agendaTab='cancelled'" :class="agendaTab==='cancelled'?'bg-red-500 text-white border-red-500':'bg-white dark:bg-card-dark text-slate-500 border border-slate-200 dark:border-slate-700'" class="px-5 py-2.5 rounded-full border font-bold text-sm whitespace-nowrap transition">Cancelados</button>
+                        <div class="flex p-1 bg-white dark:bg-card-dark rounded-xl border border-slate-200 dark:border-slate-700 w-full overflow-hidden">
+                            <button @click="agendaTab='pending'" :class="agendaTab==='pending'?'bg-brand-600 text-white shadow':'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'" class="flex-1 py-2 text-xs font-bold transition rounded-lg mx-0.5">Pendentes</button>
+                            <button @click="agendaTab='concluded'" :class="agendaTab==='concluded'?'bg-green-600 text-white shadow':'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'" class="flex-1 py-2 text-xs font-bold transition rounded-lg mx-0.5">Concluídos</button>
+                            <button @click="agendaTab='cancelled'" :class="agendaTab==='cancelled'?'bg-red-500 text-white shadow':'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'" class="flex-1 py-2 text-xs font-bold transition rounded-lg mx-0.5">Cancelados</button>
                         </div>
 
-                        <div v-if="agendaTab !== 'pending'" class="bg-white dark:bg-card-dark p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-wrap gap-3 items-end">
+                        <div v-if="agendaTab === 'pending'">
+                            <input v-model="clientSearchTerm" placeholder="Buscar cliente..." class="w-full h-12 px-4 bg-white dark:bg-card-dark border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm outline-none focus:ring-2 focus:ring-brand-500 transition">
+                        </div>
+
+                        <div v-if="agendaTab !== 'pending'" class="bg-white dark:bg-card-dark p-4 rounded-2xl shadow-sm flex flex-wrap gap-3 items-end border border-slate-200 dark:border-slate-700">
                             <div class="flex-1 min-w-[130px]"><label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">De</label><input type="date" v-model="agendaFilter.start" class="w-full h-10 px-3 bg-input-light dark:bg-input-dark border border-slate-200 dark:border-slate-600 rounded-lg text-sm"></div>
                             <div class="flex-1 min-w-[130px]"><label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Até</label><input type="date" v-model="agendaFilter.end" class="w-full h-10 px-3 bg-input-light dark:bg-input-dark border border-slate-200 dark:border-slate-600 rounded-lg text-sm"></div>
                             <button @click="searchHistory" class="h-10 bg-slate-800 text-white px-5 rounded-lg font-bold text-sm"><i class="fa-solid fa-search"></i></button>
-                        </div>
-                        <div v-if="agendaTab === 'pending'">
-                            <input v-model="clientSearchTerm" placeholder="Buscar cliente..." class="w-full h-12 px-4 bg-white dark:bg-card-dark border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm outline-none focus:ring-2 focus:ring-brand-500 transition">
                         </div>
 
                         <div v-if="filteredListAppointments.length === 0" class="text-center py-16 text-slate-400">Nenhum registro.</div>
@@ -183,7 +184,7 @@
                                 </div>
                             </div>
                             <div class="pl-4 flex flex-wrap gap-2 mb-4">
-                                <span v-for="s in app.selectedServices" class="text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-1 rounded border border-slate-200 dark:border-slate-600">{{ s.description }}</span>
+                                <span v-for="s in app.selectedServices" class="text-xs bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-1 rounded border border-slate-200 dark:border-slate-600">{{ s.description }}</span>
                             </div>
                             <div class="pl-4 pt-3 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center">
                                 <div class="flex gap-2">
@@ -211,8 +212,8 @@
                     <div class="flex justify-between items-center"><h2 class="text-2xl font-bold text-slate-900 dark:text-white">Financeiro</h2><button @click="showExpenseModal=true" class="bg-red-500 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-red-500/20 hover:bg-red-600 transition flex items-center gap-2"><i class="fa-solid fa-minus"></i> Nova Despesa</button></div>
                     <div class="bg-white dark:bg-card-dark rounded-2xl shadow-sm overflow-hidden border border-slate-200 dark:border-slate-700">
                         <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex flex-wrap gap-3 items-end bg-slate-50 dark:bg-slate-800/50">
-                            <div class="flex-1 min-w-[120px]"><label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">De</label><input type="date" v-model="expensesFilter.start" class="w-full h-10 px-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm"></div>
-                            <div class="flex-1 min-w-[120px]"><label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Até</label><input type="date" v-model="expensesFilter.end" class="w-full h-10 px-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm"></div>
+                            <div class="flex-1 min-w-[120px]"><label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">De</label><input type="date" v-model="expensesFilter.start" class="w-full h-10 px-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm outline-none focus:ring-2 focus:ring-brand-500"></div>
+                            <div class="flex-1 min-w-[120px]"><label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Até</label><input type="date" v-model="expensesFilter.end" class="w-full h-10 px-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm outline-none focus:ring-2 focus:ring-brand-500"></div>
                             <button @click="searchExpenses" class="h-10 bg-slate-800 text-white px-5 rounded-lg font-bold hover:bg-slate-900"><i class="fa-solid fa-filter"></i></button>
                         </div>
                         <div class="max-h-[400px] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700">
@@ -247,13 +248,19 @@
                         </div>
                     </div>
 
-                    <div v-if="registrationTab === 'services'" class="bg-white dark:bg-card-dark p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
-                        <div class="flex gap-3 mb-6 bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl">
-                            <input v-model="newService.description" placeholder="Nome do Serviço" class="w-full h-12 px-4 bg-white dark:bg-card-dark border border-slate-200 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-brand-500">
-                            <input v-model="newService.price" type="number" placeholder="R$" class="w-28 h-12 px-4 bg-white dark:bg-card-dark border border-slate-200 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-brand-500">
-                            <button @click="saveService" class="bg-green-500 text-white px-5 rounded-xl font-bold hover:bg-green-600 shadow-md">Salvar</button>
+                    <div v-if="registrationTab === 'services'" class="space-y-4">
+                        <div class="flex justify-end">
+                            <button @click="showServiceModal=true" class="bg-brand-600 hover:bg-brand-500 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg flex items-center gap-2"><i class="fa-solid fa-plus"></i> Novo Serviço</button>
                         </div>
-                        <div class="space-y-2 max-h-96 overflow-y-auto"><div v-for="s in services" class="flex justify-between p-3 border rounded-xl items-center dark:border-slate-700"><span>{{ s.description }}</span><div class="flex gap-3 items-center"><span class="font-bold text-xs bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-brand-600">{{ formatCurrency(s.price) }}</span><button @click="deleteService(s.id)" class="text-red-400"><i class="fa-solid fa-trash"></i></button></div></div></div>
+                        <div class="bg-white dark:bg-card-dark rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 divide-y divide-slate-100 dark:divide-slate-700">
+                            <div v-for="s in services" :key="s.id" class="p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                                <span class="font-medium text-slate-700 dark:text-slate-300">{{ s.description }}</span>
+                                <div class="flex items-center gap-4">
+                                    <span class="text-sm font-bold text-brand-600 bg-brand-50 dark:bg-brand-900/30 px-3 py-1 rounded-lg">{{ formatCurrency(s.price) }}</span>
+                                    <button @click="deleteService(s.id)" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-trash"></i></button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div v-if="registrationTab === 'company'" class="bg-white dark:bg-card-dark p-8 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 space-y-5 max-w-lg">
@@ -335,11 +342,14 @@
                     </div>
 
                     <div>
-                        <label class="text-[11px] font-bold text-slate-400 uppercase ml-1 mb-1 block">Cores</label>
-                        <div class="relative"><input v-model="tempApp.details.balloonColors" placeholder="Ex: Azul Royal e Prata" class="w-full h-12 pl-10 px-4 bg-input-light dark:bg-input-dark border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-brand-500 text-sm"><i class="fa-solid fa-palette absolute left-4 top-4 text-slate-400"></i></div>
+                        <label class="text-[11px] font-bold text-slate-400 uppercase ml-1 mb-1 block">Cores dos Balões</label>
+                        <div class="relative">
+                            <input v-model="tempApp.details.balloonColors" placeholder="Ex: Azul Royal e Prata" class="w-full h-12 pl-10 px-4 bg-input-light dark:bg-input-dark border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-brand-500 text-sm">
+                            <i class="fa-solid fa-palette absolute left-4 top-4 text-slate-400"></i>
+                        </div>
                     </div>
                     <div>
-                        <label class="text-[11px] font-bold text-slate-400 uppercase ml-1 mb-1 block">Obs</label>
+                        <label class="text-[11px] font-bold text-slate-400 uppercase ml-1 mb-1 block">Observações</label>
                         <textarea v-model="tempApp.notes" placeholder="Detalhes extras..." class="textarea-dark h-32"></textarea>
                     </div>
 
@@ -403,6 +413,6 @@
     </div>
 
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script type="module" src="js/app.js?v=7000.0"></script>
+    <script type="module" src="js/app.js?v=8000.0"></script>
 </body>
 </html>
