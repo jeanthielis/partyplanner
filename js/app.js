@@ -19,12 +19,7 @@ createApp({
         const registrationTab = ref('clients');
         const agendaTab = ref('pending');
 
-        // COMPANY ATUALIZADO COM NOVOS CAMPOS
-        const company = reactive({ 
-            fantasia: '', logo: '', cnpj: '', 
-            email: '', phone: '', rua: '', bairro: '', cidade: '', estado: '' 
-        });
-        
+        const company = reactive({ fantasia: '', logo: '', cnpj: '', email: '', phone: '', rua: '', bairro: '', cidade: '', estado: '' });
         const dashboardMonth = ref(new Date().toISOString().slice(0, 7));
         const dashboardData = reactive({ appointments: [], expenses: [] });
         const isLoadingDashboard = ref(false);
@@ -78,7 +73,7 @@ createApp({
         const getDay = (d) => d ? d.split('-')[2] : '';
         const getMonth = (d) => d ? ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'][parseInt(d.split('-')[1])-1] : '';
         const statusText = (s) => s === 'concluded' ? 'Concluído' : (s === 'cancelled' ? 'Cancelado' : 'Pendente');
-        const getClientName = (id) => clientCache[id]?.name || '...';
+        const getClientName = (id) => clientCache[id]?.name || 'Cliente Excluído';
         const getClientPhone = (id) => clientCache[id]?.phone || '';
 
         const fetchClientToCache = async (id) => {
@@ -260,7 +255,123 @@ createApp({
         const searchCatalogClients = async () => { const q = query(collection(db, "clients"), where("userId", "==", user.value.uid)); const snap = await getDocs(q); catalogClientsList.value = snap.docs.map(d => ({id: d.id, ...d.data()})).filter(c => c.name.toLowerCase().includes(catalogClientSearch.value.toLowerCase())); };
         const expensesByCategoryStats = computed(() => { if (!dashboardData.expenses.length) return []; return expenseCategories.map(cat => { const total = dashboardData.expenses.filter(e => e.category === cat.id).reduce((sum, e) => sum + toNum(e.value), 0); return { ...cat, total }; }).filter(c => c.total > 0).sort((a, b) => b.total - a.total); });
         const downloadReceiptImage = () => { html2canvas(document.getElementById('receipt-capture-area')).then(c => { const l = document.createElement('a'); l.download = 'Recibo.png'; l.href = c.toDataURL(); l.click(); }); };
-        const generateContractPDF = () => { const { jsPDF } = window.jspdf; const doc = new jsPDF(); const app = currentReceipt.value; const cli = clientCache[app.clientId] || {name:'...',cpf:'...'}; doc.setFontSize(18); doc.text("CONTRATO DE PRESTAÇÃO DE SERVIÇOS", 105, 20, {align:"center"}); doc.setFontSize(12); doc.text(`CONTRATADA: ${company.fantasia}, CNPJ: ${company.cnpj || '...'}`, 20, 40); doc.text(`Endereço: ${company.rua || ''} - ${company.cidade || ''}/${company.estado || ''}`, 20, 46); doc.text(`CONTRATANTE: ${cli.name}, CPF: ${cli.cpf || '...'}`, 20, 56); doc.text(`Data do Evento: ${formatDate(app.date)} às ${app.time}`, 20, 70); doc.text(`Local: ${app.location.bairro}`, 20, 76); const body = app.selectedServices.map(s => [s.description, formatCurrency(s.price)]); doc.autoTable({startY: 85, head: [['Serviço', 'Valor']], body: body}); let y = doc.lastAutoTable.finalY + 10; doc.text(`Total: ${formatCurrency(app.totalServices)}`, 20, y); doc.text(`Sinal: ${formatCurrency(app.entryFee)}`, 20, y+10); doc.text(`Restante: ${formatCurrency(app.finalBalance)}`, 20, y+20); if(app.details.balloonColors) doc.text(`Cores: ${app.details.balloonColors}`, 20, y+30); if(app.notes) doc.text(`Obs: ${app.notes}`, 20, y+36); doc.save("Contrato.pdf"); };
+        
+        // --- FUNÇÃO DE CONTRATO PROFISSIONAL ---
+        const generateContractPDF = () => { 
+            const { jsPDF } = window.jspdf; 
+            const doc = new jsPDF(); 
+            const app = currentReceipt.value; 
+            const cli = clientCache[app.clientId] || {name:'...',cpf:'...', phone: '', email: ''};
+            
+            // Configurações Iniciais
+            doc.setFont("helvetica");
+            
+            // --- CABEÇALHO (EMPRESA) ---
+            doc.setFontSize(14);
+            doc.setFont("helvetica", "bold");
+            doc.text(company.fantasia.toUpperCase(), 105, 20, {align: "center"});
+            
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
+            let headerY = 26;
+            if (company.cnpj) { doc.text(`CNPJ: ${company.cnpj}`, 105, headerY, {align: "center"}); headerY += 5; }
+            doc.text(`${company.rua} - ${company.bairro}`, 105, headerY, {align: "center"}); headerY += 5;
+            doc.text(`${company.cidade}/${company.estado} - Tel: ${company.phone}`, 105, headerY, {align: "center"});
+            
+            doc.line(20, headerY + 5, 190, headerY + 5);
+            
+            // --- TÍTULO ---
+            doc.setFontSize(16);
+            doc.setFont("helvetica", "bold");
+            doc.text("CONTRATO DE PRESTAÇÃO DE SERVIÇOS", 105, headerY + 15, {align:"center"});
+            
+            // --- DADOS DO CLIENTE ---
+            let y = headerY + 25;
+            doc.setFontSize(11);
+            doc.setFont("helvetica", "bold");
+            doc.text("DADOS DO CONTRATANTE:", 20, y);
+            y += 6;
+            doc.setFont("helvetica", "normal");
+            doc.text(`Nome: ${cli.name}`, 20, y);
+            doc.text(`CPF: ${cli.cpf || '-'}`, 120, y);
+            y += 6;
+            doc.text(`Telefone: ${cli.phone}`, 20, y);
+            doc.text(`E-mail: ${cli.email || '-'}`, 120, y);
+            
+            // --- DADOS DO EVENTO ---
+            y += 10;
+            doc.setFont("helvetica", "bold");
+            doc.text("DADOS DO EVENTO:", 20, y);
+            y += 6;
+            doc.setFont("helvetica", "normal");
+            doc.text(`Data: ${formatDate(app.date)}`, 20, y);
+            doc.text(`Horário: ${app.time}`, 80, y);
+            y += 6;
+            doc.text(`Local: ${app.location.bairro}`, 20, y);
+            
+            if(app.details.balloonColors) {
+                y += 6;
+                doc.text(`Cores/Tema: ${app.details.balloonColors}`, 20, y);
+            }
+
+            // --- TABELA DE ITENS ---
+            y += 10;
+            const body = app.selectedServices.map(s => [s.description, formatCurrency(s.price)]);
+            doc.autoTable({
+                startY: y,
+                head: [['Descrição do Serviço', 'Valor']],
+                body: body,
+                theme: 'grid',
+                headStyles: { fillColor: [79, 70, 229] }, // Cor Indigo
+                margin: { left: 20, right: 20 }
+            });
+            
+            y = doc.lastAutoTable.finalY + 10;
+
+            // --- VALORES ---
+            doc.setFont("helvetica", "bold");
+            doc.text(`VALOR TOTAL: ${formatCurrency(app.totalServices)}`, 140, y, {align: "right"});
+            y += 6;
+            doc.text(`SINAL (ENTRADA): ${formatCurrency(app.entryFee)}`, 140, y, {align: "right"});
+            y += 6;
+            doc.text(`RESTANTE A PAGAR: ${formatCurrency(app.finalBalance)}`, 140, y, {align: "right"});
+
+            // --- OBSERVAÇÕES ---
+            if (app.notes) {
+                y += 10;
+                doc.setFontSize(10);
+                doc.text("OBSERVAÇÕES:", 20, y);
+                y += 5;
+                doc.setFont("helvetica", "normal");
+                const splitNotes = doc.splitTextToSize(app.notes, 170);
+                doc.text(splitNotes, 20, y);
+                y += (splitNotes.length * 5);
+            }
+
+            // --- ASSINATURAS ---
+            y = 270; // Fim da página
+            doc.line(20, y, 90, y);
+            doc.line(110, y, 180, y);
+            doc.setFontSize(9);
+            doc.text("CONTRATADA", 55, y + 5, {align: "center"});
+            doc.text("CONTRATANTE", 145, y + 5, {align: "center"});
+
+            doc.save(`Contrato_${cli.name.replace(/ /g, '_')}.pdf`);
+        };
+
+        // --- WHATSAPP INTEGRATION ---
+        const openWhatsApp = (app) => {
+            const cli = clientCache[app.clientId];
+            if (!cli || !cli.phone) return Swal.fire('Erro', 'Cliente sem telefone cadastrado.', 'error');
+            
+            // Limpa o telefone (deixa apenas números)
+            const phoneClean = cli.phone.replace(/\D/g, '');
+            // Mensagem padrão
+            const msg = `Olá ${cli.name}, aqui é da ${company.fantasia}. Segue o comprovante do seu agendamento para o dia ${formatDate(app.date)}.`;
+            
+            window.open(`https://wa.me/55${phoneClean}?text=${encodeURIComponent(msg)}`, '_blank');
+        };
+
         const handleLogoUpload = (e) => { const f = e.target.files[0]; if(f){ const r=new FileReader(); r.onload=x=>{company.logo=x.target.result; updateDoc(doc(db,"users",user.value.uid),{companyConfig:company});}; r.readAsDataURL(f); }};
         const saveCompany = () => { updateDoc(doc(db, "users", user.value.uid), { companyConfig: company }); Swal.fire('Salvo', '', 'success'); };
         const handleChangePassword = async () => { const html = '<input id="currentPass" type="password" class="swal2-input" placeholder="Senha Atual"><input id="newPass" type="password" class="swal2-input" placeholder="Nova Senha">'; const { value: fv } = await Swal.fire({ title: 'Alterar Senha', html: html, showCancelButton: true, confirmButtonText: 'Alterar', preConfirm: () => { return [document.getElementById('currentPass').value, document.getElementById('newPass').value]; } }); if (fv && fv[0] && fv[1]) { try { const c = EmailAuthProvider.credential(user.value.email, fv[0]); await reauthenticateWithCredential(user.value, c); await updatePassword(user.value, fv[1]); Swal.fire('Sucesso!', 'Senha alterada.', 'success'); } catch (error) { Swal.fire('Erro', 'Senha incorreta.', 'error'); } } };
@@ -277,7 +388,8 @@ createApp({
             appointmentViewMode, calendarGrid, calendarTitle, changeCalendarMonth, selectCalendarDay, selectedCalendarDate, appointmentsOnSelectedDate, filteredListAppointments,
             catalogClientsList, catalogClientSearch, searchCatalogClients, openClientModal: () => { showClientModal.value = true; }, deleteClient,
             currentReceipt, showReceipt: (app) => { currentReceipt.value = sanitizeApp(app); view.value = 'receipt'; },
-            company, handleLogoUpload, saveCompany, handleChangePassword, downloadReceiptImage, generateContractPDF,
+            company, handleLogoUpload, saveCompany, handleChangePassword, downloadReceiptImage, 
+            generateContractPDF, openWhatsApp, // Exportando as novas funções
             formatCurrency, formatDate, getDay, getMonth, statusText, getClientName, getClientPhone,
             toggleDarkMode: () => { isDark.value=!isDark.value; document.documentElement.classList.toggle('dark'); },
             expenseCategories, expensesByCategoryStats,
