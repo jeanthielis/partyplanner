@@ -208,8 +208,25 @@ createApp({
         };
         const filteredClientsSearch = computed(() => scheduleClientsList.value);
 
-        const handleAuth = async () => { authLoading.value = true; try { if (isRegistering.value) { const c=await createUserWithEmailAndPassword(auth, authForm.email, authForm.password); await updateProfile(c.user,{displayName:authForm.name}); await setDoc(doc(db,"users",c.user.uid),{email:authForm.email}); } else { await signInWithEmailAndPassword(auth,authForm.email,authForm.password); } } catch(e){Swal.fire('Erro','Dados inválidos','error');} finally{authLoading.value=false;} };
-        
+        const handleAuth = async () => { authLoading.value = true; try { if (isRegistering.value) { const c=await createUserWithEmailAndPassword(auth, authForm.email, authForm.password); await updateProfile(c.user,{displayName:authForm.name}); await setDoc(doc(db,"users",c.user.uid),{email:authForm.email}); } else { await signInWithEmailAndPassword(auth,authForm.email,authForm.password); } } 
+
+} catch (error) {
+    console.error(error);
+    let mensagemErro = "Ocorreu um erro inesperado.";
+
+    if (error.code === 'auth/email-already-in-use') {
+        mensagemErro = "Este e-mail já está cadastrado. Tente fazer login.";
+    } else if (error.code === 'auth/weak-password') {
+        mensagemErro = "A senha deve ter pelo menos 6 caracteres.";
+    } else if (error.code === 'auth/invalid-email') {
+        mensagemErro = "O formato do e-mail é inválido.";
+    }
+
+    Swal.fire('Ops!', mensagemErro, 'error');
+}};
+
+            
+           
         const startNewSchedule = () => { 
             isEditing.value=false; 
             Object.assign(tempApp, { clientId:'', date:'', time:'', location:{bairro:''}, details:{entryFee:0, balloonColors:''}, notes: '', selectedServices:[], checklist:[] }); 
