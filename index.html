@@ -162,7 +162,7 @@
             </div>
         </div>
 
-        <div v-if="showAppointmentModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div v-if="user && showAppointmentModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
             <div class="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto border border-slate-200 dark:border-slate-800">
                 <div class="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center sticky top-0 bg-white dark:bg-slate-900 z-10"><h2 class="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2"><i class="fa-solid fa-calendar-check text-brand-600"></i> {{ isEditing ? 'Editar' : 'Novo' }} Agendamento</h2><button @click="showAppointmentModal=false" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center hover:text-red-500 transition"><i class="fa-solid fa-xmark"></i></button></div>
                 <div class="p-6 space-y-5">
@@ -187,7 +187,7 @@
             </div>
         </div>
 
-        <div v-if="showClientModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
+        <div v-if="user && showClientModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
             <div class="bg-white dark:bg-slate-900 p-8 rounded-3xl w-full max-w-sm border border-slate-200 dark:border-slate-700 shadow-2xl">
                 <h3 class="font-bold text-slate-800 dark:text-white text-xl mb-6 text-center">Novo Cliente</h3>
                 <div class="space-y-4">
@@ -200,7 +200,7 @@
             </div>
         </div>
 
-        <div v-if="showServiceModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
+        <div v-if=" user && showServiceModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
             <div class="bg-white dark:bg-slate-900 p-8 rounded-3xl w-full max-w-sm border border-slate-200 dark:border-slate-700 shadow-2xl">
                 <h3 class="font-bold text-slate-800 dark:text-white text-xl mb-6 text-center">Novo Serviço</h3>
                 <div class="space-y-4">
@@ -211,7 +211,7 @@
             </div>
         </div>
 
-        <div v-if="showExpenseModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div v-if="user && showExpenseModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
             <div class="bg-white dark:bg-slate-900 p-8 rounded-3xl w-full max-w-sm shadow-2xl border border-slate-200 dark:border-slate-700">
                 <h3 class="font-bold text-slate-800 dark:text-white text-lg mb-6 text-center">Registrar Saída</h3>
                 <div class="space-y-4">
