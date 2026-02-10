@@ -6,7 +6,7 @@
     <title>PartyPlanner Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
@@ -19,11 +19,10 @@
                 extend: {
                     fontFamily: { sans: ['Inter', 'sans-serif'] },
                     colors: { 
-                        brand: { 50: '#f0fdfa', 100: '#ccfbf1', 500: '#14b8a6', 600: '#0d9488', 900: '#134e4a' },
-                        primary: { 50: '#f5f3ff', 100: '#ede9fe', 500: '#8b5cf6', 600: '#7c3aed', 900: '#4c1d95' }
+                        brand: { 50: '#eef2ff', 100: '#e0e7ff', 500: '#6366f1', 600: '#4f46e5', 800: '#3730a3', 900: '#312e81' }, // Indigo Corporativo
+                        dark: { 800: '#1e293b', 900: '#0f172a' } // Slate Dark
                     },
-                    padding: { 'safe': 'env(safe-area-inset-bottom)' },
-                    boxShadow: { 'glow': '0 0 20px rgba(124, 58, 237, 0.5)' }
+                    padding: { 'safe': 'env(safe-area-inset-bottom)' }
                 }
             }
         }
@@ -32,335 +31,347 @@
         [v-cloak] { display: none; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .sidebar-active { background-color: #f5f3ff; color: #7c3aed; font-weight: 600; border-right: 3px solid #7c3aed; }
-        .dark .sidebar-active { background-color: #374151; color: #fff; border-right: 3px solid #fff; }
-        
-        /* Botão Central Pulsante */
-        @keyframes pulse-glow {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.4); }
-            70% { box-shadow: 0 0 0 10px rgba(124, 58, 237, 0); }
-        }
-        .btn-pulse { animation: pulse-glow 2s infinite; }
+        /* Inputs estilo "Notion" */
+        .input-clean { @apply w-full p-2.5 bg-gray-50 border border-gray-300 rounded-lg text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-all dark:bg-gray-800 dark:border-gray-700; }
+        .btn-primary { @apply bg-brand-600 hover:bg-brand-800 text-white font-medium py-2.5 px-4 rounded-lg transition-colors shadow-sm; }
+        .card { @apply bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm; }
     </style>
 </head>
-<body class="bg-[#F8FAFC] text-slate-800 dark:bg-gray-900 dark:text-gray-100 transition-colors duration-300 font-sans selection:bg-primary-200">
+<body class="bg-gray-100 text-slate-800 dark:bg-gray-950 dark:text-gray-200 transition-colors duration-300 font-sans">
     
     <div id="app" v-cloak>
         
-        <div v-if="!user" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-600 to-primary-900 p-6 relative overflow-hidden">
-            <div class="bg-white/10 backdrop-blur-lg border border-white/20 p-8 rounded-3xl shadow-2xl w-full max-w-md text-center z-10">
-                <div class="mb-8 flex justify-center">
-                    <div class="w-24 h-24 bg-white rounded-2xl flex items-center justify-center shadow-lg">
-                        <img v-if="company.logo" :src="company.logo" class="w-full h-full rounded-2xl object-cover p-1">
-                        <i v-else class="fa-solid fa-wand-magic-sparkles text-4xl text-primary-600"></i>
+        <div v-if="!user" class="min-h-screen flex items-center justify-center bg-brand-900 p-4">
+            <div class="bg-white dark:bg-gray-900 p-8 rounded-2xl shadow-2xl w-full max-w-sm border border-gray-200 dark:border-gray-700">
+                <div class="text-center mb-8">
+                    <div class="inline-block p-3 rounded-full bg-brand-50 mb-4">
+                        <img v-if="company.logo" :src="company.logo" class="w-16 h-16 rounded-full object-cover">
+                        <i v-else class="fa-solid fa-wand-magic-sparkles text-3xl text-brand-600"></i>
                     </div>
+                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Bem-vindo(a)</h1>
+                    <p class="text-gray-500 text-sm">Acesse sua conta para continuar</p>
                 </div>
-                <h1 class="text-3xl font-bold text-white mb-2">PartyPlanner Pro</h1>
-                <form @submit.prevent="handleAuth" class="space-y-4 mt-8">
-                    <div v-if="isRegistering"><input v-model="authForm.name" type="text" placeholder="Nome da Empresa" class="w-full p-4 bg-white/20 border border-white/10 rounded-xl text-white placeholder-primary-200 outline-none focus:bg-white/30 transition" required></div>
-                    <div><input v-model="authForm.email" type="email" placeholder="E-mail" class="w-full p-4 bg-white/20 border border-white/10 rounded-xl text-white placeholder-primary-200 outline-none focus:bg-white/30 transition" required></div>
-                    <div><input v-model="authForm.password" type="password" placeholder="Senha" class="w-full p-4 bg-white/20 border border-white/10 rounded-xl text-white placeholder-primary-200 outline-none focus:bg-white/30 transition" required></div>
-                    <button type="submit" :disabled="authLoading" class="w-full bg-white text-primary-700 py-4 rounded-xl font-bold hover:bg-primary-50 transition shadow-lg flex justify-center items-center gap-2">
-                        <i v-if="authLoading" class="fa-solid fa-circle-notch fa-spin"></i> {{ isRegistering ? 'Criar Conta' : 'Entrar' }}
+                <form @submit.prevent="handleAuth" class="space-y-4">
+                    <div v-if="isRegistering"><input v-model="authForm.name" type="text" placeholder="Nome da Empresa" class="input-clean" required></div>
+                    <div><input v-model="authForm.email" type="email" placeholder="E-mail" class="input-clean" required></div>
+                    <div><input v-model="authForm.password" type="password" placeholder="Senha" class="input-clean" required></div>
+                    <button type="submit" :disabled="authLoading" class="btn-primary w-full flex justify-center items-center gap-2">
+                        <i v-if="authLoading" class="fa-solid fa-circle-notch fa-spin"></i> {{ isRegistering ? 'Cadastrar' : 'Entrar' }}
                     </button>
                 </form>
-                <div class="mt-8 pt-6 border-t border-white/10"><button @click="isRegistering = !isRegistering" class="text-sm text-white hover:text-primary-200 font-semibold">{{ isRegistering ? 'Já tenho conta? Entrar' : 'Criar conta agora' }}</button></div>
+                <button @click="isRegistering = !isRegistering" class="w-full mt-4 text-xs text-brand-600 font-bold hover:underline text-center">
+                    {{ isRegistering ? 'Já tem conta? Login' : 'Criar conta gratuita' }}
+                </button>
             </div>
         </div>
 
         <div v-else class="flex h-screen overflow-hidden">
             
-            <aside class="w-72 bg-white dark:bg-gray-800 border-r border-gray-100 dark:border-gray-700 hidden md:flex flex-col z-20 shadow-sm">
-                <div class="p-8 flex items-center gap-3">
-                    <div class="w-10 h-10 bg-primary-600 text-white rounded-xl flex items-center justify-center shadow-lg"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
-                    <span class="font-bold text-xl tracking-tight text-gray-800 dark:text-white">PartyPlanner</span>
+            <aside class="w-64 bg-brand-900 text-gray-300 hidden md:flex flex-col z-20">
+                <div class="p-6 flex items-center gap-3 border-b border-brand-800">
+                    <div class="w-8 h-8 bg-white text-brand-900 rounded flex items-center justify-center font-bold"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+                    <span class="font-bold text-white tracking-wide">PartyPlanner</span>
                 </div>
-                <nav class="flex-1 px-4 space-y-2 mt-2">
-                    <button @click="view='dashboard'" :class="view==='dashboard'?'nav-item-active':'text-gray-500 hover:bg-gray-50'" class="w-full text-left p-3.5 rounded-xl transition-all flex items-center gap-4 text-sm font-medium"><i class="fa-solid fa-chart-pie w-5 text-center"></i> Dashboard</button>
-                    <button @click="view='schedule'" :class="view==='schedule'?'nav-item-active':'text-gray-500 hover:bg-gray-50'" class="w-full text-left p-3.5 rounded-xl transition-all flex items-center gap-4 text-sm font-medium"><i class="fa-solid fa-calendar-days w-5 text-center"></i> Agenda</button>
-                    <button @click="view='finance'" :class="view==='finance'?'nav-item-active':'text-gray-500 hover:bg-gray-50'" class="w-full text-left p-3.5 rounded-xl transition-all flex items-center gap-4 text-sm font-medium"><i class="fa-solid fa-wallet w-5 text-center"></i> Financeiro</button>
-                    <button @click="view='registrations'" :class="view==='registrations'?'nav-item-active':'text-gray-500 hover:bg-gray-50'" class="w-full text-left p-3.5 rounded-xl transition-all flex items-center gap-4 text-sm font-medium"><i class="fa-solid fa-folder-open w-5 text-center"></i> Cadastros</button>
+                <nav class="flex-1 px-3 py-6 space-y-1">
+                    <button @click="view='dashboard'" :class="view==='dashboard'?'bg-brand-800 text-white':'hover:bg-brand-800/50 hover:text-white'" class="w-full text-left p-3 rounded-lg transition flex items-center gap-3 text-sm font-medium"><i class="fa-solid fa-chart-line w-5 text-center"></i> Dashboard</button>
+                    <button @click="view='schedule'" :class="view==='schedule'?'bg-brand-800 text-white':'hover:bg-brand-800/50 hover:text-white'" class="w-full text-left p-3 rounded-lg transition flex items-center gap-3 text-sm font-medium"><i class="fa-solid fa-calendar w-5 text-center"></i> Agenda</button>
+                    <button @click="view='finance'" :class="view==='finance'?'bg-brand-800 text-white':'hover:bg-brand-800/50 hover:text-white'" class="w-full text-left p-3 rounded-lg transition flex items-center gap-3 text-sm font-medium"><i class="fa-solid fa-wallet w-5 text-center"></i> Financeiro</button>
+                    <button @click="view='registrations'" :class="view==='registrations'?'bg-brand-800 text-white':'hover:bg-brand-800/50 hover:text-white'" class="w-full text-left p-3 rounded-lg transition flex items-center gap-3 text-sm font-medium"><i class="fa-solid fa-folder w-5 text-center"></i> Cadastros</button>
                 </nav>
-                <div class="p-6 border-t border-gray-100 dark:border-gray-700">
-                    <button @click="logout" class="w-full text-left p-3 text-red-500 hover:bg-red-50 rounded-xl transition flex items-center justify-center gap-2 font-bold text-sm"><i class="fa-solid fa-right-from-bracket"></i> Sair</button>
+                <div class="p-4 border-t border-brand-800">
+                    <button @click="logout" class="w-full text-left p-2 hover:text-white transition flex items-center gap-2 text-sm"><i class="fa-solid fa-sign-out-alt"></i> Sair</button>
                 </div>
             </aside>
 
-            <main class="flex-1 overflow-y-auto relative pb-28 md:pb-10 bg-[#F8FAFC] dark:bg-gray-900">
+            <main class="flex-1 overflow-y-auto relative pb-24 md:pb-6 bg-gray-100 dark:bg-gray-950">
                 
-                <header class="md:hidden bg-white/80 dark:bg-gray-900/80 backdrop-blur-md p-4 flex justify-between items-center sticky top-0 z-30 border-b border-gray-100 dark:border-gray-800">
-                    <div class="font-bold text-primary-600 flex items-center gap-2 text-lg"><i class="fa-solid fa-wand-magic-sparkles"></i> PPP</div>
-                    <div class="flex gap-3">
-                        <button @click="toggleDarkMode" class="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-500"><i class="fa-solid fa-moon"></i></button>
-                        <button @click="logout" class="w-9 h-9 rounded-full bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-500"><i class="fa-solid fa-power-off"></i></button>
+                <header class="md:hidden bg-brand-900 text-white p-4 flex justify-between items-center shadow-md sticky top-0 z-30">
+                    <div class="font-bold flex items-center gap-2"><i class="fa-solid fa-wand-magic-sparkles"></i> PPP</div>
+                    <div class="flex gap-4 text-sm">
+                        <button @click="toggleDarkMode"><i class="fa-solid fa-moon"></i></button>
+                        <button @click="logout"><i class="fa-solid fa-power-off"></i></button>
                     </div>
                 </header>
 
-                <div v-if="view === 'dashboard'" class="p-6 md:p-10 max-w-7xl mx-auto animate-fade-in">
-                    <div class="flex flex-col md:flex-row justify-between md:items-end gap-4 mb-8">
-                        <div><h2 class="text-3xl font-bold text-gray-800 dark:text-white">Visão Geral</h2></div>
-                        <input type="month" v-model="dashboardMonth" class="bg-white dark:bg-gray-800 shadow-sm p-2.5 rounded-xl text-sm font-medium border-none ring-1 ring-gray-200">
+                <div v-if="view === 'dashboard'" class="p-6 max-w-7xl mx-auto space-y-6">
+                    <div class="flex justify-between items-end">
+                        <div><h2 class="text-2xl font-bold text-gray-800 dark:text-white">Visão Geral</h2><p class="text-sm text-gray-500">Resumo do mês.</p></div>
+                        <input type="month" v-model="dashboardMonth" class="bg-white dark:bg-gray-800 border p-2 rounded text-sm cursor-pointer hover:bg-gray-50">
                     </div>
-                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                        <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border-l-4 border-green-500">
-                            <div class="text-gray-400 text-[10px] font-bold uppercase mb-1">Receita</div>
-                            <div class="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">{{ formatCurrency(financeData.revenue) }}</div>
+
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="card p-4 border-l-4 border-l-green-500">
+                            <div class="text-gray-400 text-xs font-bold uppercase">Receita</div>
+                            <div class="text-xl font-bold text-gray-900 dark:text-white mt-1">{{ formatCurrency(financeData.revenue) }}</div>
                         </div>
-                        <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border-l-4 border-red-500">
-                            <div class="text-gray-400 text-[10px] font-bold uppercase mb-1">Despesas</div>
-                            <div class="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">{{ formatCurrency(financeData.expenses) }}</div>
+                        <div class="card p-4 border-l-4 border-l-red-500">
+                            <div class="text-gray-400 text-xs font-bold uppercase">Despesas</div>
+                            <div class="text-xl font-bold text-gray-900 dark:text-white mt-1">{{ formatCurrency(financeData.expenses) }}</div>
                         </div>
-                        <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border-l-4 border-primary-500">
-                            <div class="text-gray-400 text-[10px] font-bold uppercase mb-1">Lucro</div>
-                            <div class="text-xl md:text-2xl font-bold text-primary-600">{{ formatCurrency(financeData.profit) }}</div>
+                        <div class="card p-4 border-l-4 border-l-brand-600">
+                            <div class="text-gray-400 text-xs font-bold uppercase">Lucro</div>
+                            <div class="text-xl font-bold text-brand-600 mt-1">{{ formatCurrency(financeData.profit) }}</div>
                         </div>
-                        <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border-l-4 border-orange-500">
-                            <div class="text-gray-400 text-[10px] font-bold uppercase mb-1">A Receber</div>
-                            <div class="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">{{ formatCurrency(financeData.receivables) }}</div>
+                        <div class="card p-4 border-l-4 border-l-orange-400">
+                            <div class="text-gray-400 text-xs font-bold uppercase">A Receber</div>
+                            <div class="text-xl font-bold text-gray-900 dark:text-white mt-1">{{ formatCurrency(financeData.receivables) }}</div>
                         </div>
                     </div>
-                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6">
-                        <h3 class="font-bold text-lg mb-6 flex items-center gap-2"><i class="fa-regular fa-calendar text-primary-500"></i> Próximos 7 Dias</h3>
-                        <div v-if="next7DaysApps.length === 0" class="text-center py-8 text-gray-400 text-sm">Sem eventos esta semana.</div>
-                        <div v-for="app in next7DaysApps" :key="app.id" @click="showReceipt(app)" class="flex justify-between items-center p-4 hover:bg-primary-50 dark:hover:bg-gray-700 rounded-xl cursor-pointer transition border-b dark:border-gray-700 last:border-0">
-                            <div class="flex items-center gap-4">
-                                <div class="bg-primary-50 text-primary-600 w-12 h-12 rounded-xl flex flex-col items-center justify-center font-bold leading-none"><span class="text-[10px] uppercase">{{ getMonth(app.date) }}</span><span class="text-lg">{{ getDay(app.date) }}</span></div>
-                                <div><div class="font-bold text-gray-900 dark:text-white">{{ getClientName(app.clientId) }}</div><div class="text-xs text-gray-500">{{ app.time }} • {{ app.location.bairro }}</div></div>
+
+                    <div class="card p-6">
+                        <h3 class="font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2"><i class="fa-regular fa-calendar-check text-brand-600"></i> Próximos 7 Dias</h3>
+                        <div v-if="next7DaysApps.length === 0" class="text-center py-6 text-gray-400 text-sm">Agenda vazia para a semana.</div>
+                        <div v-else class="space-y-3">
+                            <div v-for="app in next7DaysApps" :key="app.id" @click="showReceipt(app)" class="flex justify-between items-center p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition">
+                                <div class="flex items-center gap-3">
+                                    <div class="bg-brand-50 text-brand-700 w-10 h-10 rounded flex flex-col items-center justify-center font-bold text-xs"><span>{{ getMonth(app.date) }}</span><span class="text-sm">{{ getDay(app.date) }}</span></div>
+                                    <div><div class="font-bold text-sm">{{ getClientName(app.clientId) }}</div><div class="text-xs text-gray-500">{{ app.time }} • {{ app.location.bairro || 'Local não definido' }}</div></div>
+                                </div>
+                                <span class="text-xs font-bold bg-gray-100 px-2 py-1 rounded">{{ statusText(app.status) }}</span>
                             </div>
-                            <div class="text-right"><div class="font-bold text-primary-600 text-sm">{{ formatCurrency(app.totalServices) }}</div><span class="text-[9px] bg-gray-100 px-2 py-0.5 rounded-full uppercase font-bold">{{ statusText(app.status) }}</span></div>
                         </div>
                     </div>
                 </div>
 
-                <div v-if="view === 'schedule'" class="p-6 md:p-10 max-w-6xl mx-auto space-y-6">
+                <div v-if="view === 'schedule'" class="p-6 max-w-6xl mx-auto space-y-6">
                     <div class="flex justify-between items-center">
-                        <h2 class="text-3xl font-bold">Agenda</h2>
-                        <div class="flex gap-1 bg-white dark:bg-gray-800 p-1 rounded-xl shadow-sm">
-                            <button @click="appointmentViewMode = 'list'" :class="appointmentViewMode === 'list' ? 'bg-primary-100 text-primary-700' : 'text-gray-400'" class="px-3 py-1.5 rounded-lg"><i class="fa-solid fa-list"></i></button>
-                            <button @click="appointmentViewMode = 'calendar'" :class="appointmentViewMode === 'calendar' ? 'bg-primary-100 text-primary-700' : 'text-gray-400'" class="px-3 py-1.5 rounded-lg"><i class="fa-solid fa-calendar"></i></button>
-                        </div>
+                        <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Agenda</h2>
+                        <button @click="startNewSchedule" class="btn-primary text-sm flex items-center gap-2"><i class="fa-solid fa-plus"></i> Novo Evento</button>
                     </div>
 
-                    <div v-if="appointmentViewMode === 'list'" class="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-                        <button @click="agendaTab='pending'" :class="agendaTab==='pending' ? 'bg-primary-600 text-white shadow-lg shadow-primary-500/30' : 'bg-white text-gray-600'" class="px-5 py-2.5 rounded-full font-bold text-sm whitespace-nowrap transition-all">Pendente</button>
-                        <button @click="agendaTab='concluded'" :class="agendaTab==='concluded' ? 'bg-green-600 text-white' : 'bg-white text-gray-600'" class="px-5 py-2.5 rounded-full font-bold text-sm whitespace-nowrap transition-all">Concluído</button>
-                        <button @click="agendaTab='cancelled'" :class="agendaTab==='cancelled' ? 'bg-red-500 text-white' : 'bg-white text-gray-600'" class="px-5 py-2.5 rounded-full font-bold text-sm whitespace-nowrap transition-all">Cancelado</button>
-                    </div>
-
-                    <div v-if="appointmentViewMode === 'list' && agendaTab !== 'pending'" class="bg-white p-4 rounded-xl shadow-sm flex flex-wrap gap-4 items-end">
-                        <div class="flex-1"><label class="text-[10px] font-bold text-gray-400 uppercase">De</label><input type="date" v-model="agendaFilter.start" class="w-full p-2 border rounded-lg text-sm"></div>
-                        <div class="flex-1"><label class="text-[10px] font-bold text-gray-400 uppercase">Até</label><input type="date" v-model="agendaFilter.end" class="w-full p-2 border rounded-lg text-sm"></div>
-                        <button @click="searchHistory" class="bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-bold">Buscar</button>
+                    <div class="flex bg-white dark:bg-gray-800 p-1 rounded-lg border w-fit">
+                        <button @click="appointmentViewMode='list'" :class="appointmentViewMode==='list'?'bg-gray-100 text-gray-900 font-bold':'text-gray-500'" class="px-4 py-1.5 rounded-md text-sm transition">Lista</button>
+                        <button @click="appointmentViewMode='calendar'" :class="appointmentViewMode==='calendar'?'bg-gray-100 text-gray-900 font-bold':'text-gray-500'" class="px-4 py-1.5 rounded-md text-sm transition">Calendário</button>
                     </div>
 
                     <div v-if="appointmentViewMode === 'list'" class="space-y-4">
-                        <input v-if="agendaTab === 'pending'" v-model="clientSearchTerm" placeholder="Buscar cliente..." class="w-full p-3 rounded-xl border-none shadow-sm bg-white dark:bg-gray-800">
-                        
-                        <div v-if="filteredListAppointments.length === 0" class="text-center py-10 text-gray-400">Nenhum agendamento.</div>
-                        
-                        <div v-for="app in filteredListAppointments" :key="app.id" class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm relative overflow-hidden group">
-                            <div class="absolute left-0 top-0 bottom-0 w-1.5" :class="app.status === 'concluded' ? 'bg-green-500' : (app.status === 'cancelled' ? 'bg-red-500' : 'bg-primary-500')"></div>
-                            <div class="flex justify-between items-start mb-3 pl-3">
-                                <div>
-                                    <h3 class="font-bold text-lg">{{ getClientName(app.clientId) }}</h3>
-                                    <p class="text-sm text-gray-500">{{ formatDate(app.date) }} às {{ app.time }}h • {{ app.location.bairro }}</p>
+                        <div class="flex gap-4 border-b dark:border-gray-700">
+                            <button @click="agendaTab='pending'" :class="agendaTab==='pending'?'border-b-2 border-brand-600 text-brand-600 font-bold':'text-gray-500'" class="pb-2 text-sm px-2">Pendentes</button>
+                            <button @click="agendaTab='concluded'" :class="agendaTab==='concluded'?'border-b-2 border-green-600 text-green-600 font-bold':'text-gray-500'" class="pb-2 text-sm px-2">Concluídos</button>
+                            <button @click="agendaTab='cancelled'" :class="agendaTab==='cancelled'?'border-b-2 border-red-600 text-red-600 font-bold':'text-gray-500'" class="pb-2 text-sm px-2">Cancelados</button>
+                        </div>
+
+                        <div v-if="agendaTab !== 'pending'" class="flex gap-2 items-end bg-white p-3 rounded-lg border">
+                            <div class="flex-1"><label class="text-[10px] uppercase font-bold text-gray-400">De</label><input type="date" v-model="agendaFilter.start" class="input-clean h-9"></div>
+                            <div class="flex-1"><label class="text-[10px] uppercase font-bold text-gray-400">Até</label><input type="date" v-model="agendaFilter.end" class="input-clean h-9"></div>
+                            <button @click="searchHistory" class="btn-primary h-9 px-4 flex items-center"><i class="fa-solid fa-search"></i></button>
+                        </div>
+                        <div v-if="agendaTab === 'pending'">
+                            <input v-model="clientSearchTerm" placeholder="Filtrar por cliente..." class="input-clean">
+                        </div>
+
+                        <div v-if="filteredListAppointments.length === 0" class="text-center py-10 text-gray-400 text-sm">Nenhum registro.</div>
+                        <div v-for="app in filteredListAppointments" :key="app.id" class="card p-4 hover:border-brand-300 transition relative group">
+                            <div class="flex justify-between items-start">
+                                <div class="flex gap-3">
+                                    <div class="bg-gray-100 text-gray-600 w-12 h-12 rounded flex flex-col items-center justify-center font-bold leading-none"><span class="text-[10px]">{{ getMonth(app.date) }}</span><span class="text-lg">{{ getDay(app.date) }}</span></div>
+                                    <div>
+                                        <h3 class="font-bold text-gray-900 dark:text-white">{{ getClientName(app.clientId) }}</h3>
+                                        <p class="text-xs text-gray-500">{{ app.time }}h • {{ app.location.bairro }}</p>
+                                        <p v-if="app.details?.balloonColors" class="text-xs text-brand-600 mt-1">🎈 {{ app.details.balloonColors }}</p>
+                                    </div>
                                 </div>
                                 <div class="text-right">
-                                    <div class="text-xs text-gray-400 uppercase font-bold">Total</div>
-                                    <div class="text-xl font-bold text-primary-600">{{ formatCurrency(app.totalServices) }}</div>
+                                    <div class="text-lg font-bold text-gray-900 dark:text-white">{{ formatCurrency(app.totalServices) }}</div>
+                                    <span v-if="agendaTab!=='pending'" class="text-[10px] uppercase font-bold text-gray-400">{{ statusText(app.status) }}</span>
                                 </div>
                             </div>
-                            <div class="bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-100 dark:border-gray-700 mb-3 ml-3">
-                                <div class="flex flex-wrap gap-2">
-                                    <span v-for="s in app.selectedServices" class="text-xs bg-white dark:bg-gray-800 border px-2 py-1 rounded">{{ s.description }}</span>
-                                </div>
-                                <p v-if="app.details?.balloonColors" class="text-xs text-gray-500 mt-2"><strong>Balões:</strong> {{ app.details.balloonColors }}</p>
+                            
+                            <div class="mt-3 flex flex-wrap gap-2">
+                                <span v-for="s in app.selectedServices" class="text-[10px] bg-gray-50 border px-2 py-1 rounded text-gray-600">{{ s.description }}</span>
                             </div>
-                            <div class="flex justify-between items-center pl-3 border-t pt-3 dark:border-gray-700">
-                                <button @click="showReceipt(app)" class="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100">Recibo</button>
-                                <div v-if="app.status === 'pending'" class="flex gap-2">
-                                    <button @click="editAppointment(app)" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600"><i class="fa-solid fa-pen"></i></button>
-                                    <button @click="changeStatus(app, 'cancelled')" class="w-8 h-8 rounded-full border border-red-200 text-red-500 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
-                                    <button @click="changeStatus(app, 'concluded')" class="w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center shadow-lg"><i class="fa-solid fa-check"></i></button>
+
+                            <div class="mt-3 pt-3 border-t flex justify-end gap-2">
+                                <button @click="showReceipt(app)" class="text-xs font-bold text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded transition">Recibo</button>
+                                <button v-if="app.status === 'pending'" @click="editAppointment(app)" class="text-xs font-bold text-gray-600 hover:bg-gray-100 px-3 py-1.5 rounded transition">Editar</button>
+                                <div v-if="app.status === 'pending'" class="flex gap-2 ml-2 border-l pl-2">
+                                    <button @click="changeStatus(app, 'cancelled')" class="text-red-500 hover:bg-red-50 p-1.5 rounded"><i class="fa-solid fa-xmark"></i></button>
+                                    <button @click="changeStatus(app, 'concluded')" class="text-green-600 hover:bg-green-50 p-1.5 rounded"><i class="fa-solid fa-check"></i></button>
                                 </div>
-                                <span v-else class="text-xs font-bold px-3 py-1 rounded-full uppercase" :class="app.status==='concluded'?'bg-green-100 text-green-700':'bg-red-100 text-red-700'">{{ statusText(app.status) }}</span>
                             </div>
                         </div>
                     </div>
 
-                    <div v-if="appointmentViewMode === 'calendar'" class="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-lg">
-                        <div class="flex justify-between items-center mb-4"><button @click="changeCalendarMonth(-1)"><i class="fa-solid fa-chevron-left"></i></button><h3 class="capitalize font-bold">{{ calendarTitle }}</h3><button @click="changeCalendarMonth(1)"><i class="fa-solid fa-chevron-right"></i></button></div>
-                        <div class="grid grid-cols-7 gap-1 text-center text-xs mb-2"><div>D</div><div>S</div><div>T</div><div>Q</div><div>Q</div><div>S</div><div>S</div></div>
-                        <div class="grid grid-cols-7 gap-1"><div v-for="d in calendarGrid" @click="selectCalendarDay(d)" class="h-12 flex flex-col items-center justify-center rounded cursor-pointer" :class="d.date===selectedCalendarDate?'bg-primary-600 text-white':(d.day?'hover:bg-gray-100':'')"><span v-if="d.day" class="text-xs font-bold">{{ d.day }}</span><div v-if="d.hasEvent" class="w-1.5 h-1.5 rounded-full bg-primary-400 mt-1" :class="d.date===selectedCalendarDate?'bg-white':''"></div></div></div>
-                        <div v-if="selectedCalendarDate" class="mt-4"><h4 class="text-xs font-bold uppercase text-gray-500 mb-2">Eventos do dia</h4><div v-for="app in appointmentsOnSelectedDate" class="bg-gray-50 p-3 rounded-lg mb-2 flex justify-between"><span>{{ getClientName(app.clientId) }}</span><span class="font-bold text-primary-600">{{ formatCurrency(app.totalServices) }}</span></div></div>
+                    <div v-if="appointmentViewMode === 'calendar'" class="card p-4">
+                        <div class="flex justify-between items-center mb-4">
+                            <button @click="changeCalendarMonth(-1)" class="w-8 h-8 hover:bg-gray-100 rounded-full"><i class="fa-solid fa-chevron-left"></i></button>
+                            <h3 class="font-bold capitalize">{{ calendarTitle }}</h3>
+                            <button @click="changeCalendarMonth(1)" class="w-8 h-8 hover:bg-gray-100 rounded-full"><i class="fa-solid fa-chevron-right"></i></button>
+                        </div>
+                        <div class="grid grid-cols-7 gap-1 text-center text-xs font-bold text-gray-400 mb-2"><div>D</div><div>S</div><div>T</div><div>Q</div><div>Q</div><div>S</div><div>S</div></div>
+                        <div class="grid grid-cols-7 gap-1">
+                            <div v-for="day in calendarGrid" @click="selectCalendarDay(day)" class="h-10 md:h-16 border rounded flex flex-col items-center justify-center cursor-pointer transition relative" :class="[day.date === selectedCalendarDate ? 'bg-brand-600 text-white border-brand-600' : 'bg-white hover:bg-gray-50', !day.day ? 'border-transparent' : '']">
+                                <span v-if="day.day" class="text-sm font-bold">{{ day.day }}</span>
+                                <div v-if="day.hasEvent" class="w-1.5 h-1.5 rounded-full mt-1" :class="day.date === selectedCalendarDate ? 'bg-white' : 'bg-brand-500'"></div>
+                            </div>
+                        </div>
+                        <div v-if="selectedCalendarDate" class="mt-4 border-t pt-4">
+                            <h4 class="text-xs font-bold uppercase text-gray-500 mb-2">Dia {{ formatDate(selectedCalendarDate) }}</h4>
+                            <div v-if="appointmentsOnSelectedDate.length === 0" class="text-sm text-gray-400">Sem eventos.</div>
+                            <div v-for="app in appointmentsOnSelectedDate" class="flex justify-between p-2 hover:bg-gray-50 rounded border mb-1 cursor-pointer" @click="showReceipt(app)">
+                                <div class="text-sm font-bold">{{ getClientName(app.clientId) }} <span class="font-normal text-gray-500">({{ app.time }})</span></div>
+                                <div class="text-sm font-bold text-brand-600">{{ formatCurrency(app.totalServices) }}</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div v-if="view === 'finance'" class="p-6 md:p-10 max-w-5xl mx-auto space-y-8 animate-fade-in">
-                    <div class="flex justify-between items-center">
-                        <h2 class="text-3xl font-bold">Financeiro</h2>
-                        <button @click="showExpenseModal=true" class="bg-red-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg shadow-red-500/30 flex items-center gap-2"><i class="fa-solid fa-minus"></i> Nova Despesa</button>
-                    </div>
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm">
-                        <h3 class="font-bold mb-4 text-xs uppercase text-gray-400">Gastos do Mês</h3>
-                        <div class="space-y-4">
+                <div v-if="view === 'finance'" class="p-6 max-w-5xl mx-auto space-y-6">
+                    <div class="flex justify-between items-center"><h2 class="text-2xl font-bold">Financeiro</h2><button @click="showExpenseModal=true" class="btn-primary text-sm">+ Despesa</button></div>
+                    
+                    <div class="card p-6">
+                        <h3 class="font-bold text-xs uppercase text-gray-400 mb-4">Gastos por Categoria</h3>
+                        <div v-if="expensesByCategoryStats.length===0" class="text-sm text-gray-400">Sem dados.</div>
+                        <div class="space-y-3">
                             <div v-for="cat in expensesByCategoryStats" :key="cat.id">
-                                <div class="flex justify-between text-xs mb-1 font-bold"><span class="flex items-center gap-2"><i :class="'fa-solid '+cat.icon"></i> {{ cat.label }}</span><span>{{ formatCurrency(cat.total) }}</span></div>
-                                <div class="w-full bg-gray-100 rounded-full h-2"><div class="bg-red-500 h-2 rounded-full" :style="{ width: (cat.total / (financeData.expenses || 1) * 100) + '%' }"></div></div>
+                                <div class="flex justify-between text-xs font-bold mb-1"><span>{{ cat.label }}</span><span>{{ formatCurrency(cat.total) }}</span></div>
+                                <div class="w-full bg-gray-100 rounded-full h-1.5"><div class="bg-brand-600 h-1.5 rounded-full" :style="{ width: (cat.total/(financeData.expenses||1)*100)+'%' }"></div></div>
                             </div>
                         </div>
                     </div>
-                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden">
-                        <div class="p-4 border-b flex gap-2 items-end bg-gray-50 dark:bg-gray-900">
-                            <div class="flex-1"><label class="text-[10px] font-bold">DE</label><input type="date" v-model="expensesFilter.start" class="w-full p-2 rounded border text-xs"></div>
-                            <div class="flex-1"><label class="text-[10px] font-bold">ATÉ</label><input type="date" v-model="expensesFilter.end" class="w-full p-2 rounded border text-xs"></div>
-                            <button @click="searchExpenses" class="bg-primary-600 text-white px-4 py-2 rounded h-[34px]"><i class="fa-solid fa-filter"></i></button>
+
+                    <div class="card overflow-hidden">
+                        <div class="p-4 border-b flex gap-2 items-end bg-gray-50">
+                            <div class="flex-1"><label class="text-[10px] font-bold text-gray-400">DE</label><input type="date" v-model="expensesFilter.start" class="input-clean h-9"></div>
+                            <div class="flex-1"><label class="text-[10px] font-bold text-gray-400">ATÉ</label><input type="date" v-model="expensesFilter.end" class="input-clean h-9"></div>
+                            <button @click="searchExpenses" class="btn-primary h-9 px-4 flex items-center"><i class="fa-solid fa-filter"></i></button>
                         </div>
-                        <div v-if="statementList.length === 0" class="text-center py-10 text-gray-400 text-sm">Filtre para ver.</div>
-                        <div v-else class="divide-y">
-                            <div v-for="item in statementList" class="flex justify-between items-center p-4 hover:bg-gray-50">
-                                <div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs" :class="item.type==='income'?'bg-green-500':'bg-red-500'"><i :class="'fa-solid '+item.icon"></i></div><div><div class="font-bold text-sm">{{ item.description }}</div><div class="text-[10px] text-gray-400">{{ formatDate(item.date) }}</div></div></div>
+                        <div class="max-h-[400px] overflow-y-auto divide-y">
+                            <div v-if="statementList.length===0" class="text-center py-8 text-gray-400 text-sm">Sem registros no período.</div>
+                            <div v-for="item in statementList" :key="item.id" class="flex justify-between items-center p-3 hover:bg-gray-50">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded flex items-center justify-center text-white text-xs" :class="item.type==='income'?'bg-green-500':'bg-red-500'"><i :class="'fa-solid '+item.icon"></i></div>
+                                    <div><div class="font-bold text-sm">{{ item.description }}</div><div class="text-[10px] text-gray-400">{{ formatDate(item.date) }}</div></div>
+                                </div>
                                 <div class="font-mono font-bold text-sm" :class="item.type==='income'?'text-green-600':'text-red-500'">{{ item.type==='income'?'+':'-' }} {{ formatCurrency(item.value) }}</div>
                             </div>
                         </div>
-                        <div class="p-4 text-right bg-gray-50"><span class="text-xs text-gray-500">Saldo:</span> <span class="font-bold text-lg">{{ formatCurrency(financeSummary) }}</span></div>
+                        <div class="p-4 bg-gray-50 text-right border-t"><span class="text-xs text-gray-500">Saldo:</span> <span class="font-bold text-lg" :class="financeSummary>=0?'text-green-600':'text-red-600'">{{ formatCurrency(financeSummary) }}</span></div>
                     </div>
                 </div>
 
-                <div v-if="view === 'registrations'" class="p-6 md:p-10 max-w-4xl mx-auto space-y-6 animate-fade-in">
-                    <h2 class="text-3xl font-bold">Cadastros</h2>
-                    
-                    <div class="flex p-1 bg-white dark:bg-gray-800 rounded-xl shadow-sm mb-6">
-                        <button @click="registrationTab='clients'" :class="registrationTab==='clients'?'bg-primary-100 text-primary-700':'text-gray-500'" class="flex-1 py-2.5 rounded-lg font-bold text-sm transition">Clientes</button>
-                        <button @click="registrationTab='services'" :class="registrationTab==='services'?'bg-primary-100 text-primary-700':'text-gray-500'" class="flex-1 py-2.5 rounded-lg font-bold text-sm transition">Serviços</button>
-                        <button @click="registrationTab='company'" :class="registrationTab==='company'?'bg-primary-100 text-primary-700':'text-gray-500'" class="flex-1 py-2.5 rounded-lg font-bold text-sm transition">Empresa</button>
+                <div v-if="view === 'registrations'" class="p-6 max-w-4xl mx-auto space-y-6">
+                    <h2 class="text-2xl font-bold">Cadastros</h2>
+                    <div class="flex border-b">
+                        <button @click="registrationTab='clients'" :class="registrationTab==='clients'?'border-b-2 border-brand-600 text-brand-600':'text-gray-500'" class="px-4 py-2 font-bold text-sm transition">Clientes</button>
+                        <button @click="registrationTab='services'" :class="registrationTab==='services'?'border-b-2 border-brand-600 text-brand-600':'text-gray-500'" class="px-4 py-2 font-bold text-sm transition">Serviços</button>
+                        <button @click="registrationTab='company'" :class="registrationTab==='company'?'border-b-2 border-brand-600 text-brand-600':'text-gray-500'" class="px-4 py-2 font-bold text-sm transition">Empresa</button>
                     </div>
 
                     <div v-if="registrationTab === 'clients'" class="space-y-4">
-                        <div class="flex gap-2">
-                            <input v-model="catalogClientSearch" placeholder="Buscar cliente..." class="w-full p-3 rounded-xl border-none shadow-sm">
-                            <button @click="searchCatalogClients" class="bg-primary-600 text-white px-4 rounded-xl"><i class="fa-solid fa-search"></i></button>
-                            <button @click="openClientModal()" class="bg-green-500 text-white px-4 rounded-xl text-2xl font-bold">+</button>
-                        </div>
-                        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm divide-y">
-                            <div v-for="c in catalogClientsList" :key="c.id" class="p-4 flex justify-between items-center">
-                                <div><div class="font-bold">{{ c.name }}</div><div class="text-xs text-gray-500">{{ c.phone }} <span v-if="c.cpf">| CPF: {{ c.cpf }}</span></div></div>
-                                <button @click="deleteClient(c.id)" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-trash"></i></button>
+                        <div class="flex gap-2"><input v-model="catalogClientSearch" placeholder="Buscar..." class="input-clean"><button @click="searchCatalogClients" class="btn-primary"><i class="fa-solid fa-search"></i></button><button @click="openClientModal()" class="btn-primary bg-green-600 hover:bg-green-700">+</button></div>
+                        <div class="card divide-y">
+                            <div v-for="c in catalogClientsList" class="p-3 flex justify-between items-center">
+                                <div><div class="font-bold text-sm">{{ c.name }}</div><div class="text-xs text-gray-500">{{ c.phone }} <span v-if="c.cpf">| {{ c.cpf }}</span></div></div>
+                                <button @click="deleteClient(c.id)" class="text-red-400 hover:text-red-600 p-2"><i class="fa-solid fa-trash"></i></button>
                             </div>
                         </div>
                     </div>
 
-                    <div v-if="registrationTab === 'services'" class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm">
-                        <h3 class="font-bold mb-4">Gerenciar Catálogo</h3>
-                        <div class="flex gap-2 mb-6">
-                            <input v-model="newService.description" placeholder="Nome do Serviço" class="flex-1 p-3 border rounded-xl bg-gray-50">
-                            <input v-model="newService.price" type="number" placeholder="Valor" class="w-24 p-3 border rounded-xl bg-gray-50">
-                            <button @click="saveService" class="bg-green-500 text-white px-6 rounded-xl font-bold">Salvar</button>
-                        </div>
-                        <div class="space-y-2 max-h-[500px] overflow-y-auto">
-                            <div v-for="s in services" :key="s.id" class="flex justify-between p-3 border rounded-xl hover:bg-gray-50">
-                                <span>{{ s.description }}</span>
-                                <div class="flex gap-4"><span class="font-bold">{{ formatCurrency(s.price) }}</span><button @click="deleteService(s.id)" class="text-red-500"><i class="fa-solid fa-trash"></i></button></div>
-                            </div>
+                    <div v-if="registrationTab === 'services'" class="card p-6">
+                        <div class="flex gap-2 mb-4"><input v-model="newService.description" placeholder="Nome" class="input-clean"><input v-model="newService.price" type="number" placeholder="Valor" class="input-clean w-24"><button @click="saveService" class="btn-primary">Salvar</button></div>
+                        <div class="max-h-96 overflow-y-auto space-y-2">
+                            <div v-for="s in services" class="flex justify-between items-center p-2 border rounded bg-gray-50"><span class="text-sm">{{ s.description }}</span><div class="flex items-center gap-3"><span class="font-bold text-xs">{{ formatCurrency(s.price) }}</span><button @click="deleteService(s.id)" class="text-red-500"><i class="fa-solid fa-trash"></i></button></div></div>
                         </div>
                     </div>
 
-                    <div v-if="registrationTab === 'company'" class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm space-y-4">
-                        <div class="flex justify-center mb-4"><div class="relative"><img v-if="company.logo" :src="company.logo" class="h-24 w-24 rounded-full object-cover border-4 border-gray-100"><input type="file" @change="handleLogoUpload" class="absolute inset-0 opacity-0 cursor-pointer"></div></div>
-                        <input v-model="company.fantasia" placeholder="Nome Fantasia" class="w-full p-3 border rounded-xl">
-                        <input v-model="company.cnpj" placeholder="CNPJ / CPF" class="w-full p-3 border rounded-xl">
-                        <input v-model="company.rua" placeholder="Endereço Completo" class="w-full p-3 border rounded-xl">
-                        <div class="flex gap-2"><input v-model="company.cidade" placeholder="Cidade" class="flex-1 p-3 border rounded-xl"><input v-model="company.estado" placeholder="UF" class="w-20 p-3 border rounded-xl uppercase" maxlength="2"></div>
-                        <button @click="saveCompany" class="w-full bg-primary-600 text-white py-3 rounded-xl font-bold">Salvar Dados</button>
-                        <div class="pt-6 border-t flex justify-between items-center">
-                            <button @click="toggleDarkMode" class="text-gray-500 font-bold text-sm">Tema Escuro</button>
-                            <button @click="handleChangePassword" class="text-primary-600 font-bold text-sm">Alterar Senha</button>
-                        </div>
+                    <div v-if="registrationTab === 'company'" class="card p-6 space-y-4 max-w-lg">
+                        <div class="flex items-center gap-4"><img v-if="company.logo" :src="company.logo" class="w-16 h-16 rounded border"><input type="file" @change="handleLogoUpload" class="text-xs"></div>
+                        <input v-model="company.fantasia" placeholder="Nome Fantasia" class="input-clean">
+                        <input v-model="company.cnpj" placeholder="CNPJ" class="input-clean">
+                        <input v-model="company.rua" placeholder="Endereço" class="input-clean">
+                        <div class="flex gap-2"><input v-model="company.cidade" placeholder="Cidade" class="input-clean"><input v-model="company.estado" placeholder="UF" class="input-clean w-20"></div>
+                        <button @click="saveCompany" class="btn-primary w-full">Salvar Alterações</button>
+                        <hr class="border-gray-200">
+                        <div class="flex justify-between"><button @click="toggleDarkMode" class="text-xs font-bold text-gray-500">Tema Escuro</button><button @click="handleChangePassword" class="text-xs font-bold text-brand-600">Alterar Senha</button></div>
                     </div>
                 </div>
 
-                <div v-if="view === 'receipt' && currentReceipt" class="p-6 flex justify-center bg-gray-100 dark:bg-gray-900 min-h-full absolute inset-0 z-40 backdrop-blur-sm bg-opacity-95">
-                    <div class="bg-white p-8 shadow-2xl w-full max-w-lg relative text-gray-800 h-fit" id="receipt-capture-area">
-                        <div class="text-center border-b-2 border-primary-500 pb-6 mb-6"><h1 class="text-2xl font-bold text-primary-700">{{ company.fantasia }}</h1><p class="text-xs uppercase">Recibo</p></div>
-                        <div class="space-y-2 text-sm mb-6"><div class="flex justify-between"><span>Cliente</span><b>{{ getClientName(currentReceipt.clientId) }}</b></div><div class="flex justify-between"><span>Data</span><b>{{ formatDate(currentReceipt.date) }}</b></div></div>
-                        <div class="bg-gray-50 p-4 rounded-lg mb-6"><div v-for="s in currentReceipt.selectedServices" class="flex justify-between text-sm"><span>{{ s.description }}</span><span>{{ formatCurrency(s.price) }}</span></div><div class="border-t my-2 pt-2 flex justify-between font-bold"><span>Total</span><span>{{ formatCurrency(currentReceipt.totalServices) }}</span></div><div class="flex justify-between text-green-600 text-sm"><span>Sinal</span><span>- {{ formatCurrency(currentReceipt.entryFee) }}</span></div><div class="flex justify-between font-bold text-primary-600 pt-2 border-t"><span>Restante</span><span>{{ formatCurrency(currentReceipt.finalBalance) }}</span></div></div>
-                        <div v-if="currentReceipt.details?.balloonColors" class="text-xs text-gray-500">Cores: {{ currentReceipt.details.balloonColors }}</div>
+                <div v-if="view === 'receipt' && currentReceipt" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+                    <div class="bg-white w-full max-w-md shadow-2xl relative" id="receipt-capture-area">
+                        <div class="bg-brand-900 text-white p-6 text-center">
+                            <h2 class="text-xl font-bold">{{ company.fantasia }}</h2>
+                            <p class="text-xs opacity-70 uppercase tracking-widest mt-1">Comprovante</p>
+                        </div>
+                        <div class="p-6 space-y-4 text-sm text-gray-800">
+                            <div class="flex justify-between border-b pb-2"><span class="text-gray-500">Cliente</span><span class="font-bold">{{ getClientName(currentReceipt.clientId) }}</span></div>
+                            <div class="flex justify-between border-b pb-2"><span class="text-gray-500">Data</span><span class="font-bold">{{ formatDate(currentReceipt.date) }}</span></div>
+                            <div class="bg-gray-50 p-4 rounded-lg border">
+                                <div v-for="s in currentReceipt.selectedServices" class="flex justify-between mb-1"><span class="text-gray-600">{{ s.description }}</span><span class="font-mono font-bold">{{ formatCurrency(s.price) }}</span></div>
+                                <div class="border-t my-2 pt-2 flex justify-between font-bold text-lg"><span>Total</span><span>{{ formatCurrency(currentReceipt.totalServices) }}</span></div>
+                                <div class="flex justify-between text-green-600 text-xs font-bold"><span>Sinal</span><span>- {{ formatCurrency(currentReceipt.entryFee) }}</span></div>
+                                <div class="flex justify-between font-bold text-brand-600 mt-2 pt-2 border-t"><span>Restante</span><span>{{ formatCurrency(currentReceipt.finalBalance) }}</span></div>
+                            </div>
+                            <div v-if="currentReceipt.notes" class="text-xs text-gray-500 italic">Obs: {{ currentReceipt.notes }}</div>
+                        </div>
                     </div>
-                    <div class="fixed bottom-24 right-6 flex flex-col gap-3">
+                    <div class="absolute bottom-10 right-4 flex flex-col gap-2">
                         <button @click="downloadReceiptImage" class="w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg"><i class="fa-solid fa-image"></i></button>
                         <button @click="generateContractPDF" class="w-12 h-12 bg-red-600 text-white rounded-full shadow-lg"><i class="fa-solid fa-file-pdf"></i></button>
-                        <button @click="view='dashboard'" class="w-12 h-12 bg-gray-800 text-white rounded-full shadow-lg"><i class="fa-solid fa-xmark"></i></button>
+                        <button @click="view='dashboard'" class="w-12 h-12 bg-gray-800 text-white rounded-full shadow-lg"><i class="fa-solid fa-times"></i></button>
                     </div>
                 </div>
 
             </main>
 
-            <div class="md:hidden fixed bottom-0 left-0 w-full z-50 bg-white/90 dark:bg-gray-900/95 backdrop-blur-xl border-t border-gray-200 pb-safe shadow-[0_-10px_40px_rgba(0,0,0,0.1)]">
-                <div class="flex justify-between items-center px-2 h-16 relative">
-                    <button @click="view='dashboard'" :class="view==='dashboard'?'text-primary-600':'text-gray-400'" class="flex-1 flex flex-col items-center"><i class="fa-solid fa-chart-pie text-xl mb-0.5"></i><span class="text-[9px] font-bold">Home</span></button>
-                    <button @click="view='schedule'" :class="view==='schedule'?'text-primary-600':'text-gray-400'" class="flex-1 flex flex-col items-center"><i class="fa-solid fa-calendar-days text-xl mb-0.5"></i><span class="text-[9px] font-bold">Agenda</span></button>
-                    
-                    <div class="relative -top-6">
-                        <button @click="startNewSchedule" class="w-16 h-16 rounded-full bg-gradient-to-tr from-primary-600 to-primary-400 text-white flex items-center justify-center shadow-glow transform active:scale-95 transition-all border-4 border-white dark:border-gray-900 btn-pulse">
-                            <i class="fa-solid fa-plus text-3xl"></i>
-                        </button>
-                    </div>
-
-                    <button @click="view='finance'" :class="view==='finance'?'text-primary-600':'text-gray-400'" class="flex-1 flex flex-col items-center"><i class="fa-solid fa-wallet text-xl mb-0.5"></i><span class="text-[9px] font-bold">Caixa</span></button>
-                    <button @click="view='registrations'" :class="view==='registrations'?'text-primary-600':'text-gray-400'" class="flex-1 flex flex-col items-center"><i class="fa-solid fa-folder-open text-xl mb-0.5"></i><span class="text-[9px] font-bold">Cadastros</span></button>
-                </div>
+            <div class="md:hidden fixed bottom-0 left-0 w-full bg-white dark:bg-gray-900 border-t dark:border-gray-800 flex justify-around py-2 pb-safe z-40 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+                <button @click="view='dashboard'" :class="view==='dashboard'?'text-brand-600':'text-gray-400'" class="flex flex-col items-center w-full"><i class="fa-solid fa-chart-line text-lg mb-1"></i><span class="text-[10px]">Home</span></button>
+                <button @click="view='schedule'" :class="view==='schedule'?'text-brand-600':'text-gray-400'" class="flex flex-col items-center w-full"><i class="fa-solid fa-calendar text-lg mb-1"></i><span class="text-[10px]">Agenda</span></button>
+                <button @click="view='finance'" :class="view==='finance'?'text-brand-600':'text-gray-400'" class="flex flex-col items-center w-full"><i class="fa-solid fa-wallet text-lg mb-1"></i><span class="text-[10px]">Cx</span></button>
+                <button @click="view='registrations'" :class="view==='registrations'?'text-brand-600':'text-gray-400'" class="flex flex-col items-center w-full"><i class="fa-solid fa-folder-open text-lg mb-1"></i><span class="text-[10px]">Cad</span></button>
             </div>
         </div>
 
         <div v-if="showAppointmentModal" class="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-            <div class="bg-white dark:bg-gray-800 p-6 rounded-3xl w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
-                <div class="flex justify-between mb-4"><h2 class="text-lg font-bold flex items-center gap-2 text-primary-600"><i class="fa-solid fa-calendar-check"></i> {{ isEditing ? 'Editar' : 'Novo' }}</h2><button @click="showAppointmentModal=false" class="text-gray-400"><i class="fa-solid fa-xmark text-2xl"></i></button></div>
-                <div class="space-y-4">
+            <div class="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-y-auto">
+                <div class="p-4 border-b flex justify-between items-center sticky top-0 bg-white dark:bg-gray-900 z-10"><h3 class="font-bold text-lg">Agendamento</h3><button @click="showAppointmentModal=false"><i class="fa-solid fa-times"></i></button></div>
+                <div class="p-6 space-y-4">
                     <div class="relative">
-                        <input v-model="clientSearchTerm" placeholder="Buscar cliente..." class="w-full p-3 rounded-xl border bg-gray-50">
-                        <div v-if="filteredClientsSearch.length" class="absolute w-full bg-white border shadow-xl z-50 rounded-xl mt-1"><div v-for="c in filteredClientsSearch" @click="tempApp.clientId=c.id; clientSearchTerm=c.name; filteredClientsSearch=[]" class="p-3 hover:bg-gray-100 cursor-pointer border-b">{{ c.name }}</div></div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <input v-model="tempApp.date" type="date" class="p-3 border rounded-xl w-full">
-                        <input v-model="tempApp.time" type="time" class="p-3 border rounded-xl w-full">
-                    </div>
-                    <input v-model="tempApp.location.bairro" placeholder="Local" class="p-3 border rounded-xl w-full">
-                    <div class="bg-gray-50 p-4 rounded-xl border">
-                        <div class="flex gap-2 mb-2">
-                            <select v-model="tempServiceSelect" class="flex-1 p-2 border rounded-lg truncate"><option :value="''">Serviço...</option><option v-for="s in services" :value="s">{{ s.description }} - {{ formatCurrency(s.price) }}</option></select>
-                            <button @click="addServiceToApp" class="bg-green-500 text-white px-3 rounded-lg font-bold">+</button>
+                        <label class="text-xs font-bold text-gray-500">CLIENTE</label>
+                        <input v-model="clientSearchTerm" placeholder="Buscar..." class="input-clean">
+                        <div v-if="filteredClientsSearch.length" class="absolute w-full bg-white border shadow-lg max-h-40 overflow-y-auto z-50 mt-1 rounded">
+                            <div v-for="c in filteredClientsSearch" @click="selectClient(c)" class="p-2 hover:bg-gray-100 cursor-pointer text-sm border-b">{{ c.name }}</div>
                         </div>
-                        <div v-for="(s,i) in tempApp.selectedServices" class="flex justify-between text-sm bg-white p-2 rounded border mb-1"><span class="truncate">{{ s.description }}</span><button @click="removeServiceFromApp(i)" class="text-red-500"><i class="fa-solid fa-times"></i></button></div>
+                        <button v-if="!tempApp.clientId" @click="openClientModal()" class="text-xs text-brand-600 font-bold mt-1 block">+ Novo Cliente</button>
                     </div>
                     <div class="grid grid-cols-2 gap-4">
-                        <input v-model="tempApp.details.balloonColors" placeholder="Cores" class="p-3 border rounded-xl w-full">
-                        <input v-model="tempApp.notes" placeholder="Obs" class="p-3 border rounded-xl w-full">
+                        <div><label class="text-xs font-bold text-gray-500">DATA</label><input v-model="tempApp.date" type="date" class="input-clean"></div>
+                        <div><label class="text-xs font-bold text-gray-500">HORA</label><input v-model="tempApp.time" type="time" class="input-clean"></div>
                     </div>
-                    <div class="bg-primary-50 p-4 rounded-xl border border-primary-100">
+                    <div><label class="text-xs font-bold text-gray-500">LOCAL</label><input v-model="tempApp.location.bairro" class="input-clean"></div>
+                    <div class="bg-gray-50 p-4 rounded border">
+                        <label class="text-xs font-bold text-gray-500">SERVIÇOS</label>
+                        <div class="flex gap-2 mb-2"><select v-model="tempServiceSelect" class="input-clean"><option :value="''">Selecione...</option><option v-for="s in services" :value="s">{{ s.description }} - {{ formatCurrency(s.price) }}</option></select><button @click="addServiceToApp" class="btn-primary px-3">+</button></div>
+                        <div v-for="(s,i) in tempApp.selectedServices" class="flex justify-between text-sm bg-white p-2 border rounded mb-1"><span>{{ s.description }}</span><button @click="removeServiceFromApp(i)" class="text-red-500"><i class="fa-solid fa-times"></i></button></div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label class="text-xs font-bold text-gray-500">CORES</label><input v-model="tempApp.details.balloonColors" class="input-clean"></div>
+                        <div><label class="text-xs font-bold text-gray-500">OBS</label><input v-model="tempApp.notes" class="input-clean"></div>
+                    </div>
+                    <div class="bg-brand-50 p-4 rounded border border-brand-100">
                         <div class="flex justify-between mb-2"><span>Total:</span> <strong>{{ formatCurrency(totalServices) }}</strong></div>
-                        <div class="flex justify-between items-center"><span>Sinal:</span> <input v-model="tempApp.details.entryFee" type="number" class="w-24 p-1 rounded text-right border"></div>
-                        <div class="flex justify-between text-primary-700 font-bold border-t pt-2 mt-2"><span>Restante:</span> <span>{{ formatCurrency(finalBalance) }}</span></div>
+                        <div class="flex justify-between items-center"><span>Sinal:</span> <input v-model="tempApp.details.entryFee" type="number" class="w-24 p-1 text-right border rounded"></div>
+                        <div class="flex justify-between font-bold text-brand-700 border-t pt-2 mt-2"><span>Restante:</span> <span>{{ formatCurrency(finalBalance) }}</span></div>
                     </div>
-                    <button @click="saveAppointment" class="w-full bg-primary-600 text-white py-3 rounded-xl font-bold shadow-lg">Confirmar</button>
+                    <button @click="saveAppointment" class="btn-primary w-full py-3">Confirmar</button>
                 </div>
             </div>
         </div>
 
-        <div v-if="showExpenseModal" class="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
-            <div class="bg-white p-6 rounded-2xl w-full max-w-sm">
+        <div v-if="showExpenseModal" class="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+            <div class="bg-white p-6 rounded-xl w-full max-w-sm">
                 <h3 class="font-bold mb-4">Nova Despesa</h3>
-                <input v-model="newExpense.description" placeholder="Descrição" class="w-full p-3 rounded-xl border mb-3">
-                <input v-model="newExpense.value" type="number" placeholder="Valor" class="w-full p-3 rounded-xl border mb-3">
-                <select v-model="newExpense.category" class="w-full p-3 rounded-xl border mb-3"><option v-for="c in expenseCategories" :value="c.id">{{ c.label }}</option></select>
-                <input v-model="newExpense.date" type="date" class="w-full p-3 rounded-xl border mb-4">
-                <button @click="addExpense" class="w-full bg-red-500 text-white py-3 rounded-xl font-bold">Salvar</button>
-                <button @click="showExpenseModal=false" class="w-full mt-2 text-gray-500 font-bold">Cancelar</button>
+                <input v-model="newExpense.description" placeholder="Descrição" class="input-clean mb-3">
+                <input v-model="newExpense.value" type="number" placeholder="Valor" class="input-clean mb-3">
+                <select v-model="newExpense.category" class="input-clean mb-3"><option v-for="c in expenseCategories" :value="c.id">{{ c.label }}</option></select>
+                <input v-model="newExpense.date" type="date" class="input-clean mb-4">
+                <div class="flex gap-2"><button @click="addExpense" class="btn-primary bg-red-600 hover:bg-red-700 flex-1">Salvar</button><button @click="showExpenseModal=false" class="flex-1 bg-gray-200 py-2 rounded text-sm font-bold">Cancelar</button></div>
             </div>
         </div>
 
     </div>
 
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script type="module" src="js/app.js?v=800.0"></script>
+    <script type="module" src="js/app.js?v=1000.0"></script>
 </body>
 </html>
