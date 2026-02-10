@@ -6,7 +6,7 @@
     <title>PartyPlanner Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
@@ -33,9 +33,9 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
-        /* Ajuste do textarea */
-        .textarea-dark {
-            @apply w-full bg-input-light dark:bg-input-dark border border-slate-300 dark:border-slate-600 rounded-xl p-4 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all placeholder-slate-400 resize-none;
+        /* Classe específica para Textarea corrigir Dark Mode e Bordas */
+        .textarea-custom {
+            @apply w-full bg-input-light dark:bg-input-dark border border-slate-300 dark:border-slate-600 rounded-xl p-4 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all placeholder-slate-400 resize-none text-slate-800 dark:text-white;
         }
     </style>
 </head>
@@ -212,8 +212,8 @@
                     <div class="flex justify-between items-center"><h2 class="text-2xl font-bold text-slate-900 dark:text-white">Financeiro</h2><button @click="showExpenseModal=true" class="bg-red-500 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-red-500/20 hover:bg-red-600 transition flex items-center gap-2"><i class="fa-solid fa-minus"></i> Nova Despesa</button></div>
                     <div class="bg-white dark:bg-card-dark rounded-2xl shadow-sm overflow-hidden border border-slate-200 dark:border-slate-700">
                         <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex flex-wrap gap-3 items-end bg-slate-50 dark:bg-slate-800/50">
-                            <div class="flex-1 min-w-[120px]"><label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">De</label><input type="date" v-model="expensesFilter.start" class="w-full h-10 px-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm outline-none focus:ring-2 focus:ring-brand-500"></div>
-                            <div class="flex-1 min-w-[120px]"><label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Até</label><input type="date" v-model="expensesFilter.end" class="w-full h-10 px-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm outline-none focus:ring-2 focus:ring-brand-500"></div>
+                            <div class="flex-1 min-w-[120px]"><label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">De</label><input type="date" v-model="expensesFilter.start" class="w-full h-10 px-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm"></div>
+                            <div class="flex-1 min-w-[120px]"><label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Até</label><input type="date" v-model="expensesFilter.end" class="w-full h-10 px-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm"></div>
                             <button @click="searchExpenses" class="h-10 bg-slate-800 text-white px-5 rounded-lg font-bold hover:bg-slate-900"><i class="fa-solid fa-filter"></i></button>
                         </div>
                         <div class="max-h-[400px] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700">
@@ -350,7 +350,7 @@
                     </div>
                     <div>
                         <label class="text-[11px] font-bold text-slate-400 uppercase ml-1 mb-1 block">Observações</label>
-                        <textarea v-model="tempApp.notes" placeholder="Detalhes extras..." class="textarea-dark h-32"></textarea>
+                        <textarea v-model="tempApp.notes" placeholder="Detalhes extras..." class="textarea-custom h-32"></textarea>
                     </div>
 
                     <div class="bg-brand-50 dark:bg-slate-800 p-5 rounded-2xl border border-brand-100 dark:border-slate-700">
@@ -380,20 +380,22 @@
         </div>
 
         <div v-if="showServiceModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div class="bg-white dark:bg-card-dark p-6 rounded-3xl w-full max-w-md shadow-2xl border border-slate-200 dark:border-slate-700">
-                <h3 class="font-bold text-slate-800 dark:text-white text-lg mb-4">Catálogo</h3>
-                <div class="flex gap-2 mb-4">
-                    <input v-model="newService.description" placeholder="Nome" class="flex-1 h-10 px-3 bg-input-light dark:bg-input-dark border border-slate-300 dark:border-slate-600 rounded-lg outline-none">
-                    <input v-model="newService.price" type="number" placeholder="R$" class="w-24 h-10 px-3 bg-input-light dark:bg-input-dark border border-slate-300 dark:border-slate-600 rounded-lg outline-none">
-                    <button @click="saveService" class="bg-green-500 text-white px-4 rounded-lg shadow font-bold"><i class="fa-solid fa-check"></i></button>
-                </div>
-                <div class="max-h-60 overflow-y-auto space-y-2 pr-1">
-                    <div v-for="s in services" :key="s.id" class="flex justify-between items-center p-3 border rounded-xl bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700">
-                        <span class="text-sm font-medium text-slate-700 dark:text-slate-300">{{ s.description }}</span>
-                        <div class="flex gap-3 items-center"><span class="font-bold text-xs bg-white dark:bg-slate-900 px-2 py-1 rounded text-brand-600">{{ formatCurrency(s.price) }}</span><button @click="deleteService(s.id)" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-trash"></i></button></div>
+            <div class="bg-white dark:bg-card-dark p-6 rounded-3xl w-full max-w-sm shadow-2xl border border-slate-200 dark:border-slate-700">
+                <h3 class="font-bold text-slate-800 dark:text-white text-lg mb-6 text-center">Novo Serviço</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-[11px] font-bold text-slate-400 uppercase ml-1 mb-1 block">Descrição</label>
+                        <input v-model="newService.description" placeholder="Ex: Decoração Completa" class="w-full h-12 px-4 bg-input-light dark:bg-input-dark border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-brand-500 text-sm">
+                    </div>
+                    <div>
+                        <label class="text-[11px] font-bold text-slate-400 uppercase ml-1 mb-1 block">Valor (R$)</label>
+                        <input v-model="newService.price" type="number" placeholder="0,00" class="w-full h-12 px-4 bg-input-light dark:bg-input-dark border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-brand-500 text-sm">
                     </div>
                 </div>
-                <button @click="showServiceModal=false" class="mt-4 w-full bg-slate-100 text-slate-600 py-3 rounded-xl font-bold hover:bg-slate-200 transition">Fechar</button>
+                <div class="flex gap-3 mt-8">
+                    <button @click="showServiceModal=false" class="flex-1 h-12 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl font-bold hover:bg-slate-200 transition">Cancelar</button>
+                    <button @click="saveService" class="flex-1 h-12 bg-brand-600 hover:bg-brand-500 text-white rounded-xl font-bold shadow-lg transition">Cadastrar</button>
+                </div>
             </div>
         </div>
 
@@ -413,6 +415,6 @@
     </div>
 
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script type="module" src="js/app.js?v=8000.0"></script>
+    <script type="module" src="js/app.js?v=9000.0"></script>
 </body>
 </html>
