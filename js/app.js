@@ -9,7 +9,9 @@ import {
 
 createApp({
     setup() {
-        // --- 1. ESTADOS PRINCIPAIS ---
+        // =================================================================
+        // 1. ESTADOS PRINCIPAIS
+        // =================================================================
         const user = ref(null);
         const view = ref('dashboard');
         const isDark = ref(false);
@@ -17,8 +19,9 @@ createApp({
         const isRegistering = ref(false);
         const authForm = reactive({ email: '', password: '', name: '' });
         
-        // Estado da Tela "Cadastros" (Novo)
-        const registrationTab = ref('clients'); // clients, services, company
+        // Controle de Abas
+        const registrationTab = ref('clients'); // Abas da tela Cadastros
+        const agendaTab = ref('pending');       // Abas da tela Agenda
 
         // Dados
         const company = reactive({ fantasia: '', logo: '', cnpj: '', rua: '', cidade: '', estado: '' });
@@ -26,51 +29,66 @@ createApp({
         const dashboardData = reactive({ appointments: [], expenses: [] });
         const isLoadingDashboard = ref(false);
         
-        // Listas
+        // Listas de Dados
         const services = ref([]);
         const pendingAppointments = ref([]);
+        const historyList = ref([]);
         const expensesList = ref([]); 
         const isExtractLoaded = ref(false);
         const catalogClientsList = ref([]);
         const scheduleClientsList = ref([]);
         const clientCache = reactive({});
-        const historyList = ref([]);
 
-        // Modais e Controles
+        // Modais e Controles UI
         const showAppointmentModal = ref(false);
+        const showServiceModal = ref(false);
         const showExpenseModal = ref(false);
-        const newService = reactive({ description: '', price: '' });
-
-        // Forms de Edição
-        const tempApp = reactive({ clientId: '', date: '', time: '', location: { bairro: '' }, details: { entryFee: 0, balloonColors: '' }, notes: '', selectedServices: [], checklist: [] });
-        const tempServiceSelect = ref('');
-        const newExpense = reactive({ description: '', value: '', date: new Date().toISOString().split('T')[0], category: 'outros' });
-        const expensesFilter = reactive({ start: '', end: '' });
-        const agendaFilter = reactive({ start: '', end: '' });
-        
-        const currentReceipt = ref(null);
         const isEditing = ref(false);
         const editingId = ref(null);
+        const currentReceipt = ref(null);
+        
+        // Inputs de Busca e Filtro
         const clientSearchTerm = ref('');
         const catalogClientSearch = ref('');
-        
-        // Agenda e Calendário
-        const agendaTab = ref('pending');
+        const expensesFilter = reactive({ start: '', end: '' });
+        const agendaFilter = reactive({ start: '', end: '' });
         const appointmentViewMode = ref('list');
         const calendarCursor = ref(new Date());
         const selectedCalendarDate = ref(null);
+
+        // Formulários
+        const newService = reactive({ description: '', price: '' });
+        const newExpense = reactive({ description: '', value: '', date: new Date().toISOString().split('T')[0], category: 'outros' });
+        const tempServiceSelect = ref('');
+        
+        // Objeto de Agendamento (Com novos campos)
+        const tempApp = reactive({ 
+            clientId: '', 
+            date: '', 
+            time: '', 
+            location: { bairro: '' }, 
+            details: { entryFee: 0, balloonColors: '' }, // Novo campo
+            notes: '', // Novo campo
+            selectedServices: [], 
+            checklist: [] 
+        });
 
         const expenseCategories = [
             { id: 'combustivel', label: 'Combustível', icon: 'fa-gas-pump' },
             { id: 'materiais', label: 'Materiais', icon: 'fa-box-open' },
             { id: 'equipe', label: 'Equipe', icon: 'fa-users' },
-            { id: 'outros', label: 'Outros', icon: 'fa-money-bill' }
+            { id: 'refeicao', label: 'Alimentação', icon: 'fa-utensils' },
+            { id: 'marketing', label: 'Marketing', icon: 'fa-bullhorn' },
+            { id: 'aluguel', label: 'Aluguel', icon: 'fa-house' },
+            { id: 'outros', label: 'Outras', icon: 'fa-money-bill' }
         ];
 
-        // --- 2. UTILS & HELPERS ---
+        // =================================================================
+        // 2. FUNÇÕES AUXILIARES (UTILS)
+        // =================================================================
         const toNum = (val) => { if (!val) return 0; if (typeof val === 'number') return val; const clean = String(val).replace(',', '.').replace(/[^0-9.-]/g, ''); return parseFloat(clean) || 0; };
         const formatCurrency = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(toNum(v));
-        const formatDate = (d) => d ? d.split('-').reverse().join('/') : '';
+        const formatDate = (d) => { if (!d) return ''; try { return d.split('-').reverse().join('/'); } catch (e) { return d; } };
         const getDay = (d) => d ? d.split('-')[2] : '';
         const getMonth = (d) => d ? ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'][parseInt(d.split('-')[1])-1] : '';
         const statusText = (s) => s === 'concluded' ? 'Concluído' : (s === 'cancelled' ? 'Cancelado' : 'Pendente');
@@ -90,16 +108,22 @@ createApp({
             let entry = toNum(data.entryFee || data.details?.entryFee);
             let balance = toNum(data.finalBalance);
             if (balance === 0 && total > 0) balance = total - entry;
+            
+            // Tratamento seguro para campos novos em registros antigos
             return { 
                 id: docSnapshot.id || data.id, ...data, 
                 selectedServices: safeServices, totalServices: total, finalBalance: balance, entryFee: entry, 
-                checklist: data.checklist || [], details: { ...data.details, balloonColors: data.details?.balloonColors || '' }, notes: data.notes || ''
+                checklist: data.checklist || [], 
+                details: { ...(data.details || {}), balloonColors: data.details?.balloonColors || '' },
+                notes: data.notes || ''
             };
         };
 
         const sanitizeExpense = (docSnapshot) => { const data = docSnapshot.data ? docSnapshot.data() : docSnapshot; return { id: docSnapshot.id || data.id, ...data, value: toNum(data.value) }; };
 
-        // --- 3. CARREGAMENTO ---
+        // =================================================================
+        // 3. CARREGAMENTO E SINCRONIZAÇÃO
+        // =================================================================
         onMounted(() => {
             onAuthStateChanged(auth, async (u) => {
                 if (u) {
@@ -141,9 +165,12 @@ createApp({
             });
         };
 
-        // --- 4. COMPUTEDS ---
+        // =================================================================
+        // 4. COMPUTEDS (CÁLCULOS)
+        // =================================================================
         const totalServices = computed(() => tempApp.selectedServices.reduce((s,i) => s + toNum(i.price), 0));
         const finalBalance = computed(() => totalServices.value - toNum(tempApp.details.entryFee));
+        
         const kpiRevenue = computed(() => dashboardData.appointments.reduce((acc, a) => acc + toNum(a.totalServices), 0));
         const kpiExpenses = computed(() => dashboardData.expenses.reduce((acc, e) => acc + toNum(e.value), 0));
         const financeData = computed(() => ({ revenue: kpiRevenue.value, expenses: kpiExpenses.value, profit: kpiRevenue.value - kpiExpenses.value, receivables: dashboardData.appointments.reduce((acc, a) => acc + toNum(a.finalBalance), 0) }));
@@ -156,6 +183,7 @@ createApp({
             return pendingAppointments.value.filter(a => a.date >= todayStr && a.date <= nextWeekStr).sort((a,b) => a.date.localeCompare(b.date));
         });
 
+        // --- Extrato Financeiro ---
         const searchExpenses = async () => {
             if(!expensesFilter.start || !expensesFilter.end) return Swal.fire('Data', 'Selecione o período', 'info');
             const qExp = query(collection(db, "expenses"), where("userId", "==", user.value.uid), where("date", ">=", expensesFilter.start), where("date", "<=", expensesFilter.end));
@@ -164,12 +192,13 @@ createApp({
             const qApp = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("date", ">=", expensesFilter.start), where("date", "<=", expensesFilter.end));
             const snapApp = await getDocs(qApp);
             const loadedIncome = snapApp.docs.map(d => { const app = sanitizeApp(d); return { id: app.id, date: app.date, value: app.totalServices, description: `Receita: ${getClientName(app.clientId)}`, type: 'income', icon: 'fa-arrow-up', color: 'text-green-500' }; });
-            expensesList.value = [...loadedExpenses, ...loadedIncome]; isExtractLoaded.value = true;
+            expensesList.value = [...loadedExpenses, ...loadedIncome]; 
+            isExtractLoaded.value = true;
         };
-
         const statementList = computed(() => { if (!isExtractLoaded.value) return []; return expensesList.value.sort((a, b) => b.date.localeCompare(a.date)); });
         const financeSummary = computed(() => statementList.value.reduce((acc, item) => item.type === 'income' ? acc + item.value : acc - item.value, 0));
 
+        // --- Calendário ---
         const calendarGrid = computed(() => {
             const year = calendarCursor.value.getFullYear(); const month = calendarCursor.value.getMonth();
             const firstDay = new Date(year, month, 1).getDay(); const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -186,7 +215,7 @@ createApp({
         const changeCalendarMonth = (off) => { const d = new Date(calendarCursor.value); d.setMonth(d.getMonth() + off); calendarCursor.value = d; };
         const calendarTitle = computed(() => `${['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'][calendarCursor.value.getMonth()]} ${calendarCursor.value.getFullYear()}`);
         
-        // Filtros de Agenda
+        // --- Filtros Agenda ---
         const searchHistory = async () => {
             if(!agendaFilter.start || !agendaFilter.end) return Swal.fire('Atenção', 'Selecione datas', 'warning');
             const q = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("status", "==", agendaTab.value), where("date", ">=", agendaFilter.start), where("date", "<=", agendaFilter.end));
@@ -200,7 +229,9 @@ createApp({
             return list.sort((a,b) => a.date.localeCompare(b.date)); 
         });
 
-        // --- AÇÕES ---
+        // =================================================================
+        // 5. AÇÕES (BOTÕES E LOGICA)
+        // =================================================================
         const handleAuth = async () => { authLoading.value = true; try { if (isRegistering.value) { const c=await createUserWithEmailAndPassword(auth, authForm.email, authForm.password); await updateProfile(c.user,{displayName:authForm.name}); await setDoc(doc(db,"users",c.user.uid),{email:authForm.email}); } else { await signInWithEmailAndPassword(auth,authForm.email,authForm.password); } } catch(e){Swal.fire('Erro','Dados inválidos','error');} finally{authLoading.value=false;} };
         
         const saveAppointment = async () => {
@@ -218,10 +249,19 @@ createApp({
 
         const saveService = async () => { if(!newService.description || !newService.price) return; await addDoc(collection(db, "services"), { description: newService.description, price: toNum(newService.price), userId: user.value.uid }); newService.description = ''; newService.price = ''; };
         const deleteService = async (id) => { await deleteDoc(doc(db, "services", id)); };
-        const addExpense = async () => { await addDoc(collection(db, "expenses"), { ...newExpense, value: toNum(newExpense.value), userId: user.value.uid }); showExpenseModal.value = false; Swal.fire('Salvo','','success'); };
-        const deleteClient = async (id) => { if((await Swal.fire({title:'Excluir?',showCancelButton:true})).isConfirmed) { await deleteDoc(doc(db,"clients",id)); searchCatalogClients(); }};
-        const openClientModal = async () => { const {value:v}=await Swal.fire({title:'Novo Cliente', html:'<input id="n" placeholder="Nome" class="swal2-input"><input id="p" placeholder="Tel" class="swal2-input"><input id="cpf" placeholder="CPF" class="swal2-input">', preConfirm:()=>[document.getElementById('n').value,document.getElementById('p').value,document.getElementById('cpf').value]}); if(v) await addDoc(collection(db,"clients"),{name:v[0],phone:v[1],cpf:v[2],userId:user.value.uid}); };
         
+        const addExpense = async () => { await addDoc(collection(db, "expenses"), { ...newExpense, value: toNum(newExpense.value), userId: user.value.uid }); showExpenseModal.value = false; Swal.fire('Salvo','','success'); };
+        
+        // Clientes
+        const deleteClient = async (id) => { if((await Swal.fire({title:'Excluir?',showCancelButton:true})).isConfirmed) { await deleteDoc(doc(db,"clients",id)); searchCatalogClients(); }};
+        const openClientModal = async () => { 
+            const {value:v}=await Swal.fire({
+                title:'Novo Cliente', 
+                html:'<input id="n" placeholder="Nome" class="swal2-input"><input id="p" placeholder="Tel" class="swal2-input"><input id="cpf" placeholder="CPF" class="swal2-input">', 
+                preConfirm:()=>[document.getElementById('n').value,document.getElementById('p').value,document.getElementById('cpf').value]
+            }); 
+            if(v) await addDoc(collection(db,"clients"),{name:v[0],phone:v[1],cpf:v[2],userId:user.value.uid}); 
+        };
         const searchCatalogClients = async () => { const q = query(collection(db, "clients"), where("userId", "==", user.value.uid)); const snap = await getDocs(q); catalogClientsList.value = snap.docs.map(d => ({id: d.id, ...d.data()})).filter(c => c.name.toLowerCase().includes(catalogClientSearch.value.toLowerCase())); };
         watch(clientSearchTerm, async (val) => { if (val && val.length > 2) { const q = query(collection(db, "clients"), where("userId", "==", user.value.uid)); const snap = await getDocs(q); scheduleClientsList.value = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => c.name.toLowerCase().includes(val.toLowerCase())); } else { scheduleClientsList.value = []; } });
         const filteredClientsSearch = computed(() => scheduleClientsList.value);
@@ -229,10 +269,16 @@ createApp({
         const expensesByCategoryStats = computed(() => { if (!dashboardData.expenses.length) return []; return expenseCategories.map(cat => { const total = dashboardData.expenses.filter(e => e.category === cat.id).reduce((sum, e) => sum + toNum(e.value), 0); return { ...cat, total }; }).filter(c => c.total > 0).sort((a, b) => b.total - a.total); });
         const downloadReceiptImage = () => { html2canvas(document.getElementById('receipt-capture-area')).then(c => { const l = document.createElement('a'); l.download = 'Recibo.png'; l.href = c.toDataURL(); l.click(); }); };
         
+        // PDF Contrato Atualizado
         const generateContractPDF = () => { 
             const { jsPDF } = window.jspdf; const doc = new jsPDF(); const app = currentReceipt.value; const cli = clientCache[app.clientId] || {name:'...',cpf:'...'};
             doc.setFontSize(18); doc.text("CONTRATO DE PRESTAÇÃO DE SERVIÇOS", 105, 20, {align:"center"});
-            doc.setFontSize(12); doc.text(`CONTRATADA: ${company.fantasia}, CNPJ: ${company.cnpj || '...'}`, 20, 40); doc.text(`Endereço: ${company.rua || ''} - ${company.cidade || ''}/${company.estado || ''}`, 20, 46); doc.text(`CONTRATANTE: ${cli.name}, CPF: ${cli.cpf || '...'}`, 20, 56); doc.text(`Data do Evento: ${formatDate(app.date)} às ${app.time}`, 20, 70); doc.text(`Local: ${app.location.bairro}`, 20, 76);
+            doc.setFontSize(12); 
+            doc.text(`CONTRATADA: ${company.fantasia}, CNPJ: ${company.cnpj || '...'}`, 20, 40);
+            doc.text(`Endereço: ${company.rua || ''} - ${company.cidade || ''}/${company.estado || ''}`, 20, 46);
+            doc.text(`CONTRATANTE: ${cli.name}, CPF: ${cli.cpf || '...'}`, 20, 56);
+            doc.text(`Data do Evento: ${formatDate(app.date)} às ${app.time}`, 20, 70);
+            doc.text(`Local: ${app.location.bairro}`, 20, 76);
             const body = app.selectedServices.map(s => [s.description, formatCurrency(s.price)]); doc.autoTable({startY: 85, head: [['Serviço', 'Valor']], body: body});
             let y = doc.lastAutoTable.finalY + 10; doc.text(`Total: ${formatCurrency(app.totalServices)}`, 20, y); doc.text(`Sinal: ${formatCurrency(app.entryFee)}`, 20, y+10); doc.text(`Restante: ${formatCurrency(app.finalBalance)}`, 20, y+20);
             if(app.details.balloonColors) doc.text(`Cores: ${app.details.balloonColors}`, 20, y+30); if(app.notes) doc.text(`Obs: ${app.notes}`, 20, y+36); doc.save("Contrato.pdf");
@@ -242,6 +288,9 @@ createApp({
         const saveCompany = () => { updateDoc(doc(db, "users", user.value.uid), { companyConfig: company }); Swal.fire('Salvo', '', 'success'); };
         const handleChangePassword = async () => { const html = '<input id="currentPass" type="password" class="swal2-input" placeholder="Senha Atual"><input id="newPass" type="password" class="swal2-input" placeholder="Nova Senha">'; const { value: fv } = await Swal.fire({ title: 'Alterar Senha', html: html, showCancelButton: true, confirmButtonText: 'Alterar', preConfirm: () => { return [document.getElementById('currentPass').value, document.getElementById('newPass').value]; } }); if (fv && fv[0] && fv[1]) { try { const c = EmailAuthProvider.credential(user.value.email, fv[0]); await reauthenticateWithCredential(user.value, c); await updatePassword(user.value, fv[1]); Swal.fire('Sucesso!', 'Senha alterada.', 'success'); } catch (error) { Swal.fire('Erro', 'Senha incorreta.', 'error'); } } };
 
+        // =================================================================
+        // 6. RETORNO PARA O HTML (TUDO QUE É USADO NO TEMPLATE)
+        // =================================================================
         return {
             user, view, isDark, authForm, authLoading, isRegistering, handleAuth, logout: () => { signOut(auth); window.location.href="index.html"; },
             dashboardMonth, financeData, next7DaysApps, statementList, isExtractLoaded, financeSummary, expensesFilter, searchExpenses,
@@ -260,7 +309,7 @@ createApp({
             toggleDarkMode: () => { isDark.value=!isDark.value; document.documentElement.classList.toggle('dark'); },
             expenseCategories, expensesByCategoryStats,
             agendaTab, agendaFilter, searchHistory, changeStatus,
-            registrationTab // NOVO RETORNO
+            registrationTab // CRUCIAL: Retornando o controle da aba de Cadastros
         };
     }
 }).mount('#app');
