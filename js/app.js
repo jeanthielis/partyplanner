@@ -9,6 +9,9 @@ import {
 
 createApp({
     setup() {
+        // =================================================================
+        // 1. ESTADOS
+        // =================================================================
         const user = ref(null);
         const view = ref('dashboard');
         const isDark = ref(false);
@@ -16,30 +19,37 @@ createApp({
         const isRegistering = ref(false);
         const authForm = reactive({ email: '', password: '', name: '' });
         
-        const registrationTab = ref('clients');
-        const agendaTab = ref('pending');
+        // Controle de Abas
+        const registrationTab = ref('clients'); // clients, services, company
+        const agendaTab = ref('pending');       // pending, concluded, cancelled
 
+        // Dados
         const company = reactive({ fantasia: '', logo: '', cnpj: '', rua: '', cidade: '', estado: '' });
         const dashboardMonth = ref(new Date().toISOString().slice(0, 7));
         const dashboardData = reactive({ appointments: [], expenses: [] });
         const isLoadingDashboard = ref(false);
         
+        // Listas
         const services = ref([]);
         const pendingAppointments = ref([]);
         const historyList = ref([]);
         const expensesList = ref([]); 
         const isExtractLoaded = ref(false);
         const catalogClientsList = ref([]);
-        const scheduleClientsList = ref([]);
+        const scheduleClientsList = ref([]); // Lista do dropdown da agenda
         const clientCache = reactive({});
 
+        // Modais e Controles
         const showAppointmentModal = ref(false);
+        const showServiceModal = ref(false);
         const showExpenseModal = ref(false);
         const isEditing = ref(false);
         const editingId = ref(null);
         const currentReceipt = ref(null);
         
+        // Busca e Filtros
         const clientSearchTerm = ref('');
+        const isSelectingClient = ref(false); // TRAVA PARA O BUG DO DROPDOWN
         const catalogClientSearch = ref('');
         const expensesFilter = reactive({ start: '', end: '' });
         const agendaFilter = reactive({ start: '', end: '' });
@@ -47,11 +57,21 @@ createApp({
         const calendarCursor = ref(new Date());
         const selectedCalendarDate = ref(null);
 
+        // Forms
         const newService = reactive({ description: '', price: '' });
         const newExpense = reactive({ description: '', value: '', date: new Date().toISOString().split('T')[0], category: 'outros' });
         const tempServiceSelect = ref('');
         
-        const tempApp = reactive({ clientId: '', date: '', time: '', location: { bairro: '' }, details: { entryFee: 0, balloonColors: '' }, notes: '', selectedServices: [], checklist: [] });
+        const tempApp = reactive({ 
+            clientId: '', 
+            date: '', 
+            time: '', 
+            location: { bairro: '' }, 
+            details: { entryFee: 0, balloonColors: '' }, 
+            notes: '', 
+            selectedServices: [], 
+            checklist: [] 
+        });
 
         const expenseCategories = [
             { id: 'combustivel', label: 'Combustível', icon: 'fa-gas-pump' },
@@ -63,13 +83,15 @@ createApp({
             { id: 'outros', label: 'Outras', icon: 'fa-money-bill' }
         ];
 
-        // --- UTILS ---
+        // =================================================================
+        // 2. UTILS
+        // =================================================================
         const toNum = (val) => { if (!val) return 0; if (typeof val === 'number') return val; const clean = String(val).replace(',', '.').replace(/[^0-9.-]/g, ''); return parseFloat(clean) || 0; };
         const formatCurrency = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(toNum(v));
         const formatDate = (d) => { if (!d) return ''; try { return d.split('-').reverse().join('/'); } catch (e) { return d; } };
         const getDay = (d) => d ? d.split('-')[2] : '';
         const getMonth = (d) => d ? ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'][parseInt(d.split('-')[1])-1] : '';
-        const statusText = (s) => s === 'concluded' ? 'Concluído' : (s === 'cancelled' ? 'Cancelado' : 'Pendente');
+        const statusText = (s) => s === 'concluded' ? 'Concluído' : (s === 'cancelled' ? 'Cancelada' : 'Pendente');
         const getClientName = (id) => clientCache[id]?.name || '...';
         const getClientPhone = (id) => clientCache[id]?.phone || '';
 
@@ -86,11 +108,20 @@ createApp({
             let entry = toNum(data.entryFee || data.details?.entryFee);
             let balance = toNum(data.finalBalance);
             if (balance === 0 && total > 0) balance = total - entry;
-            return { id: docSnapshot.id || data.id, ...data, selectedServices: safeServices, totalServices: total, finalBalance: balance, entryFee: entry, checklist: data.checklist || [], details: { ...(data.details || {}), balloonColors: data.details?.balloonColors || '' }, notes: data.notes || '' };
+            return { 
+                id: docSnapshot.id || data.id, ...data, 
+                selectedServices: safeServices, totalServices: total, finalBalance: balance, entryFee: entry, 
+                checklist: data.checklist || [], 
+                details: { ...(data.details || {}), balloonColors: data.details?.balloonColors || '' },
+                notes: data.notes || ''
+            };
         };
 
         const sanitizeExpense = (docSnapshot) => { const data = docSnapshot.data ? docSnapshot.data() : docSnapshot; return { id: docSnapshot.id || data.id, ...data, value: toNum(data.value) }; };
 
+        // =================================================================
+        // 3. CORE LOGIC
+        // =================================================================
         onMounted(() => {
             onAuthStateChanged(auth, async (u) => {
                 if (u) {
@@ -132,8 +163,12 @@ createApp({
             });
         };
 
+        // =================================================================
+        // 4. CÁLCULOS
+        // =================================================================
         const totalServices = computed(() => tempApp.selectedServices.reduce((s,i) => s + toNum(i.price), 0));
         const finalBalance = computed(() => totalServices.value - toNum(tempApp.details.entryFee));
+        
         const kpiRevenue = computed(() => dashboardData.appointments.reduce((acc, a) => acc + toNum(a.totalServices), 0));
         const kpiExpenses = computed(() => dashboardData.expenses.reduce((acc, e) => acc + toNum(e.value), 0));
         const financeData = computed(() => ({ revenue: kpiRevenue.value, expenses: kpiExpenses.value, profit: kpiRevenue.value - kpiExpenses.value, receivables: dashboardData.appointments.reduce((acc, a) => acc + toNum(a.finalBalance), 0) }));
@@ -154,11 +189,13 @@ createApp({
             const qApp = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("date", ">=", expensesFilter.start), where("date", "<=", expensesFilter.end));
             const snapApp = await getDocs(qApp);
             const loadedIncome = snapApp.docs.map(d => { const app = sanitizeApp(d); return { id: app.id, date: app.date, value: app.totalServices, description: `Receita: ${getClientName(app.clientId)}`, type: 'income', icon: 'fa-arrow-up', color: 'text-green-500' }; });
-            expensesList.value = [...loadedExpenses, ...loadedIncome]; isExtractLoaded.value = true;
+            expensesList.value = [...loadedExpenses, ...loadedIncome]; 
+            isExtractLoaded.value = true;
         };
         const statementList = computed(() => { if (!isExtractLoaded.value) return []; return expensesList.value.sort((a, b) => b.date.localeCompare(a.date)); });
         const financeSummary = computed(() => statementList.value.reduce((acc, item) => item.type === 'income' ? acc + item.value : acc - item.value, 0));
 
+        // --- AGENDA & CALENDARIO ---
         const calendarGrid = computed(() => {
             const year = calendarCursor.value.getFullYear(); const month = calendarCursor.value.getMonth();
             const firstDay = new Date(year, month, 1).getDay(); const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -188,15 +225,49 @@ createApp({
             return list.sort((a,b) => a.date.localeCompare(b.date)); 
         });
 
-        // --- CORREÇÃO DO BUG DE BUSCA DO CLIENTE ---
+        // =================================================================
+        // 5. AÇÕES E CORREÇÕES
+        // =================================================================
+        
+        // --- BUSCA CLIENTE CORRIGIDA (SEM LOOP) ---
+        watch(clientSearchTerm, async (val) => {
+            if (isSelectingClient.value) return; // Se for seleção, ignora a busca
+            if (val && val.length > 2) {
+                const q = query(collection(db, "clients"), where("userId", "==", user.value.uid));
+                const snap = await getDocs(q);
+                scheduleClientsList.value = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => c.name.toLowerCase().includes(val.toLowerCase()));
+            } else { scheduleClientsList.value = []; }
+        });
+        
         const selectClient = (client) => {
+            isSelectingClient.value = true; // Ativa a trava
             tempApp.clientId = client.id;
             clientSearchTerm.value = client.name;
-            scheduleClientsList.value = []; // Limpa a lista para fechar o dropdown
+            scheduleClientsList.value = []; // Fecha dropdown
+            setTimeout(() => { isSelectingClient.value = false; }, 500); // Libera trava
         };
+        const filteredClientsSearch = computed(() => scheduleClientsList.value);
 
+        // --- AUTH ---
         const handleAuth = async () => { authLoading.value = true; try { if (isRegistering.value) { const c=await createUserWithEmailAndPassword(auth, authForm.email, authForm.password); await updateProfile(c.user,{displayName:authForm.name}); await setDoc(doc(db,"users",c.user.uid),{email:authForm.email}); } else { await signInWithEmailAndPassword(auth,authForm.email,authForm.password); } } catch(e){Swal.fire('Erro','Dados inválidos','error');} finally{authLoading.value=false;} };
         
+        // --- AGENDAMENTO ---
+        const startNewSchedule = () => { 
+            isEditing.value=false; 
+            // Reset completo
+            Object.assign(tempApp, {clientId:'', date:'', time:'', location:{bairro:''}, details:{entryFee:0, balloonColors:''}, notes: '', selectedServices:[], checklist:[]}); 
+            clientSearchTerm.value = ''; // Limpa busca
+            showAppointmentModal.value=true; 
+        };
+        
+        const editAppointment = (app) => { 
+            isEditing.value=true; 
+            editingId.value=app.id; 
+            Object.assign(tempApp, JSON.parse(JSON.stringify(app))); 
+            clientSearchTerm.value = getClientName(app.clientId); // Preenche nome
+            showAppointmentModal.value=true; 
+        };
+
         const saveAppointment = async () => {
             const appData = { ...JSON.parse(JSON.stringify(tempApp)), totalServices: totalServices.value, finalBalance: finalBalance.value, userId: user.value.uid, status: 'pending' };
             if(!appData.checklist.length) appData.checklist = [{text:'Materiais', done:false}];
@@ -210,27 +281,19 @@ createApp({
             if(isConfirmed) { await updateDoc(doc(db,"appointments",app.id), {status:status}); Swal.fire('Feito','','success'); }
         };
 
+        // --- SERVIÇOS, DESPESAS, CLIENTES ---
         const saveService = async () => { if(!newService.description || !newService.price) return; await addDoc(collection(db, "services"), { description: newService.description, price: toNum(newService.price), userId: user.value.uid }); newService.description = ''; newService.price = ''; };
         const deleteService = async (id) => { await deleteDoc(doc(db, "services", id)); };
         const addExpense = async () => { await addDoc(collection(db, "expenses"), { ...newExpense, value: toNum(newExpense.value), userId: user.value.uid }); showExpenseModal.value = false; Swal.fire('Salvo','','success'); };
-        const deleteClient = async (id) => { if((await Swal.fire({title:'Excluir?',showCancelButton:true})).isConfirmed) { await deleteDoc(doc(db,"clients",id)); searchCatalogClients(); }};
+        
         const openClientModal = async () => { const {value:v}=await Swal.fire({title:'Novo Cliente', html:'<input id="n" placeholder="Nome" class="swal2-input"><input id="p" placeholder="Tel" class="swal2-input"><input id="cpf" placeholder="CPF" class="swal2-input">', preConfirm:()=>[document.getElementById('n').value,document.getElementById('p').value,document.getElementById('cpf').value]}); if(v) await addDoc(collection(db,"clients"),{name:v[0],phone:v[1],cpf:v[2],userId:user.value.uid}); };
         
+        const deleteClient = async (id) => { if((await Swal.fire({title:'Excluir?',showCancelButton:true})).isConfirmed) { await deleteDoc(doc(db,"clients",id)); searchCatalogClients(); }};
         const searchCatalogClients = async () => { const q = query(collection(db, "clients"), where("userId", "==", user.value.uid)); const snap = await getDocs(q); catalogClientsList.value = snap.docs.map(d => ({id: d.id, ...d.data()})).filter(c => c.name.toLowerCase().includes(catalogClientSearch.value.toLowerCase())); };
-        watch(clientSearchTerm, async (val) => { if (val && val.length > 2) { const q = query(collection(db, "clients"), where("userId", "==", user.value.uid)); const snap = await getDocs(q); scheduleClientsList.value = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => c.name.toLowerCase().includes(val.toLowerCase())); } else { scheduleClientsList.value = []; } });
-        const filteredClientsSearch = computed(() => scheduleClientsList.value);
 
         const expensesByCategoryStats = computed(() => { if (!dashboardData.expenses.length) return []; return expenseCategories.map(cat => { const total = dashboardData.expenses.filter(e => e.category === cat.id).reduce((sum, e) => sum + toNum(e.value), 0); return { ...cat, total }; }).filter(c => c.total > 0).sort((a, b) => b.total - a.total); });
         const downloadReceiptImage = () => { html2canvas(document.getElementById('receipt-capture-area')).then(c => { const l = document.createElement('a'); l.download = 'Recibo.png'; l.href = c.toDataURL(); l.click(); }); };
-        
-        const generateContractPDF = () => { 
-            const { jsPDF } = window.jspdf; const doc = new jsPDF(); const app = currentReceipt.value; const cli = clientCache[app.clientId] || {name:'...',cpf:'...'};
-            doc.setFontSize(18); doc.text("CONTRATO DE PRESTAÇÃO DE SERVIÇOS", 105, 20, {align:"center"});
-            doc.setFontSize(12); doc.text(`CONTRATADA: ${company.fantasia}, CNPJ: ${company.cnpj || '...'}`, 20, 40); doc.text(`Endereço: ${company.rua || ''} - ${company.cidade || ''}/${company.estado || ''}`, 20, 46); doc.text(`CONTRATANTE: ${cli.name}, CPF: ${cli.cpf || '...'}`, 20, 56); doc.text(`Data do Evento: ${formatDate(app.date)} às ${app.time}`, 20, 70); doc.text(`Local: ${app.location.bairro}`, 20, 76);
-            const body = app.selectedServices.map(s => [s.description, formatCurrency(s.price)]); doc.autoTable({startY: 85, head: [['Serviço', 'Valor']], body: body});
-            let y = doc.lastAutoTable.finalY + 10; doc.text(`Total: ${formatCurrency(app.totalServices)}`, 20, y); doc.text(`Sinal: ${formatCurrency(app.entryFee)}`, 20, y+10); doc.text(`Restante: ${formatCurrency(app.finalBalance)}`, 20, y+20);
-            if(app.details.balloonColors) doc.text(`Cores: ${app.details.balloonColors}`, 20, y+30); if(app.notes) doc.text(`Obs: ${app.notes}`, 20, y+36); doc.save("Contrato.pdf");
-        };
+        const generateContractPDF = () => { const { jsPDF } = window.jspdf; const doc = new jsPDF(); const app = currentReceipt.value; const cli = clientCache[app.clientId] || {name:'...',cpf:'...'}; doc.setFontSize(18); doc.text("CONTRATO DE PRESTAÇÃO DE SERVIÇOS", 105, 20, {align:"center"}); doc.setFontSize(12); doc.text(`CONTRATADA: ${company.fantasia}, CNPJ: ${company.cnpj || '...'}`, 20, 40); doc.text(`Endereço: ${company.rua || ''} - ${company.cidade || ''}/${company.estado || ''}`, 20, 46); doc.text(`CONTRATANTE: ${cli.name}, CPF: ${cli.cpf || '...'}`, 20, 56); doc.text(`Data do Evento: ${formatDate(app.date)} às ${app.time}`, 20, 70); doc.text(`Local: ${app.location.bairro}`, 20, 76); const body = app.selectedServices.map(s => [s.description, formatCurrency(s.price)]); doc.autoTable({startY: 85, head: [['Serviço', 'Valor']], body: body}); let y = doc.lastAutoTable.finalY + 10; doc.text(`Total: ${formatCurrency(app.totalServices)}`, 20, y); doc.text(`Sinal: ${formatCurrency(app.entryFee)}`, 20, y+10); doc.text(`Restante: ${formatCurrency(app.finalBalance)}`, 20, y+20); if(app.details.balloonColors) doc.text(`Cores: ${app.details.balloonColors}`, 20, y+30); if(app.notes) doc.text(`Obs: ${app.notes}`, 20, y+36); doc.save("Contrato.pdf"); };
         
         const handleLogoUpload = (e) => { const f = e.target.files[0]; if(f){ const r=new FileReader(); r.onload=x=>{company.logo=x.target.result; updateDoc(doc(db,"users",user.value.uid),{companyConfig:company});}; r.readAsDataURL(f); }};
         const saveCompany = () => { updateDoc(doc(db, "users", user.value.uid), { companyConfig: company }); Swal.fire('Salvo', '', 'success'); };
@@ -241,16 +304,15 @@ createApp({
             dashboardMonth, financeData, next7DaysApps, statementList, isExtractLoaded, financeSummary, expensesFilter, searchExpenses,
             showExpenseModal, newExpense, addExpense, deleteExpense: async(id)=>{await deleteDoc(doc(db,"expenses",id)); loadDashboardData();},
             showAppointmentModal, showServiceModal, newService, saveService, deleteService,
-            tempApp, tempServiceSelect, services, totalServices, finalBalance, isEditing, clientSearchTerm, filteredClientsSearch,
-            startNewSchedule: () => { isEditing.value=false; Object.assign(tempApp, {clientId:'', date:'', time:'', location:{bairro:''}, details:{entryFee:0, balloonColors:''}, notes: '', selectedServices:[], checklist:[]}); showAppointmentModal.value=true; },
-            editAppointment: (app) => { isEditing.value=true; editingId.value=app.id; Object.assign(tempApp, JSON.parse(JSON.stringify(app))); showAppointmentModal.value=true; },
-            saveAppointment, addServiceToApp: () => { if(tempServiceSelect.value) tempApp.selectedServices.push(tempServiceSelect.value); tempServiceSelect.value=''; },
+            tempApp, tempServiceSelect, services, totalServices, finalBalance, isEditing, 
+            clientSearchTerm, filteredClientsSearch, filteredListAppointments, selectClient, // <--- FUNÇÃO CORRIGIDA EXPORTADA
+            startNewSchedule, editAppointment, saveAppointment, addServiceToApp: () => { if(tempServiceSelect.value) tempApp.selectedServices.push(tempServiceSelect.value); tempServiceSelect.value=''; },
             removeServiceFromApp: (i) => tempApp.selectedServices.splice(i,1),
-            appointmentViewMode, calendarGrid, calendarTitle, changeCalendarMonth, selectCalendarDay, selectedCalendarDate, appointmentsOnSelectedDate, filteredListAppointments,
+            appointmentViewMode, calendarGrid, calendarTitle, changeCalendarMonth, selectCalendarDay, selectedCalendarDate, appointmentsOnSelectedDate,
             catalogClientsList, catalogClientSearch, searchCatalogClients, openClientModal, deleteClient,
             currentReceipt, showReceipt: (app) => { currentReceipt.value = sanitizeApp(app); view.value = 'receipt'; },
             company, handleLogoUpload, saveCompany, handleChangePassword, downloadReceiptImage, generateContractPDF,
-            formatCurrency, formatDate, getDay, getMonth, statusText, getClientName, getClientPhone, selectClient,
+            formatCurrency, formatDate, getDay, getMonth, statusText, getClientName, getClientPhone,
             toggleDarkMode: () => { isDark.value=!isDark.value; document.documentElement.classList.toggle('dark'); },
             expenseCategories, expensesByCategoryStats,
             agendaTab, agendaFilter, searchHistory, changeStatus,
