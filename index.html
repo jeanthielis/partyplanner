@@ -22,9 +22,6 @@
                     fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
                     colors: { 
                         brand: { 500: '#6366F1', 600: '#4F46E5' },
-                    },
-                    boxShadow: {
-                        'neon': '0 0 20px rgba(99, 102, 241, 0.25)',
                     }
                 }
             }
@@ -40,37 +37,110 @@
     
     <div id="app" v-cloak class="h-full flex flex-col">
         
-        <div v-if="!user" class="absolute inset-0 z-50 flex items-center justify-center p-6 bg-[#0F172A]">
-            <div class="bg-slate-800 p-8 rounded-3xl shadow-2xl w-full max-w-sm border border-slate-700">
-                <div class="text-center mb-8">
+        <div v-if="!user && view !== 'client-portal'" class="absolute inset-0 z-50 flex items-center justify-center p-6 bg-[#0F172A]">
+            <div class="bg-slate-800 p-8 rounded-3xl shadow-2xl w-full max-w-sm border border-slate-700 relative overflow-hidden">
+                
+                <div class="flex p-1 bg-slate-900 rounded-xl mb-6 relative z-10">
+                    <button @click="loginMode='provider'" :class="loginMode==='provider'?'bg-brand-600 text-white shadow-md':'text-slate-400 hover:text-white'" class="flex-1 py-2 text-xs font-bold rounded-lg transition">Sou Organizador</button>
+                    <button @click="loginMode='client'" :class="loginMode==='client'?'bg-brand-600 text-white shadow-md':'text-slate-400 hover:text-white'" class="flex-1 py-2 text-xs font-bold rounded-lg transition">Sou Cliente</button>
+                </div>
+
+                <div class="text-center mb-8 relative z-10">
                     <div class="w-16 h-16 bg-brand-600 rounded-2xl mx-auto flex items-center justify-center shadow-lg mb-4 text-white text-2xl"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
                     <h1 class="text-2xl font-bold text-white">PartyPlanner</h1>
-                    <p class="text-sm text-slate-400 mt-1">Gestão de Eventos Profissional</p>
+                    <p class="text-sm text-slate-400 mt-1">{{ loginMode==='provider' ? 'Gestão para Decoradores' : 'Acompanhe seu Evento' }}</p>
                 </div>
-                <form @submit.prevent="handleAuth" class="space-y-4">
+
+                <form v-if="loginMode==='provider'" @submit.prevent="handleAuth" class="space-y-4 relative z-10">
                     <div v-if="isRegistering" class="relative w-full">
                         <i class="fa-solid fa-building absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10"></i>
-                        <input v-model="authForm.name" type="text" placeholder="Nome da Empresa" class="w-full h-12 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all placeholder-slate-400" required>
+                        <input v-model="authForm.name" type="text" placeholder="Nome da Empresa" class="w-full h-12 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 transition-all placeholder-slate-400" required>
                     </div>
                     <div class="relative w-full">
                         <i class="fa-solid fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10"></i>
-                        <input v-model="authForm.email" type="email" placeholder="E-mail" class="w-full h-12 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all placeholder-slate-400" required>
+                        <input v-model="authForm.email" type="email" placeholder="E-mail" class="w-full h-12 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 transition-all placeholder-slate-400" required>
                     </div>
                     <div class="relative w-full">
                         <i class="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10"></i>
-                        <input v-model="authForm.password" type="password" placeholder="Senha" class="w-full h-12 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all placeholder-slate-400" required>
+                        <input v-model="authForm.password" type="password" placeholder="Senha" class="w-full h-12 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 transition-all placeholder-slate-400" required>
                     </div>
-                    <button type="submit" :disabled="authLoading" class="h-12 w-full bg-brand-600 hover:bg-brand-500 text-white font-bold rounded-xl shadow-lg shadow-brand-500/20 transition active:scale-95 flex items-center justify-center gap-2 mt-6">
+                    <button type="submit" :disabled="authLoading" class="h-12 w-full bg-brand-600 hover:bg-brand-500 text-white font-bold rounded-xl shadow-lg transition active:scale-95 flex items-center justify-center gap-2 mt-6">
                         <i v-if="authLoading" class="fa-solid fa-circle-notch fa-spin"></i> {{ isRegistering ? 'Criar Conta' : 'Entrar' }}
                     </button>
+                    <div class="mt-4 text-center border-t border-slate-700 pt-4">
+                        <button type="button" @click="isRegistering = !isRegistering" class="text-xs font-bold text-brand-500 hover:text-brand-400 transition">{{ isRegistering ? 'Já tenho conta? Fazer Login' : 'Não tem conta? Criar agora' }}</button>
+                    </div>
                 </form>
-                <div class="mt-8 text-center border-t border-slate-700 pt-6">
-                    <button @click="isRegistering = !isRegistering" class="text-sm font-bold text-brand-500 hover:text-brand-400 transition">{{ isRegistering ? 'Já tenho conta? Fazer Login' : 'Não tem conta? Criar agora' }}</button>
-                </div>
+
+                <form v-if="loginMode==='client'" @submit.prevent="handleClientAccess" class="space-y-4 relative z-10">
+                    <p class="text-xs text-slate-400 text-center mb-2">Digite seu CPF ou E-mail cadastrado para ver seus eventos.</p>
+                    <div class="relative w-full">
+                        <i class="fa-solid fa-id-card absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10"></i>
+                        <input v-model="clientAccessInput" placeholder="CPF ou E-mail" class="w-full h-12 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 transition-all placeholder-slate-400" required>
+                    </div>
+                    <button type="submit" :disabled="authLoading" class="h-12 w-full bg-brand-600 hover:bg-brand-500 text-white font-bold rounded-xl shadow-lg transition active:scale-95 flex items-center justify-center gap-2 mt-6">
+                        <i v-if="authLoading" class="fa-solid fa-circle-notch fa-spin"></i> Acessar Meus Eventos
+                    </button>
+                </form>
             </div>
         </div>
 
-        <div v-else class="flex h-full w-full">
+        <div v-if="view === 'client-portal'" class="flex-1 h-full overflow-y-auto bg-slate-50 dark:bg-[#0F172A]">
+            <header class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 p-5 sticky top-0 z-30 flex justify-between items-center shadow-sm">
+                <div class="font-bold text-lg text-slate-800 dark:text-white flex items-center gap-2"><i class="fa-solid fa-user-circle text-brand-600"></i> Área do Cliente</div>
+                <button @click="logoutClient" class="text-xs font-bold text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">Sair</button>
+            </header>
+            
+            <div class="p-5 md:p-10 max-w-3xl mx-auto space-y-6">
+                <div class="bg-brand-600 rounded-3xl p-8 text-center text-white shadow-neon relative overflow-hidden">
+                    <i class="fa-solid fa-wand-magic-sparkles text-6xl absolute -top-4 -right-4 opacity-20 rotate-12"></i>
+                    <h2 class="text-2xl font-bold mb-2">Olá, {{ clientData?.name || 'Cliente' }}!</h2>
+                    <p class="opacity-90 text-sm">Acompanhe abaixo os detalhes dos seus eventos contratados.</p>
+                </div>
+
+                <div v-if="clientAppointments.length === 0" class="text-center py-10 text-slate-400">Nenhum evento encontrado para este cadastro.</div>
+
+                <div v-for="app in clientAppointments" :key="app.id" class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden">
+                    <div class="bg-slate-50 dark:bg-slate-800/50 p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-brand-100 dark:bg-brand-900/30 text-brand-600 flex items-center justify-center font-bold text-lg">{{ getDay(app.date) }}</div>
+                            <div>
+                                <div class="text-xs font-bold text-brand-600 uppercase">{{ getMonth(app.date) }}</div>
+                                <div class="font-bold text-slate-800 dark:text-white">{{ app.time }}</div>
+                            </div>
+                        </div>
+                        <div class="px-3 py-1 rounded-full text-xs font-bold uppercase" :class="app.status==='concluded'?'bg-green-100 text-green-700':'bg-orange-100 text-orange-700'">{{ statusText(app.status) }}</div>
+                    </div>
+                    
+                    <div class="p-6 space-y-4">
+                        <div>
+                            <p class="text-[10px] uppercase font-bold text-slate-400 mb-1">Local</p>
+                            <p class="text-slate-800 dark:text-white font-medium"><i class="fa-solid fa-map-pin text-brand-500 mr-2"></i> {{ app.location.bairro }}</p>
+                        </div>
+                        
+                        <div v-if="app.details?.balloonColors">
+                            <p class="text-[10px] uppercase font-bold text-slate-400 mb-1">Decoração</p>
+                            <p class="text-slate-800 dark:text-white font-medium">🎈 {{ app.details.balloonColors }}</p>
+                        </div>
+
+                        <div class="bg-slate-50 dark:bg-slate-800 rounded-xl p-4 border border-slate-100 dark:border-slate-700 space-y-2">
+                            <div class="flex justify-between text-sm"><span class="text-slate-500">Valor Total</span><span class="font-bold text-slate-800 dark:text-white">{{ formatCurrency(app.totalServices) }}</span></div>
+                            <div class="flex justify-between text-sm text-green-600"><span class="font-bold">Pago (Sinal)</span><span class="font-bold">- {{ formatCurrency(app.entryFee) }}</span></div>
+                            <div class="border-t border-slate-200 dark:border-slate-700 pt-2 flex justify-between text-lg"><span class="font-bold text-brand-600">Restante</span><span class="font-black text-brand-600">{{ formatCurrency(app.finalBalance) }}</span></div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3 pt-2">
+                            <button @click="downloadClientReceipt(app)" class="h-12 bg-slate-800 text-white rounded-xl font-bold text-sm shadow-lg flex items-center justify-center gap-2"><i class="fa-solid fa-download"></i> Baixar Recibo</button>
+                            <button @click="openWhatsAppSupport" class="h-12 bg-green-500 text-white rounded-xl font-bold text-sm shadow-lg flex items-center justify-center gap-2"><i class="fa-brands fa-whatsapp"></i> Falar com Suporte</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+             <div id="client-receipt-capture" class="fixed top-0 left-0 -z-50 opacity-0 pointer-events-none">
+                 </div>
+        </div>
+
+        <div v-else-if="user" class="flex h-full w-full">
             
             <div v-if="user && showAppointmentModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
             <div class="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto border border-slate-200 dark:border-slate-800">
@@ -316,6 +386,6 @@
     </div>
 
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script type="module" src="js/app.js?v=21.0"></script>
+    <script type="module" src="js/app.js?v=22.0"></script>
 </body>
 </html>
