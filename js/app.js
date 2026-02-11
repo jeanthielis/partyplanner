@@ -39,6 +39,9 @@ createApp({
         const showExpenseModal = ref(false);
         const isEditing = ref(false);
         const editingId = ref(null);
+        // Controle de Edição de Despesa
+        const editingExpenseId = ref(null);
+
         const currentReceipt = ref(null);
         
         const clientSearchTerm = ref('');
@@ -66,6 +69,23 @@ createApp({
             { id: 'aluguel', label: 'Aluguel', icon: 'fa-house' },
             { id: 'outros', label: 'Outras', icon: 'fa-money-bill' }
         ];
+
+        // --- MÁSCARAS DE INPUT ---
+        const maskPhone = (v) => {
+            v = v.replace(/\D/g, "");
+            v = v.replace(/^(\d{2})(\d)/g, "($1) $2");
+            v = v.replace(/(\d)(\d{4})$/, "$1-$2");
+            return v;
+        };
+
+        const maskCPF = (v) => {
+            v = v.replace(/\D/g, "");
+            v = v.replace(/(\d{3})(\d)/, "$1.$2");
+            v = v.replace(/(\d{3})(\d)/, "$1.$2");
+            v = v.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+            return v;
+        };
+        // -------------------------
 
         const toNum = (val) => { if (!val) return 0; if (typeof val === 'number') return val; const clean = String(val).replace(',', '.').replace(/[^0-9.-]/g, ''); return parseFloat(clean) || 0; };
         const formatCurrency = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(toNum(v));
@@ -282,7 +302,49 @@ createApp({
 
         const saveService = async () => { if(!newService.description || !newService.price) return; await addDoc(collection(db, "services"), { description: newService.description, price: toNum(newService.price), userId: user.value.uid }); newService.description = ''; newService.price = ''; showServiceModal.value = false; };
         const deleteService = async (id) => { await deleteDoc(doc(db, "services", id)); };
-        const addExpense = async () => { await addDoc(collection(db, "expenses"), { ...newExpense, value: toNum(newExpense.value), userId: user.value.uid }); showExpenseModal.value = false; Swal.fire('Salvo','','success'); };
+        
+        // --- GERENCIAMENTO DE DESPESAS (EDITAR/EXCLUIR) ---
+        const openNewExpense = () => {
+            editingExpenseId.value = null;
+            Object.assign(newExpense, { description: '', value: '', date: new Date().toISOString().split('T')[0], category: 'outros' });
+            showExpenseModal.value = true;
+        };
+
+        const openEditExpense = (expense) => {
+            editingExpenseId.value = expense.id;
+            Object.assign(newExpense, { 
+                description: expense.description, 
+                value: expense.value, 
+                date: expense.date, 
+                category: expense.category 
+            });
+            showExpenseModal.value = true;
+        };
+
+        const saveExpenseLogic = async () => {
+            const data = { ...newExpense, value: toNum(newExpense.value), userId: user.value.uid };
+            if (editingExpenseId.value) {
+                await updateDoc(doc(db, "expenses", editingExpenseId.value), data);
+            } else {
+                await addDoc(collection(db, "expenses"), data);
+            }
+            showExpenseModal.value = false; 
+            Swal.fire('Salvo','','success');
+            // Se estivermos filtrando, recarregar a lista
+            if (expensesFilter.start && expensesFilter.end) searchExpenses();
+            loadDashboardData();
+        };
+
+        const deleteExpense = async (id) => {
+            const { isConfirmed } = await Swal.fire({ title: 'Excluir?', text: 'Essa ação não pode ser desfeita.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33' });
+            if (isConfirmed) {
+                await deleteDoc(doc(db, "expenses", id));
+                if (expensesFilter.start && expensesFilter.end) searchExpenses();
+                loadDashboardData();
+                Swal.fire('Excluído!', '', 'success');
+            }
+        };
+        // --------------------------------------------------
         
         const saveClient = async () => {
             if(!newClient.name) return;
@@ -405,7 +467,10 @@ createApp({
         return {
             user, view, isDark, authForm, authLoading, isRegistering, handleAuth, logout: () => { signOut(auth); window.location.href="index.html"; },
             dashboardMonth, financeData, next7DaysApps, statementList, isExtractLoaded, financeSummary, expensesFilter, searchExpenses,
-            showExpenseModal, newExpense, addExpense, deleteExpense: async(id)=>{await deleteDoc(doc(db,"expenses",id)); loadDashboardData();},
+            showExpenseModal, newExpense, 
+            // FUNÇÕES DE DESPESA ATUALIZADAS
+            addExpense: saveExpenseLogic, saveExpenseLogic, openNewExpense, openEditExpense, deleteExpense, editingExpenseId,
+            
             startNewSchedule, editAppointment, saveAppointment, showAppointmentModal, showClientModal, showServiceModal, newService, saveService, deleteService,
             newClient, saveClient, 
             tempApp, tempServiceSelect, services, totalServices, finalBalance, isEditing, clientSearchTerm, filteredClientsSearch, selectClient,
@@ -422,7 +487,8 @@ createApp({
             agendaTab, agendaFilter, searchHistory, changeStatus,
             registrationTab,
             // NOVOS EXPORTS
-            kpiPendingReceivables, totalAppointmentsCount, topExpenseCategory, getCategoryIcon: (id) => expenseCategories.find(c=>c.id===id)?.icon || 'fa-tag'
+            kpiPendingReceivables, totalAppointmentsCount, topExpenseCategory, getCategoryIcon: (id) => expenseCategories.find(c=>c.id===id)?.icon || 'fa-tag',
+            maskPhone, maskCPF
         };
     }
 }).mount('#app');
