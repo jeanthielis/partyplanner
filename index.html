@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PartyPlanner Pro - Gestão para Decoradores</title>
+    <title>PartyPlanner Pro - Organize Festas com Estilo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -13,7 +13,8 @@
             theme: {
                 extend: {
                     fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
-                    colors: { brand: { 500: '#8B5CF6', 600: '#7C3AED', 700: '#6D28D9' } }
+                    colors: { brand: { 500: '#8B5CF6', 600: '#7C3AED', 700: '#6D28D9' } },
+                    animation: { 'bounce-slow': 'bounce 3s infinite' }
                 }
             }
         }
@@ -40,7 +41,7 @@
                 </div>
                 <div class="flex items-center gap-4">
                     <a href="app.html" class="text-sm font-bold text-slate-600 hover:text-brand-600 transition">Entrar</a>
-                    <a href="app.html" class="bg-brand-600 hover:bg-brand-700 text-white px-6 py-2.5 rounded-full font-bold text-sm shadow-lg shadow-brand-500/20 transition transform hover:scale-105">
+                    <a href="app.html" class="bg-brand-600 hover:bg-brand-700 text-white px-6 py-2.5 rounded-full font-bold text-sm shadow-lg shadow-brand-500/20 transition transform hover:scale-105 active:scale-95">
                         Testar Grátis
                     </a>
                 </div>
@@ -53,55 +54,91 @@
                     <span class="inline-block bg-brand-100 text-brand-700 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider">
                         O sistema nº 1 para Decoradores
                     </span>
-                    <h1 class="text-5xl md:text-6xl font-extrabold leading-tight">
-                        Sua empresa de festas <span class="text-brand-600">organizada e profissional.</span>
+                    <h1 class="text-5xl md:text-6xl font-extrabold leading-tight text-slate-900">
+                        Transforme sua paixão por festas em um <span class="text-brand-600">negócio lucrativo.</span>
                     </h1>
                     <p class="text-lg text-slate-600 max-w-lg mx-auto md:mx-0">
-                        Gerencie clientes, contratos e financeiro em um só lugar. Economize tempo e foque no que você ama: decorar.
+                        Abandone o papel e as planilhas. Organize agenda, contratos, financeiro e assinaturas digitais em um só lugar.
                     </p>
                     <div class="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
                         <a href="app.html" class="bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold text-lg hover:bg-slate-800 transition shadow-xl flex items-center justify-center gap-2">
-                            Começar Grátis <i class="fa-solid fa-arrow-right text-sm"></i>
+                            Começar Agora <i class="fa-solid fa-arrow-right text-sm"></i>
                         </a>
+                        <div class="flex items-center gap-3 px-6 py-4">
+                            <div class="flex -space-x-2">
+                                <div class="w-8 h-8 rounded-full bg-purple-400 border-2 border-white"></div>
+                                <div class="w-8 h-8 rounded-full bg-pink-400 border-2 border-white"></div>
+                                <div class="w-8 h-8 rounded-full bg-blue-400 border-2 border-white"></div>
+                            </div>
+                            <span class="text-xs font-bold text-slate-500">+100 decoradores ativos</span>
+                        </div>
                     </div>
                 </div>
-                
-                <div class="relative flex justify-center">
-                    <div class="bg-white p-4 rounded-[2.5rem] shadow-2xl border border-slate-200 transform rotate-2 hover:rotate-0 transition duration-500 max-w-sm md:max-w-none">
-                        <img src="https://images.unsplash.com/photo-1530103043960-ef38714abb15?auto=format&fit=crop&q=80&w=800" alt="Painel de Controle" class="rounded-[2rem]">
+                <div class="relative">
+                    <div class="bg-white p-4 rounded-[2.5rem] shadow-2xl border border-slate-200 transform rotate-2 hover:rotate-0 transition duration-500">
+                        <img src="https://images.unsplash.com/photo-1530103043960-ef38714abb15?auto=format&fit=crop&q=80&w=800" alt="App Preview" class="rounded-[2rem]">
+                    </div>
+                    <div class="absolute -bottom-6 -left-6 bg-white p-6 rounded-2xl shadow-xl border border-slate-100 animate-bounce-slow hidden sm:block">
+                        <div class="flex items-center gap-4">
+                            <div class="bg-green-100 text-green-600 p-3 rounded-full"><i class="fa-solid fa-check"></i></div>
+                            <div>
+                                <p class="text-xs text-slate-400 font-bold uppercase">Novo Evento</p>
+                                <p class="font-bold">Festa Infantil - R$ 1.200</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <section id="precos" class="py-24 bg-slate-900 text-white relative">
+        <section id="funcionalidades" class="py-24 bg-white">
+            <div class="max-w-7xl mx-auto px-6">
+                <div class="text-center mb-16">
+                    <h2 class="text-3xl font-bold text-slate-900">Tudo o que você precisa para crescer</h2>
+                </div>
+                <div class="grid md:grid-cols-3 gap-8">
+                    <div v-for="f in features" :key="f.title" class="p-8 rounded-3xl bg-slate-50 border border-slate-100 hover:border-brand-300 transition group">
+                        <div class="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-brand-600 text-2xl shadow-sm mb-6 group-hover:bg-brand-600 group-hover:text-white transition">
+                            <i :class="f.icon"></i>
+                        </div>
+                        <h3 class="text-xl font-bold mb-3">{{ f.title }}</h3>
+                        <p class="text-slate-500 text-sm leading-relaxed">{{ f.desc }}</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="precos" class="py-24 bg-slate-900 text-white overflow-hidden relative">
             <div class="max-w-7xl mx-auto px-6 relative z-10">
                 <div class="max-w-2xl mx-auto text-center">
-                    <h2 class="text-4xl font-bold mb-6">Plano Único Profissional</h2>
-                    <p class="text-slate-400 mb-12 text-lg">Tudo o que seu negócio precisa por um valor justo.</p>
+                    <h2 class="text-4xl font-bold mb-6">Preço simples e transparente</h2>
+                    <p class="text-slate-400 mb-12 text-lg">Sem taxas escondidas. Funcionalidades ilimitadas para alavancar seu negócio.</p>
                     
-                    <div class="bg-slate-800 p-10 rounded-[3rem] border border-slate-700 shadow-2xl relative">
+                    <div class="bg-slate-800 p-12 rounded-[3rem] border border-slate-700 shadow-2xl relative">
+                        <div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-brand-600 text-white px-6 py-1 rounded-full text-xs font-black uppercase">Plano Pro</div>
                         <div class="mb-8">
-                            <span class="text-6xl font-black text-brand-500">R$ 49,90</span>
+                            <span class="text-6xl font-black">R$ 49,90</span>
                             <span class="text-slate-400 font-bold">/mês</span>
                         </div>
                         <ul class="text-left space-y-4 mb-10 text-slate-300 font-medium">
-                            <li class="flex items-center gap-3"><i class="fa-solid fa-check-circle text-brand-500"></i> Eventos e Clientes Ilimitados</li>
-                            <li class="flex items-center gap-3"><i class="fa-solid fa-check-circle text-brand-500"></i> Assinatura Digital de Contratos</li>
-                            <li class="flex items-center gap-3"><i class="fa-solid fa-check-circle text-brand-500"></i> Gestão Financeira Completa</li>
-                            <li class="flex items-center gap-3"><i class="fa-solid fa-check-circle text-brand-500"></i> Emissão de Recibos Profissionais</li>
+                            <li class="flex items-center gap-3"><i class="fa-solid fa-check text-green-400"></i> Eventos e Clientes Ilimitados</li>
+                            <li class="flex items-center gap-3"><i class="fa-solid fa-check text-green-400"></i> Assinatura Digital de Contratos</li>
+                            <li class="flex items-center gap-3"><i class="fa-solid fa-check text-green-400"></i> Gestão de Fluxo de Caixa (SaaS)</li>
+                            <li class="flex items-center gap-3"><i class="fa-solid fa-check text-green-400"></i> Recibos Personalizados com sua Logo</li>
                         </ul>
                         <a href="app.html" class="block w-full bg-brand-600 hover:bg-brand-500 text-white py-5 rounded-2xl font-black text-xl shadow-lg shadow-brand-500/20 transition">
                             Assinar Agora
                         </a>
-                        <p class="mt-4 text-xs text-slate-500 font-bold tracking-wide">CANCELE A QUALQUER MOMENTO • SUPORTE PRIORITÁRIO</p>
+                        <p class="mt-4 text-xs text-slate-500 font-bold">Teste grátis por 7 dias. Cancele quando quiser.</p>
                     </div>
                 </div>
             </div>
         </section>
 
-        <footer class="py-12 bg-white border-t border-slate-200 text-center">
-            <p class="text-slate-400 text-sm font-medium">&copy; 2026 PartyPlanner Pro. Design elegante para profissionais de sucesso.</p>
+        <footer class="py-12 bg-white border-t border-slate-200">
+            <div class="max-w-7xl mx-auto px-6 text-center text-slate-400 text-sm">
+                <p>&copy; 2026 PartyPlanner Pro. Todos os direitos reservados.</p>
+            </div>
         </footer>
     </div>
 
