@@ -99,7 +99,7 @@ createApp({
                 if (u) {
                     user.value = u;
                     const userDoc = await getDoc(doc(db, "users", u.uid));
-                    if (!userDoc.exists()) await setDoc(userRef, { email: u.email, role: 'user', createdAt: new Date().toISOString() });
+                    if (!userDoc.exists()) await setDoc(doc(db, "users", u.uid), { email: u.email, role: 'user', createdAt: new Date().toISOString() });
                     if (userDoc.exists() && userDoc.data().companyConfig) Object.assign(company, userDoc.data().companyConfig);
                     loadDashboardData();
                     syncData();
@@ -140,6 +140,23 @@ createApp({
         const kpiRevenue = computed(() => dashboardData.appointments.reduce((acc, a) => acc + toNum(a.totalServices), 0));
         const kpiExpenses = computed(() => dashboardData.expenses.reduce((acc, e) => acc + toNum(e.value), 0));
         const financeData = computed(() => ({ revenue: kpiRevenue.value, expenses: kpiExpenses.value, profit: kpiRevenue.value - kpiExpenses.value, receivables: dashboardData.appointments.reduce((acc, a) => acc + toNum(a.finalBalance), 0) }));
+
+        // --- NOVAS COMPUTED PROPERTIES ---
+        const totalAppointmentsCount = computed(() => dashboardData.appointments.length);
+        const kpiPendingReceivables = computed(() => {
+            return dashboardData.appointments
+                .filter(a => a.status === 'pending')
+                .reduce((acc, a) => acc + toNum(a.finalBalance), 0);
+        });
+        const expensesByCategoryStats = computed(() => { 
+            if (!dashboardData.expenses.length) return []; 
+            return expenseCategories.map(cat => { 
+                const total = dashboardData.expenses.filter(e => e.category === cat.id).reduce((sum, e) => sum + toNum(e.value), 0); 
+                return { ...cat, total }; 
+            }).filter(c => c.total > 0).sort((a, b) => b.total - a.total); 
+        });
+        const topExpenseCategory = computed(() => expensesByCategoryStats.value[0] || null);
+        // ---------------------------------
 
         const next7DaysApps = computed(() => {
             const today = new Date(); today.setHours(0,0,0,0);
@@ -209,113 +226,31 @@ createApp({
         const filteredClientsSearch = computed(() => scheduleClientsList.value);
 
        const handleAuth = async () => {
-    // 1. Validação simples antes de chamar o Firebase
-    if (!authForm.email || !authForm.password) {
-        return Swal.fire('Atenção', 'Por favor, preencha todos os campos.', 'warning');
-    }
-
-    authLoading.value = true;
-
-    try {
-        if (isRegistering.value) {
-            // ===============================================
-            // CENÁRIO 1: CADASTRO (SIGN UP)
-            // ===============================================
-            
-            // Cria o usuário no Firebase Auth
-            const userCredential = await createUserWithEmailAndPassword(auth, authForm.email, authForm.password);
-            const newUser = userCredential.user;
-
-            // Atualiza o "Nome de Exibição" do usuário
-            await updateProfile(newUser, { displayName: authForm.name });
-
-            // Cria o banco de dados inicial (Firestore) para esse usuário
-            // Isso garante que a tela de configurações não quebre por falta de dados
-            await setDoc(doc(db, "users", newUser.uid), {
-                email: authForm.email,
-                role: 'admin',
-                createdAt: new Date().toISOString(),
-                companyConfig: {
-                    fantasia: authForm.name || 'Minha Empresa',
-                    logo: '',
-                    cnpj: '',
-                    email: authForm.email,
-                    phone: '',
-                    rua: '',
-                    bairro: '',
-                    cidade: '',
-                    estado: ''
-                }
-            });
-
-            await Swal.fire({
-                title: 'Sucesso!',
-                text: 'Conta criada com sucesso! Bem-vindo.',
-                icon: 'success',
-                timer: 2000,
-                showConfirmButton: false
-            });
-
-        } else {
-            // ===============================================
-            // CENÁRIO 2: LOGIN (SIGN IN)
-            // ===============================================
-            await signInWithEmailAndPassword(auth, authForm.email, authForm.password);
-            
-            // Toast discreto no canto superior direito para login
-            const Toast = Swal.mixin({
-                toast: true,
-                position: 'top-end',
-                showConfirmButton: false,
-                timer: 3000,
-                timerProgressBar: true
-            });
-            
-            Toast.fire({
-                icon: 'success',
-                title: 'Login realizado com sucesso'
-            });
-        }
-
-    } catch (error) {
-        console.error("Erro de Autenticação:", error.code);
-        
-        let mensagemErro = "Ocorreu um erro inesperado. Tente novamente.";
-
-        // Tradução dos códigos de erro do Firebase para Português
-        switch (error.code) {
-            case 'auth/email-already-in-use':
-                mensagemErro = "Este e-mail já está cadastrado. Tente fazer login.";
-                break;
-            case 'auth/invalid-email':
-                mensagemErro = "O formato do e-mail é inválido.";
-                break;
-            case 'auth/weak-password':
-                mensagemErro = "A senha é muito fraca. Digite pelo menos 6 caracteres.";
-                break;
-            case 'auth/user-not-found':
-                mensagemErro = "Usuário não encontrado. Verifique o e-mail.";
-                break;
-            case 'auth/wrong-password':
-            case 'auth/invalid-credential': // Novo código padrão do Google para erro de senha
-                mensagemErro = "E-mail ou senha incorretos.";
-                break;
-            case 'auth/too-many-requests':
-                mensagemErro = "Muitas tentativas falhas. Aguarde alguns instantes antes de tentar novamente.";
-                break;
-            case 'auth/network-request-failed':
-                mensagemErro = "Erro de conexão. Verifique sua internet.";
-                break;
-        }
-
-        Swal.fire('Ops!', mensagemErro, 'error');
-
-    } finally {
-        authLoading.value = false;
-    }
-};
-
-            
+        if (!authForm.email || !authForm.password) return Swal.fire('Atenção', 'Preencha todos os campos.', 'warning');
+        authLoading.value = true;
+        try {
+            if (isRegistering.value) {
+                const userCredential = await createUserWithEmailAndPassword(auth, authForm.email, authForm.password);
+                const newUser = userCredential.user;
+                await updateProfile(newUser, { displayName: authForm.name });
+                await setDoc(doc(db, "users", newUser.uid), {
+                    email: authForm.email, role: 'user', createdAt: new Date().toISOString(),
+                    companyConfig: { fantasia: authForm.name || 'Minha Empresa', logo: '', cnpj: '', email: authForm.email, phone: '', rua: '', bairro: '', cidade: '', estado: '' }
+                });
+                await Swal.fire({ title: 'Sucesso!', text: 'Conta criada com sucesso!', icon: 'success', timer: 2000, showConfirmButton: false });
+            } else {
+                await signInWithEmailAndPassword(auth, authForm.email, authForm.password);
+                const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, timerProgressBar: true });
+                Toast.fire({ icon: 'success', title: 'Login realizado com sucesso' });
+            }
+        } catch (error) {
+            console.error("Erro Auth:", error.code);
+            let msg = "Erro inesperado.";
+            if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') msg = "E-mail ou senha incorretos.";
+            else if (error.code === 'auth/email-already-in-use') msg = "E-mail já cadastrado.";
+            Swal.fire('Ops!', msg, 'error');
+        } finally { authLoading.value = false; }
+    };
            
         const startNewSchedule = () => { 
             isEditing.value=false; 
@@ -342,7 +277,7 @@ createApp({
         const changeStatus = async (app, status) => {
             const action = status === 'concluded' ? 'Concluir' : 'Cancelar';
             const {isConfirmed} = await Swal.fire({title: action + '?', text: 'Deseja alterar o status?', icon:'question', showCancelButton:true});
-            if(isConfirmed) { await updateDoc(doc(db,"appointments",app.id), {status:status}); Swal.fire('Feito','','success'); }
+            if(isConfirmed) { await updateDoc(doc(db,"appointments",app.id), {status:status}); Swal.fire('Feito','','success'); loadDashboardData(); }
         };
 
         const saveService = async () => { if(!newService.description || !newService.price) return; await addDoc(collection(db, "services"), { description: newService.description, price: toNum(newService.price), userId: user.value.uid }); newService.description = ''; newService.price = ''; showServiceModal.value = false; };
@@ -360,11 +295,9 @@ createApp({
 
         const deleteClient = async (id) => { if((await Swal.fire({title:'Excluir?',showCancelButton:true})).isConfirmed) { await deleteDoc(doc(db,"clients",id)); searchCatalogClients(); }};
         const searchCatalogClients = async () => { const q = query(collection(db, "clients"), where("userId", "==", user.value.uid)); const snap = await getDocs(q); catalogClientsList.value = snap.docs.map(d => ({id: d.id, ...d.data()})).filter(c => c.name.toLowerCase().includes(catalogClientSearch.value.toLowerCase())); };
-        const expensesByCategoryStats = computed(() => { if (!dashboardData.expenses.length) return []; return expenseCategories.map(cat => { const total = dashboardData.expenses.filter(e => e.category === cat.id).reduce((sum, e) => sum + toNum(e.value), 0); return { ...cat, total }; }).filter(c => c.total > 0).sort((a, b) => b.total - a.total); });
         
         const downloadReceiptImage = () => { html2canvas(document.getElementById('receipt-capture-area')).then(c => { const l = document.createElement('a'); l.download = 'Recibo.png'; l.href = c.toDataURL(); l.click(); }); };
         
-        // --- WHATSAPP ---
         const openWhatsApp = (app) => {
             const cli = clientCache[app.clientId];
             if (!cli || !cli.phone) return Swal.fire('Erro', 'Cliente sem telefone cadastrado.', 'error');
@@ -373,14 +306,12 @@ createApp({
             window.open(`https://wa.me/55${phoneClean}?text=${encodeURIComponent(msg)}`, '_blank');
         };
 
-        // --- CONTRATO JURÍDICO PDF ---
         const generateContractPDF = () => { 
             const { jsPDF } = window.jspdf; 
             const doc = new jsPDF(); 
             const app = currentReceipt.value; 
             const cli = clientCache[app.clientId] || {name:'...',cpf:'...', phone: '', email: ''};
             
-            // --- HEADER ---
             doc.setFont("helvetica", "bold");
             doc.setFontSize(14);
             doc.text(company.fantasia.toUpperCase(), 105, 20, {align: "center"});
@@ -393,13 +324,10 @@ createApp({
             doc.text(`${company.cidade}/${company.estado} - Tel: ${company.phone}`, 105, headerY, {align: "center"});
             
             doc.line(20, headerY + 5, 190, headerY + 5);
-            
-            // --- TÍTULO ---
             doc.setFontSize(14);
             doc.setFont("helvetica", "bold");
             doc.text("CONTRATO DE PRESTAÇÃO DE SERVIÇOS", 105, headerY + 15, {align:"center"});
             
-            // --- DADOS ---
             let y = headerY + 25;
             doc.setFontSize(10);
             doc.setFont("helvetica", "bold");
@@ -420,7 +348,6 @@ createApp({
             doc.text(`Local: ${app.location.bairro}`, 20, y);
             if(app.details.balloonColors) { y += 5; doc.text(`Cores: ${app.details.balloonColors}`, 20, y); }
 
-            // --- ITENS ---
             y += 10;
             const body = app.selectedServices.map(s => [s.description, formatCurrency(s.price)]);
             doc.autoTable({
@@ -433,7 +360,6 @@ createApp({
             });
             y = doc.lastAutoTable.finalY + 10;
 
-            // --- TOTAIS ---
             doc.setFont("helvetica", "bold");
             doc.text(`TOTAL: ${formatCurrency(app.totalServices)}`, 140, y, {align: "right"});
             y += 5;
@@ -441,7 +367,6 @@ createApp({
             y += 5;
             doc.text(`RESTANTE: ${formatCurrency(app.finalBalance)}`, 140, y, {align: "right"});
 
-            // --- CLÁUSULAS JURÍDICAS ---
             y += 15;
             doc.setFontSize(9);
             doc.setFont("helvetica", "bold");
@@ -451,9 +376,9 @@ createApp({
             
             const clauses = [
                 "1. RESERVA: O pagamento do sinal garante a reserva da data e dos materiais descritos.",
-                "2. DESISTÊNCIA: Em caso de cancelamento pelo CONTRATANTE com menos de 15 dias de antecedência, o sinal não será devolvido, servindo como multa para cobrir custos de reserva.",
-                "3. DANOS: O CONTRATANTE responsabiliza-se pela conservação dos materiais locados. Peças quebradas, rasgadas ou extraviadas deverão ser pagas pelo valor de reposição.",
-                "4. PAGAMENTO: O valor restante deverá ser quitado integralmente até a data da montagem/evento, sob pena de não realização do serviço.",
+                "2. DESISTÊNCIA: Em caso de cancelamento pelo CONTRATANTE com menos de 15 dias de antecedência, o sinal não será devolvido.",
+                "3. DANOS: O CONTRATANTE responsabiliza-se pela conservação dos materiais locados.",
+                "4. PAGAMENTO: O valor restante deverá ser quitado integralmente até a data da montagem/evento.",
                 "5. MONTAGEM: O local do evento deve estar liberado e limpo para montagem no horário combinado."
             ];
 
@@ -461,13 +386,10 @@ createApp({
                 const lines = doc.splitTextToSize(clause, 170);
                 doc.text(lines, 20, y);
                 y += (lines.length * 4) + 2;
-                // Nova página se encher
                 if (y > 270) { doc.addPage(); y = 20; }
             });
 
-            // --- ASSINATURAS ---
             if (y > 250) { doc.addPage(); y = 40; } else { y += 20; }
-            
             doc.line(20, y, 90, y);
             doc.line(110, y, 180, y);
             doc.text("CONTRATADA", 55, y + 5, {align: "center"});
@@ -493,12 +415,14 @@ createApp({
             catalogClientsList, catalogClientSearch, searchCatalogClients, openClientModal: () => { showClientModal.value = true; }, deleteClient,
             currentReceipt, showReceipt: (app) => { currentReceipt.value = sanitizeApp(app); view.value = 'receipt'; },
             company, handleLogoUpload, saveCompany, handleChangePassword, downloadReceiptImage, 
-            generateContractPDF, openWhatsApp, // EXPORTADO
+            generateContractPDF, openWhatsApp, 
             formatCurrency, formatDate, getDay, getMonth, statusText, getClientName, getClientPhone,
             toggleDarkMode: () => { isDark.value=!isDark.value; document.documentElement.classList.toggle('dark'); },
             expenseCategories, expensesByCategoryStats,
             agendaTab, agendaFilter, searchHistory, changeStatus,
-            registrationTab
+            registrationTab,
+            // NOVOS EXPORTS
+            kpiPendingReceivables, totalAppointmentsCount, topExpenseCategory, getCategoryIcon: (id) => expenseCategories.find(c=>c.id===id)?.icon || 'fa-tag'
         };
     }
 }).mount('#app');
