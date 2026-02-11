@@ -9,6 +9,7 @@ import {
 
 createApp({
     setup() {
+        // --- ESTADOS GERAIS ---
         const user = ref(null);
         const view = ref('dashboard');
         const isDark = ref(false);
@@ -16,16 +17,15 @@ createApp({
         const isRegistering = ref(false);
         const authForm = reactive({ email: '', password: '', name: '' });
         
-        // --- NOVO: ESTADO DE LOGIN DO CLIENTE ---
-        const loginMode = ref('provider'); // 'provider' ou 'client'
+        // --- ESTADOS DA ÁREA DO CLIENTE ---
+        const loginMode = ref('provider'); // 'provider' (Login normal) ou 'client' (Área do Cliente)
         const clientAccessInput = ref('');
         const clientData = ref(null);
         const clientAppointments = ref([]);
-        // ----------------------------------------
 
+        // --- ESTADOS DA APLICAÇÃO ---
         const registrationTab = ref('clients');
         const agendaTab = ref('pending');
-
         const company = reactive({ fantasia: '', logo: '', cnpj: '', email: '', phone: '', rua: '', bairro: '', cidade: '', estado: '' });
         const dashboardMonth = ref(new Date().toISOString().slice(0, 7));
         const dashboardData = reactive({ appointments: [], expenses: [] });
@@ -40,16 +40,20 @@ createApp({
         const scheduleClientsList = ref([]);
         const clientCache = reactive({});
 
+        // --- MODAIS ---
         const showAppointmentModal = ref(false);
         const showClientModal = ref(false);
         const showServiceModal = ref(false);
         const showExpenseModal = ref(false);
+        
+        // --- CONTROLES DE EDIÇÃO ---
         const isEditing = ref(false);
         const editingId = ref(null);
-        const editingExpenseId = ref(null);
+        const editingExpenseId = ref(null); // Para saber se é edição de despesa
 
         const currentReceipt = ref(null);
         
+        // --- FILTROS E BUSCAS ---
         const clientSearchTerm = ref('');
         const isSelectingClient = ref(false);
         const catalogClientSearch = ref('');
@@ -59,6 +63,7 @@ createApp({
         const calendarCursor = ref(new Date());
         const selectedCalendarDate = ref(null);
 
+        // --- OBJETOS DE CADASTRO ---
         const newClient = reactive({ name: '', phone: '', cpf: '', email: '' });
         const newService = reactive({ description: '', price: '' });
         const newExpense = reactive({ description: '', value: '', date: new Date().toISOString().split('T')[0], category: 'outros' });
@@ -76,14 +81,17 @@ createApp({
             { id: 'outros', label: 'Outras', icon: 'fa-money-bill' }
         ];
 
-        // --- MÁSCARAS ---
+        // --- MÁSCARAS E FORMATAÇÃO ---
         const maskPhone = (v) => {
+            if (!v) return "";
             v = v.replace(/\D/g, "");
             v = v.replace(/^(\d{2})(\d)/g, "($1) $2");
             v = v.replace(/(\d)(\d{4})$/, "$1-$2");
             return v;
         };
+
         const maskCPF = (v) => {
+            if (!v) return "";
             v = v.replace(/\D/g, "");
             v = v.replace(/(\d{3})(\d)/, "$1.$2");
             v = v.replace(/(\d{3})(\d)/, "$1.$2");
@@ -97,6 +105,7 @@ createApp({
         const getDay = (d) => d ? d.split('-')[2] : '';
         const getMonth = (d) => d ? ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'][parseInt(d.split('-')[1])-1] : '';
         const statusText = (s) => s === 'concluded' ? 'Concluído' : (s === 'cancelled' ? 'Cancelado' : 'Pendente');
+        
         const getClientName = (id) => clientCache[id]?.name || 'Cliente Excluído';
         const getClientPhone = (id) => clientCache[id]?.phone || '';
 
@@ -105,6 +114,7 @@ createApp({
             try { const snap = await getDoc(doc(db, "clients", id)); if (snap.exists()) clientCache[id] = snap.data(); else clientCache[id] = { name: 'Excluído', phone: '-' }; } catch (e) {}
         };
 
+        // --- SANITIZAÇÃO DE DADOS ---
         const sanitizeApp = (docSnapshot) => {
             const data = docSnapshot.data ? docSnapshot.data() : docSnapshot;
             const safeServices = Array.isArray(data.selectedServices) ? data.selectedServices : [];
@@ -118,6 +128,7 @@ createApp({
 
         const sanitizeExpense = (docSnapshot) => { const data = docSnapshot.data ? docSnapshot.data() : docSnapshot; return { id: docSnapshot.id || data.id, ...data, value: toNum(data.value) }; };
 
+        // --- INICIALIZAÇÃO ---
         onMounted(() => {
             onAuthStateChanged(auth, async (u) => {
                 if (u) {
@@ -127,23 +138,44 @@ createApp({
                     if (userDoc.exists() && userDoc.data().companyConfig) Object.assign(company, userDoc.data().companyConfig);
                     loadDashboardData();
                     syncData();
-                } else { user.value = null; }
+                } else { 
+                    user.value = null; 
+                    // Se não estiver na área do cliente, reseta para login
+                    if (view.value !== 'client-portal') view.value = 'dashboard';
+                }
             });
             if (localStorage.getItem('pp_dark') === 'true') { isDark.value = true; document.documentElement.classList.add('dark'); }
         });
 
-        // --- LÓGICA DE LOGIN DO CLIENTE ---
+        // --- LÓGICA DA ÁREA DO CLIENTE (BUSCA INTELIGENTE) ---
         const handleClientAccess = async () => {
             if (!clientAccessInput.value) return Swal.fire('Erro', 'Digite CPF ou E-mail', 'warning');
             authLoading.value = true;
             try {
-                const term = clientAccessInput.value.trim();
-                // Tenta buscar por CPF ou Email
-                let q = query(collection(db, "clients"), where("cpf", "==", term));
-                let snap = await getDocs(q);
+                const rawTerm = clientAccessInput.value.trim();
                 
+                // Tenta limpar para buscar só números (caso seja CPF sem ponto)
+                const numericTerm = rawTerm.replace(/\D/g, '');
+                let formattedCPF = rawTerm;
+                
+                // Se tiver 11 dígitos, cria a versão formatada (XXX.XXX.XXX-XX)
+                if (numericTerm.length === 11) {
+                    formattedCPF = numericTerm.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+                }
+
+                // 1. Tenta buscar pelo termo exato (Email ou CPF digitado)
+                let q = query(collection(db, "clients"), where("cpf", "==", rawTerm));
+                let snap = await getDocs(q);
+
+                // 2. Se falhar e parecer um CPF, tenta a versão formatada
+                if (snap.empty && numericTerm.length === 11) {
+                    q = query(collection(db, "clients"), where("cpf", "==", formattedCPF));
+                    snap = await getDocs(q);
+                }
+
+                // 3. Se ainda falhar, tenta buscar por E-mail
                 if (snap.empty) {
-                    q = query(collection(db, "clients"), where("email", "==", term));
+                    q = query(collection(db, "clients"), where("email", "==", rawTerm));
                     snap = await getDocs(q);
                 }
 
@@ -156,11 +188,20 @@ createApp({
                 const qApps = query(collection(db, "appointments"), where("clientId", "==", clientDoc.id));
                 const snapApps = await getDocs(qApps);
                 
-                clientAppointments.value = snapApps.docs.map(sanitizeApp).sort((a,b) => b.date.localeCompare(a.date));
-                view.value = 'client-portal'; // Muda a view para o portal
+                clientAppointments.value = snapApps.docs
+                    .map(sanitizeApp)
+                    .filter(a => a.status !== 'cancelled') // Opcional: não mostrar cancelados
+                    .sort((a,b) => b.date.localeCompare(a.date));
+
+                view.value = 'client-portal';
 
             } catch (e) {
-                Swal.fire('Acesso Negado', 'Nenhum evento encontrado para este dado.', 'error');
+                console.error("Erro Cliente:", e);
+                if (e.code === 'permission-denied') {
+                    Swal.fire('Configuração', 'Erro de permissão. Verifique as Regras do Firebase.', 'error');
+                } else {
+                    Swal.fire('Acesso Negado', 'Cadastro não encontrado. Verifique os dados.', 'error');
+                }
             } finally {
                 authLoading.value = false;
             }
@@ -171,19 +212,27 @@ createApp({
             clientAppointments.value = [];
             clientAccessInput.value = '';
             view.value = 'dashboard';
-            loginMode.value = 'provider'; // Volta pra tela de login normal
+            loginMode.value = 'provider'; 
         };
         
         const openWhatsAppSupport = () => {
-            window.open('https://wa.me/?text=Preciso%20de%20ajuda%20com%20meu%20evento', '_blank');
+            // Pode substituir pelo número da sua empresa se quiser
+            window.open('https://wa.me/?text=Olá,%20preciso%20de%20ajuda%20com%20meu%20evento', '_blank');
         };
 
         const downloadClientReceipt = async (app) => {
-             // Simples alerta para MVP, idealmente geraria o PDF igual ao admin
-             Swal.fire('Em breve', 'Funcionalidade de PDF direto pelo cliente chegando na próxima versão!', 'info');
+             // Reutiliza a lógica de gerar PDF, mas ajustando contexto se necessário
+             // Como MVP, vamos usar a função generateContractPDF existente, 
+             // mas precisamos garantir que 'currentReceipt' esteja setado
+             currentReceipt.value = app;
+             // Precisamos garantir que o cache do cliente esteja carregado para o PDF funcionar
+             if(!clientCache[app.clientId]) {
+                 clientCache[app.clientId] = clientData.value;
+             }
+             generateContractPDF();
         };
-        // ----------------------------------
 
+        // --- CARREGAMENTO DE DADOS (ADMIN) ---
         const loadDashboardData = async () => {
             if (!user.value) return;
             isLoadingDashboard.value = true;
@@ -211,6 +260,7 @@ createApp({
             });
         };
 
+        // --- CÁLCULOS FINANCEIROS E KPIs ---
         const totalServices = computed(() => tempApp.selectedServices.reduce((s,i) => s + toNum(i.price), 0));
         const finalBalance = computed(() => totalServices.value - toNum(tempApp.details.entryFee));
         const kpiRevenue = computed(() => dashboardData.appointments.reduce((acc, a) => acc + toNum(a.totalServices), 0));
@@ -232,6 +282,7 @@ createApp({
         });
         const topExpenseCategory = computed(() => expensesByCategoryStats.value[0] || null);
 
+        // --- AGENDA E CALENDÁRIO ---
         const next7DaysApps = computed(() => {
             const today = new Date(); today.setHours(0,0,0,0);
             const nextWeek = new Date(today); nextWeek.setDate(today.getDate() + 7);
@@ -239,19 +290,6 @@ createApp({
             const nextWeekStr = nextWeek.toISOString().split('T')[0];
             return pendingAppointments.value.filter(a => a.date >= todayStr && a.date <= nextWeekStr).sort((a,b) => a.date.localeCompare(b.date));
         });
-
-        const searchExpenses = async () => {
-            if(!expensesFilter.start || !expensesFilter.end) return Swal.fire('Data', 'Selecione o período', 'info');
-            const qExp = query(collection(db, "expenses"), where("userId", "==", user.value.uid), where("date", ">=", expensesFilter.start), where("date", "<=", expensesFilter.end));
-            const snapExp = await getDocs(qExp);
-            const loadedExpenses = snapExp.docs.map(d => ({ ...sanitizeExpense(d), type: 'expense', icon: 'fa-arrow-down', color: 'text-red-500' }));
-            const qApp = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("date", ">=", expensesFilter.start), where("date", "<=", expensesFilter.end));
-            const snapApp = await getDocs(qApp);
-            const loadedIncome = snapApp.docs.map(d => { const app = sanitizeApp(d); return { id: app.id, date: app.date, value: app.totalServices, description: `Receita: ${getClientName(app.clientId)}`, type: 'income', icon: 'fa-arrow-up', color: 'text-green-500' }; });
-            expensesList.value = [...loadedExpenses, ...loadedIncome]; isExtractLoaded.value = true;
-        };
-        const statementList = computed(() => { if (!isExtractLoaded.value) return []; return expensesList.value.sort((a, b) => b.date.localeCompare(a.date)); });
-        const financeSummary = computed(() => statementList.value.reduce((acc, item) => item.type === 'income' ? acc + item.value : acc - item.value, 0));
 
         const calendarGrid = computed(() => {
             const year = calendarCursor.value.getFullYear(); const month = calendarCursor.value.getMonth();
@@ -282,6 +320,7 @@ createApp({
             return list.sort((a,b) => a.date.localeCompare(b.date)); 
         });
 
+        // --- BUSCA DE CLIENTE (AUTOCOMPLETE) ---
         watch(clientSearchTerm, async (val) => {
             if (isSelectingClient.value) return; 
             if (val && val.length > 2) {
@@ -299,33 +338,35 @@ createApp({
         };
         const filteredClientsSearch = computed(() => scheduleClientsList.value);
 
-       const handleAuth = async () => {
-        if (!authForm.email || !authForm.password) return Swal.fire('Atenção', 'Preencha todos os campos.', 'warning');
-        authLoading.value = true;
-        try {
-            if (isRegistering.value) {
-                const userCredential = await createUserWithEmailAndPassword(auth, authForm.email, authForm.password);
-                const newUser = userCredential.user;
-                await updateProfile(newUser, { displayName: authForm.name });
-                await setDoc(doc(db, "users", newUser.uid), {
-                    email: authForm.email, role: 'user', createdAt: new Date().toISOString(),
-                    companyConfig: { fantasia: authForm.name || 'Minha Empresa', logo: '', cnpj: '', email: authForm.email, phone: '', rua: '', bairro: '', cidade: '', estado: '' }
-                });
-                await Swal.fire({ title: 'Sucesso!', text: 'Conta criada com sucesso!', icon: 'success', timer: 2000, showConfirmButton: false });
-            } else {
-                await signInWithEmailAndPassword(auth, authForm.email, authForm.password);
-                const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, timerProgressBar: true });
-                Toast.fire({ icon: 'success', title: 'Login realizado com sucesso' });
-            }
-        } catch (error) {
-            console.error("Erro Auth:", error.code);
-            let msg = "Erro inesperado.";
-            if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') msg = "E-mail ou senha incorretos.";
-            else if (error.code === 'auth/email-already-in-use') msg = "E-mail já cadastrado.";
-            Swal.fire('Ops!', msg, 'error');
-        } finally { authLoading.value = false; }
-    };
+        // --- AUTENTICAÇÃO (ADMIN) ---
+        const handleAuth = async () => {
+            if (!authForm.email || !authForm.password) return Swal.fire('Atenção', 'Preencha todos os campos.', 'warning');
+            authLoading.value = true;
+            try {
+                if (isRegistering.value) {
+                    const userCredential = await createUserWithEmailAndPassword(auth, authForm.email, authForm.password);
+                    const newUser = userCredential.user;
+                    await updateProfile(newUser, { displayName: authForm.name });
+                    await setDoc(doc(db, "users", newUser.uid), {
+                        email: authForm.email, role: 'user', createdAt: new Date().toISOString(),
+                        companyConfig: { fantasia: authForm.name || 'Minha Empresa', logo: '', cnpj: '', email: authForm.email, phone: '', rua: '', bairro: '', cidade: '', estado: '' }
+                    });
+                    await Swal.fire({ title: 'Sucesso!', text: 'Conta criada com sucesso!', icon: 'success', timer: 2000, showConfirmButton: false });
+                } else {
+                    await signInWithEmailAndPassword(auth, authForm.email, authForm.password);
+                    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, timerProgressBar: true });
+                    Toast.fire({ icon: 'success', title: 'Login realizado com sucesso' });
+                }
+            } catch (error) {
+                console.error("Erro Auth:", error.code);
+                let msg = "Erro inesperado.";
+                if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') msg = "E-mail ou senha incorretos.";
+                else if (error.code === 'auth/email-already-in-use') msg = "E-mail já cadastrado.";
+                Swal.fire('Ops!', msg, 'error');
+            } finally { authLoading.value = false; }
+        };
            
+        // --- FUNÇÕES CRUD (AGENDAMENTO) ---
         const startNewSchedule = () => { 
             isEditing.value=false; 
             Object.assign(tempApp, { clientId:'', date:'', time:'', location:{bairro:''}, details:{entryFee:0, balloonColors:''}, notes: '', selectedServices:[], checklist:[] }); 
@@ -354,9 +395,11 @@ createApp({
             if(isConfirmed) { await updateDoc(doc(db,"appointments",app.id), {status:status}); Swal.fire('Feito','','success'); loadDashboardData(); }
         };
 
+        // --- FUNÇÕES CRUD (SERVIÇOS) ---
         const saveService = async () => { if(!newService.description || !newService.price) return; await addDoc(collection(db, "services"), { description: newService.description, price: toNum(newService.price), userId: user.value.uid }); newService.description = ''; newService.price = ''; showServiceModal.value = false; };
         const deleteService = async (id) => { await deleteDoc(doc(db, "services", id)); };
         
+        // --- FUNÇÕES CRUD (DESPESAS) ---
         const openNewExpense = () => {
             editingExpenseId.value = null;
             Object.assign(newExpense, { description: '', value: '', date: new Date().toISOString().split('T')[0], category: 'outros' });
@@ -373,6 +416,19 @@ createApp({
             });
             showExpenseModal.value = true;
         };
+
+        const searchExpenses = async () => {
+            if(!expensesFilter.start || !expensesFilter.end) return Swal.fire('Data', 'Selecione o período', 'info');
+            const qExp = query(collection(db, "expenses"), where("userId", "==", user.value.uid), where("date", ">=", expensesFilter.start), where("date", "<=", expensesFilter.end));
+            const snapExp = await getDocs(qExp);
+            const loadedExpenses = snapExp.docs.map(d => ({ ...sanitizeExpense(d), type: 'expense', icon: 'fa-arrow-down', color: 'text-red-500' }));
+            const qApp = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("date", ">=", expensesFilter.start), where("date", "<=", expensesFilter.end));
+            const snapApp = await getDocs(qApp);
+            const loadedIncome = snapApp.docs.map(d => { const app = sanitizeApp(d); return { id: app.id, date: app.date, value: app.totalServices, description: `Receita: ${getClientName(app.clientId)}`, type: 'income', icon: 'fa-arrow-up', color: 'text-green-500' }; });
+            expensesList.value = [...loadedExpenses, ...loadedIncome]; isExtractLoaded.value = true;
+        };
+        const statementList = computed(() => { if (!isExtractLoaded.value) return []; return expensesList.value.sort((a, b) => b.date.localeCompare(a.date)); });
+        const financeSummary = computed(() => statementList.value.reduce((acc, item) => item.type === 'income' ? acc + item.value : acc - item.value, 0));
 
         const saveExpenseLogic = async () => {
             const data = { ...newExpense, value: toNum(newExpense.value), userId: user.value.uid };
@@ -396,7 +452,8 @@ createApp({
                 Swal.fire('Excluído!', '', 'success');
             }
         };
-        
+
+        // --- FUNÇÕES CRUD (CLIENTES) ---
         const saveClient = async () => {
             if(!newClient.name) return;
             await addDoc(collection(db, "clients"), { name: newClient.name, phone: newClient.phone, cpf: newClient.cpf, email: newClient.email, userId: user.value.uid });
@@ -409,6 +466,7 @@ createApp({
         const deleteClient = async (id) => { if((await Swal.fire({title:'Excluir?',showCancelButton:true})).isConfirmed) { await deleteDoc(doc(db,"clients",id)); searchCatalogClients(); }};
         const searchCatalogClients = async () => { const q = query(collection(db, "clients"), where("userId", "==", user.value.uid)); const snap = await getDocs(q); catalogClientsList.value = snap.docs.map(d => ({id: d.id, ...d.data()})).filter(c => c.name.toLowerCase().includes(catalogClientSearch.value.toLowerCase())); };
         
+        // --- FUNÇÕES DE EXPORTAÇÃO E INTEGRAÇÃO ---
         const downloadReceiptImage = () => { html2canvas(document.getElementById('receipt-capture-area')).then(c => { const l = document.createElement('a'); l.download = 'Recibo.png'; l.href = c.toDataURL(); l.click(); }); };
         
         const openWhatsApp = (app) => {
