@@ -16,6 +16,13 @@ createApp({
         const isRegistering = ref(false);
         const authForm = reactive({ email: '', password: '', name: '' });
         
+        // --- NOVO: ESTADO DE LOGIN DO CLIENTE ---
+        const loginMode = ref('provider'); // 'provider' ou 'client'
+        const clientAccessInput = ref('');
+        const clientData = ref(null);
+        const clientAppointments = ref([]);
+        // ----------------------------------------
+
         const registrationTab = ref('clients');
         const agendaTab = ref('pending');
 
@@ -39,7 +46,6 @@ createApp({
         const showExpenseModal = ref(false);
         const isEditing = ref(false);
         const editingId = ref(null);
-        // Controle de Edição de Despesa
         const editingExpenseId = ref(null);
 
         const currentReceipt = ref(null);
@@ -70,14 +76,13 @@ createApp({
             { id: 'outros', label: 'Outras', icon: 'fa-money-bill' }
         ];
 
-        // --- MÁSCARAS DE INPUT ---
+        // --- MÁSCARAS ---
         const maskPhone = (v) => {
             v = v.replace(/\D/g, "");
             v = v.replace(/^(\d{2})(\d)/g, "($1) $2");
             v = v.replace(/(\d)(\d{4})$/, "$1-$2");
             return v;
         };
-
         const maskCPF = (v) => {
             v = v.replace(/\D/g, "");
             v = v.replace(/(\d{3})(\d)/, "$1.$2");
@@ -85,7 +90,6 @@ createApp({
             v = v.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
             return v;
         };
-        // -------------------------
 
         const toNum = (val) => { if (!val) return 0; if (typeof val === 'number') return val; const clean = String(val).replace(',', '.').replace(/[^0-9.-]/g, ''); return parseFloat(clean) || 0; };
         const formatCurrency = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(toNum(v));
@@ -128,6 +132,58 @@ createApp({
             if (localStorage.getItem('pp_dark') === 'true') { isDark.value = true; document.documentElement.classList.add('dark'); }
         });
 
+        // --- LÓGICA DE LOGIN DO CLIENTE ---
+        const handleClientAccess = async () => {
+            if (!clientAccessInput.value) return Swal.fire('Erro', 'Digite CPF ou E-mail', 'warning');
+            authLoading.value = true;
+            try {
+                const term = clientAccessInput.value.trim();
+                // Tenta buscar por CPF ou Email
+                let q = query(collection(db, "clients"), where("cpf", "==", term));
+                let snap = await getDocs(q);
+                
+                if (snap.empty) {
+                    q = query(collection(db, "clients"), where("email", "==", term));
+                    snap = await getDocs(q);
+                }
+
+                if (snap.empty) throw new Error("Cadastro não encontrado.");
+
+                const clientDoc = snap.docs[0];
+                clientData.value = { id: clientDoc.id, ...clientDoc.data() };
+
+                // Buscar eventos deste cliente
+                const qApps = query(collection(db, "appointments"), where("clientId", "==", clientDoc.id));
+                const snapApps = await getDocs(qApps);
+                
+                clientAppointments.value = snapApps.docs.map(sanitizeApp).sort((a,b) => b.date.localeCompare(a.date));
+                view.value = 'client-portal'; // Muda a view para o portal
+
+            } catch (e) {
+                Swal.fire('Acesso Negado', 'Nenhum evento encontrado para este dado.', 'error');
+            } finally {
+                authLoading.value = false;
+            }
+        };
+
+        const logoutClient = () => {
+            clientData.value = null;
+            clientAppointments.value = [];
+            clientAccessInput.value = '';
+            view.value = 'dashboard';
+            loginMode.value = 'provider'; // Volta pra tela de login normal
+        };
+        
+        const openWhatsAppSupport = () => {
+            window.open('https://wa.me/?text=Preciso%20de%20ajuda%20com%20meu%20evento', '_blank');
+        };
+
+        const downloadClientReceipt = async (app) => {
+             // Simples alerta para MVP, idealmente geraria o PDF igual ao admin
+             Swal.fire('Em breve', 'Funcionalidade de PDF direto pelo cliente chegando na próxima versão!', 'info');
+        };
+        // ----------------------------------
+
         const loadDashboardData = async () => {
             if (!user.value) return;
             isLoadingDashboard.value = true;
@@ -161,7 +217,6 @@ createApp({
         const kpiExpenses = computed(() => dashboardData.expenses.reduce((acc, e) => acc + toNum(e.value), 0));
         const financeData = computed(() => ({ revenue: kpiRevenue.value, expenses: kpiExpenses.value, profit: kpiRevenue.value - kpiExpenses.value, receivables: dashboardData.appointments.reduce((acc, a) => acc + toNum(a.finalBalance), 0) }));
 
-        // --- NOVAS COMPUTED PROPERTIES ---
         const totalAppointmentsCount = computed(() => dashboardData.appointments.length);
         const kpiPendingReceivables = computed(() => {
             return dashboardData.appointments
@@ -176,7 +231,6 @@ createApp({
             }).filter(c => c.total > 0).sort((a, b) => b.total - a.total); 
         });
         const topExpenseCategory = computed(() => expensesByCategoryStats.value[0] || null);
-        // ---------------------------------
 
         const next7DaysApps = computed(() => {
             const today = new Date(); today.setHours(0,0,0,0);
@@ -303,7 +357,6 @@ createApp({
         const saveService = async () => { if(!newService.description || !newService.price) return; await addDoc(collection(db, "services"), { description: newService.description, price: toNum(newService.price), userId: user.value.uid }); newService.description = ''; newService.price = ''; showServiceModal.value = false; };
         const deleteService = async (id) => { await deleteDoc(doc(db, "services", id)); };
         
-        // --- GERENCIAMENTO DE DESPESAS (EDITAR/EXCLUIR) ---
         const openNewExpense = () => {
             editingExpenseId.value = null;
             Object.assign(newExpense, { description: '', value: '', date: new Date().toISOString().split('T')[0], category: 'outros' });
@@ -330,7 +383,6 @@ createApp({
             }
             showExpenseModal.value = false; 
             Swal.fire('Salvo','','success');
-            // Se estivermos filtrando, recarregar a lista
             if (expensesFilter.start && expensesFilter.end) searchExpenses();
             loadDashboardData();
         };
@@ -344,7 +396,6 @@ createApp({
                 Swal.fire('Excluído!', '', 'success');
             }
         };
-        // --------------------------------------------------
         
         const saveClient = async () => {
             if(!newClient.name) return;
@@ -468,9 +519,7 @@ createApp({
             user, view, isDark, authForm, authLoading, isRegistering, handleAuth, logout: () => { signOut(auth); window.location.href="index.html"; },
             dashboardMonth, financeData, next7DaysApps, statementList, isExtractLoaded, financeSummary, expensesFilter, searchExpenses,
             showExpenseModal, newExpense, 
-            // FUNÇÕES DE DESPESA ATUALIZADAS
             addExpense: saveExpenseLogic, saveExpenseLogic, openNewExpense, openEditExpense, deleteExpense, editingExpenseId,
-            
             startNewSchedule, editAppointment, saveAppointment, showAppointmentModal, showClientModal, showServiceModal, newService, saveService, deleteService,
             newClient, saveClient, 
             tempApp, tempServiceSelect, services, totalServices, finalBalance, isEditing, clientSearchTerm, filteredClientsSearch, selectClient,
@@ -486,9 +535,10 @@ createApp({
             expenseCategories, expensesByCategoryStats,
             agendaTab, agendaFilter, searchHistory, changeStatus,
             registrationTab,
-            // NOVOS EXPORTS
             kpiPendingReceivables, totalAppointmentsCount, topExpenseCategory, getCategoryIcon: (id) => expenseCategories.find(c=>c.id===id)?.icon || 'fa-tag',
-            maskPhone, maskCPF
+            maskPhone, maskCPF,
+            // NOVOS EXPORTS PARA O CLIENTE
+            loginMode, clientAccessInput, handleClientAccess, clientData, clientAppointments, logoutClient, openWhatsAppSupport, downloadClientReceipt
         };
     }
 }).mount('#app');
