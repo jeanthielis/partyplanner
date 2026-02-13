@@ -3,145 +3,377 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PartyPlanner Pro - Organize Festas com Estilo</title>
+    <title>ControlPoint</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="./icon-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
     <script>
         tailwind.config = {
+            darkMode: 'class',
             theme: {
                 extend: {
-                    fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
-                    colors: { brand: { 500: '#8B5CF6', 600: '#7C3AED', 700: '#6D28D9' } },
-                    animation: { 'bounce-slow': 'bounce 3s infinite' }
+                    colors: {
+                        primary: '#2563eb', secondary: '#475569', success: '#10b981', danger: '#ef4444',
+                        darkbg: '#0f172a', darkcard: '#1e293b'
+                    }
                 }
             }
         }
     </script>
+    
     <style>
-        .glass { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(12px); }
-        .hero-gradient { background: radial-gradient(circle at top right, #f3e8ff, transparent), radial-gradient(circle at bottom left, #fdf2f8, transparent); }
-        html { scroll-behavior: smooth; }
+        [v-cloak] { display: none; }
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+        body, div, nav, aside { transition: background-color 0.3s, color 0.3s; }
+        .page-break { page-break-before: always; }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-900 font-sans antialiased">
-    <div id="landingApp">
-        <nav class="fixed w-full z-50 glass border-b border-slate-200">
-            <div class="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
-                <div class="flex items-center gap-2">
-                    <div class="bg-brand-600 p-2 rounded-lg text-white shadow-lg shadow-brand-500/30">
-                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+<body class="bg-slate-50 text-slate-800 dark:bg-darkbg dark:text-slate-200 transition-colors duration-300">
+
+    <div id="app" v-cloak class="min-h-screen flex flex-col md:flex-row">
+
+        <div v-if="!user" class="fixed inset-0 z-50 bg-white dark:bg-darkbg flex items-center justify-center p-4">
+             <div class="w-full max-w-md">
+                <div class="text-center mb-8">
+                    <i class="fas fa-chart-line text-5xl text-primary mb-4"></i>
+                    <h2 class="text-3xl font-bold text-slate-900 dark:text-white">ControlPoint</h2>
+                </div>
+                <div class="bg-white dark:bg-darkcard p-8 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700">
+                    <div class="flex border-b border-slate-200 dark:border-slate-600 mb-6">
+                        <button @click="authMode = 'login'" :class="authMode === 'login' ? 'text-primary border-primary' : 'border-transparent text-slate-500'" class="flex-1 pb-2 font-medium border-b-2">Login</button>
+                        <button @click="authMode = 'register'" :class="authMode === 'register' ? 'text-primary border-primary' : 'border-transparent text-slate-500'" class="flex-1 pb-2 font-medium border-b-2">Cadastrar</button>
                     </div>
-                    <span class="font-extrabold text-xl tracking-tight">PartyPlanner<span class="text-brand-600">Pro</span></span>
-                </div>
-                <div class="hidden md:flex gap-8 font-semibold text-sm text-slate-600">
-                    <a href="#funcionalidades" class="hover:text-brand-600 transition">Funcionalidades</a>
-                    <a href="#precos" class="hover:text-brand-600 transition">Preços</a>
-                </div>
-                <div class="flex items-center gap-4">
-                    <a href="app.html" class="text-sm font-bold text-slate-600 hover:text-brand-600 transition">Entrar</a>
-                    <a href="app.html" class="bg-brand-600 hover:bg-brand-700 text-white px-6 py-2.5 rounded-full font-bold text-sm shadow-lg shadow-brand-500/20 transition transform hover:scale-105 active:scale-95">
-                        Testar Grátis
-                    </a>
+                    <form @submit.prevent="handleAuth" class="space-y-4">
+                        <input v-model="authForm.email" type="email" placeholder="Email" required class="w-full px-4 py-3 rounded-lg border dark:bg-slate-700 dark:border-slate-600 outline-none focus:ring-2 focus:ring-primary">
+                        <input v-model="authForm.password" type="password" placeholder="Senha" required class="w-full px-4 py-3 rounded-lg border dark:bg-slate-700 dark:border-slate-600 outline-none focus:ring-2 focus:ring-primary">
+                        <div v-if="authError" class="p-3 bg-red-50 text-red-600 rounded-lg text-sm">{{ authError }}</div>
+                        <button type="submit" :disabled="loading" class="w-full bg-primary text-white font-bold py-3 rounded-lg hover:bg-blue-600 disabled:opacity-50">
+                            <i v-if="loading" class="fas fa-spinner fa-spin mr-2"></i> {{ authMode === 'login' ? 'Entrar' : 'Criar Conta' }}
+                        </button>
+                    </form>
                 </div>
             </div>
-        </nav>
+        </div>
 
-        <section class="relative pt-32 pb-20 overflow-hidden hero-gradient">
-            <div class="max-w-7xl mx-auto px-6 grid md:grid-cols-2 gap-12 items-center">
-                <div class="space-y-8 text-center md:text-left">
-                    <span class="inline-block bg-brand-100 text-brand-700 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider">
-                        O sistema nº 1 para Decoradores
-                    </span>
-                    <h1 class="text-5xl md:text-6xl font-extrabold leading-tight text-slate-900">
-                        Transforme sua paixão por festas em um <span class="text-brand-600">negócio lucrativo.</span>
-                    </h1>
-                    <p class="text-lg text-slate-600 max-w-lg mx-auto md:mx-0">
-                        Abandone o papel e as planilhas. Organize agenda, contratos, financeiro e assinaturas digitais em um só lugar.
-                    </p>
-                    <div class="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
-                        <a href="app.html" class="bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold text-lg hover:bg-slate-800 transition shadow-xl flex items-center justify-center gap-2">
-                            Começar Agora <i class="fa-solid fa-arrow-right text-sm"></i>
-                        </a>
-                        <div class="flex items-center gap-3 px-6 py-4">
-                            <div class="flex -space-x-2">
-                                <div class="w-8 h-8 rounded-full bg-purple-400 border-2 border-white"></div>
-                                <div class="w-8 h-8 rounded-full bg-pink-400 border-2 border-white"></div>
-                                <div class="w-8 h-8 rounded-full bg-blue-400 border-2 border-white"></div>
-                            </div>
-                            <span class="text-xs font-bold text-slate-500">+100 decoradores ativos</span>
-                        </div>
-                    </div>
+        <template v-else>
+            <aside class="hidden md:flex flex-col w-64 bg-white dark:bg-darkcard border-r border-slate-200 dark:border-slate-700 h-screen fixed top-0 left-0 z-20">
+                <div class="p-6 border-b border-slate-100 dark:border-slate-700">
+                    <h1 class="text-2xl font-bold text-primary flex items-center gap-2"><i class="fas fa-chart-line"></i> ControlPoint</h1>
+                    <p class="text-xs text-slate-500 mt-1 truncate">{{ user.email }}</p>
                 </div>
-                <div class="relative">
-                    <div class="bg-white p-4 rounded-[2.5rem] shadow-2xl border border-slate-200 transform rotate-2 hover:rotate-0 transition duration-500">
-                        <img src="https://images.unsplash.com/photo-1530103043960-ef38714abb15?auto=format&fit=crop&q=80&w=800" alt="App Preview" class="rounded-[2rem]">
-                    </div>
-                    <div class="absolute -bottom-6 -left-6 bg-white p-6 rounded-2xl shadow-xl border border-slate-100 animate-bounce-slow hidden sm:block">
-                        <div class="flex items-center gap-4">
-                            <div class="bg-green-100 text-green-600 p-3 rounded-full"><i class="fa-solid fa-check"></i></div>
-                            <div>
-                                <p class="text-xs text-slate-400 font-bold uppercase">Novo Evento</p>
-                                <p class="font-bold">Festa Infantil - R$ 1.200</p>
-                            </div>
-                        </div>
-                    </div>
+                <nav class="flex-1 p-4 space-y-2">
+                    <button v-for="item in menuItems" :key="item.id" @click="currentView = item.id"
+                        :class="currentView === item.id ? 'bg-blue-50 dark:bg-blue-900/30 text-primary' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'"
+                        class="w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-left">
+                        <i :class="item.icon" class="w-6 text-center"></i> {{ item.label }}
+                    </button>
+                </nav>
+                <div class="px-4 pb-2">
+                    <button @click="toggleDarkMode" class="w-full flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg font-medium">
+                        <i :class="isDarkMode ? 'fas fa-sun text-yellow-400' : 'fas fa-moon'"></i> {{ isDarkMode ? 'Claro' : 'Escuro' }}
+                    </button>
                 </div>
-            </div>
-        </section>
+                <div class="p-4 border-t border-slate-100 dark:border-slate-700">
+                    <button @click="logout" class="w-full flex items-center gap-3 px-4 py-3 text-danger hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg font-medium"><i class="fas fa-sign-out-alt w-6"></i> Sair</button>
+                </div>
+            </aside>
 
-        <section id="funcionalidades" class="py-24 bg-white">
-            <div class="max-w-7xl mx-auto px-6">
-                <div class="text-center mb-16">
-                    <h2 class="text-3xl font-bold text-slate-900">Tudo o que você precisa para crescer</h2>
-                </div>
-                <div class="grid md:grid-cols-3 gap-8">
-                    <div v-for="f in features" :key="f.title" class="p-8 rounded-3xl bg-slate-50 border border-slate-100 hover:border-brand-300 transition group">
-                        <div class="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-brand-600 text-2xl shadow-sm mb-6 group-hover:bg-brand-600 group-hover:text-white transition">
-                            <i :class="f.icon"></i>
-                        </div>
-                        <h3 class="text-xl font-bold mb-3">{{ f.title }}</h3>
-                        <p class="text-slate-500 text-sm leading-relaxed">{{ f.desc }}</p>
+            <main class="flex-1 md:ml-64 min-h-screen pb-24 md:pb-8 bg-slate-50 dark:bg-darkbg">
+                <header class="md:hidden bg-white dark:bg-darkcard p-4 shadow-sm sticky top-0 z-10 flex justify-between items-center border-b dark:border-slate-700">
+                    <h1 class="text-xl font-bold text-primary">CP</h1>
+                    <div class="flex gap-3">
+                        <button @click="toggleDarkMode"><i :class="isDarkMode ? 'fas fa-sun text-yellow-400' : 'fas fa-moon text-slate-400'"></i></button>
+                        <button @click="logout" class="text-slate-400"><i class="fas fa-sign-out-alt"></i></button>
                     </div>
-                </div>
-            </div>
-        </section>
+                </header>
 
-        <section id="precos" class="py-24 bg-slate-900 text-white overflow-hidden relative">
-            <div class="max-w-7xl mx-auto px-6 relative z-10">
-                <div class="max-w-2xl mx-auto text-center">
-                    <h2 class="text-4xl font-bold mb-6">Preço simples e transparente</h2>
-                    <p class="text-slate-400 mb-12 text-lg">Sem taxas escondidas. Funcionalidades ilimitadas para alavancar seu negócio.</p>
+                <div class="p-4 md:p-8 max-w-5xl mx-auto">
                     
-                    <div class="bg-slate-800 p-12 rounded-[3rem] border border-slate-700 shadow-2xl relative">
-                        <div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-brand-600 text-white px-6 py-1 rounded-full text-xs font-black uppercase">Plano Pro</div>
-                        <div class="mb-8">
-                            <span class="text-6xl font-black">R$ 49,90</span>
-                            <span class="text-slate-400 font-bold">/mês</span>
+                    <div v-if="currentView === 'inspection'" class="space-y-6">
+                        <div class="bg-white dark:bg-darkcard p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
+                            <div class="flex flex-col md:flex-row justify-between gap-4 mb-6">
+                                <div>
+                                    <h2 class="text-xl font-bold text-slate-800 dark:text-white">Verificação</h2>
+                                    <p class="text-sm text-slate-500">Selecione equipe e data (Edição automática se já existir)</p>
+                                </div>
+                                <div class="flex gap-2">
+                                    <select v-model="currentTeam" class="bg-slate-50 dark:bg-slate-700 dark:text-white border dark:border-slate-600 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-primary"><option>Equipe 1</option><option>Equipe 2</option><option>Equipe 3</option><option>Equipe 4</option></select>
+                                    <input type="date" v-model="currentDate" class="bg-slate-50 dark:bg-slate-700 dark:text-white border dark:border-slate-600 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-primary">
+                                </div>
+                            </div>
+                            <div class="relative pt-1 mb-4">
+                                <div class="flex mb-2 justify-between"><span class="text-xs font-semibold bg-blue-100 text-primary px-2 py-1 rounded">Progresso</span><span class="text-xs font-semibold dark:text-white">{{ progress.toFixed(0) }}% / {{ meta }}%</span></div>
+                                <div class="overflow-hidden h-4 text-xs flex rounded bg-slate-100 dark:bg-slate-700"><div :style="{ width: progress + '%' }" :class="progress >= meta ? 'bg-success' : 'bg-primary'" class="flex flex-col justify-center transition-all duration-500"></div></div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Resumo Geral</label>
+                                <textarea v-model="inspectionObservation" rows="1" placeholder="Observações gerais da inspeção..." class="w-full p-3 bg-slate-50 dark:bg-slate-700 dark:text-white border border-slate-200 dark:border-slate-600 rounded-lg outline-none focus:ring-2 focus:ring-primary text-sm"></textarea>
+                            </div>
                         </div>
-                        <ul class="text-left space-y-4 mb-10 text-slate-300 font-medium">
-                            <li class="flex items-center gap-3"><i class="fa-solid fa-check text-green-400"></i> Eventos e Clientes Ilimitados</li>
-                            <li class="flex items-center gap-3"><i class="fa-solid fa-check text-green-400"></i> Assinatura Digital de Contratos</li>
-                            <li class="flex items-center gap-3"><i class="fa-solid fa-check text-green-400"></i> Gestão de Fluxo de Caixa (SaaS)</li>
-                            <li class="flex items-center gap-3"><i class="fa-solid fa-check text-green-400"></i> Recibos Personalizados com sua Logo</li>
-                        </ul>
-                        <a href="app.html" class="block w-full bg-brand-600 hover:bg-brand-500 text-white py-5 rounded-2xl font-black text-xl shadow-lg shadow-brand-500/20 transition">
-                            Assinar Agora
-                        </a>
-                        <p class="mt-4 text-xs text-slate-500 font-bold">Teste grátis por 7 dias. Cancele quando quiser.</p>
+
+                        <div class="flex justify-end">
+                            <button @click="toggleAllPoints" class="text-sm font-medium flex items-center gap-2 px-3 py-2 rounded-lg transition-colors" :class="allSelected ? 'text-danger hover:bg-red-50' : 'text-primary hover:bg-blue-50'">
+                                <i :class="allSelected ? 'fas fa-square-minus' : 'fas fa-check-double'"></i> {{ allSelected ? 'Desmarcar Todos' : 'Marcar Todos' }}
+                            </button>
+                        </div>
+
+                        <div v-if="loadingPoints" class="text-center py-10"><i class="fas fa-circle-notch fa-spin text-3xl text-primary"></i></div>
+                        
+                        <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                            <div v-for="point in points" :key="point.id" 
+                                class="bg-white dark:bg-darkcard p-4 rounded-xl border-2 transition-all shadow-sm"
+                                :class="point.checked ? 'border-primary bg-blue-50 dark:bg-blue-900/10' : 'border-transparent dark:border-slate-700'">
+                                
+                                <div class="flex items-center justify-between mb-2">
+                                    <div class="flex items-center gap-3 cursor-pointer flex-1" @click="togglePoint(point)">
+                                        <div class="w-7 h-7 rounded-full border-2 flex items-center justify-center flex-shrink-0" :class="point.checked ? 'bg-primary border-primary' : 'bg-white dark:bg-slate-700 border-slate-300'">
+                                            <i v-if="point.checked" class="fas fa-check text-white text-xs"></i>
+                                        </div>
+                                        <span class="font-medium text-slate-700 dark:text-slate-200 text-sm select-none">{{ point.name }}</span>
+                                    </div>
+                                    <button @click="point.showObs = !point.showObs" class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors" :class="point.obs ? 'text-yellow-500' : 'text-slate-300'">
+                                        <i class="fas fa-comment-dots"></i>
+                                    </button>
+                                </div>
+
+                                <div v-if="point.showObs || point.obs" class="mt-2">
+                                    <input type="text" v-model="point.obs" placeholder="Obs deste ponto..." class="w-full text-xs p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded text-slate-600 dark:text-slate-300 outline-none focus:border-primary">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="fixed bottom-24 right-6 md:bottom-10 md:right-10 z-50">
+                            <button @click="saveInspection" :disabled="saving" class="shadow-2xl bg-primary text-white font-bold py-4 px-6 rounded-full flex items-center gap-3 hover:bg-blue-600 transition-all hover:scale-105">
+                                <i class="fas fa-save text-xl"></i> 
+                                <span class="text-lg">{{ saving ? 'Salvando...' : 'Salvar' }}</span>
+                            </button>
+                        </div>
+
+                    </div>
+
+                    <div v-if="currentView === 'history'" class="space-y-6">
+                        <div class="bg-white dark:bg-darkcard p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col md:flex-row justify-between items-center gap-4">
+                            <div>
+                                <h2 class="text-xl font-bold text-slate-800 dark:text-white">Histórico de Inspeções</h2>
+                                <p class="text-sm text-slate-500">Selecione o mês para visualizar ou editar registros</p>
+                            </div>
+                            <input type="month" v-model="historyMonth" class="bg-slate-50 dark:bg-slate-700 dark:text-white border dark:border-slate-600 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-primary">
+                        </div>
+
+                        <div v-if="loadingHistory" class="text-center py-10"><i class="fas fa-circle-notch fa-spin text-3xl text-primary"></i></div>
+
+                        <div v-else-if="historyList.length === 0" class="text-center py-10 text-slate-500 bg-white dark:bg-darkcard rounded-2xl border dark:border-slate-700">
+                            <i class="fas fa-folder-open text-4xl mb-3 opacity-50"></i>
+                            <p>Nenhuma inspeção encontrada neste mês.</p>
+                        </div>
+
+                        <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div v-for="(item, index) in historyList" :key="index" class="bg-white dark:bg-darkcard rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 p-4 hover:shadow-md transition-shadow">
+                                <div class="flex justify-between items-start mb-3">
+                                    <span class="px-2 py-1 bg-blue-50 dark:bg-blue-900/20 text-primary text-xs font-bold rounded-lg">{{ item.team }}</span>
+                                    <span class="text-sm text-slate-500 dark:text-slate-400"><i class="far fa-calendar-alt mr-1"></i> {{ item.date.split('-').reverse().join('/') }}</span>
+                                </div>
+                                
+                                <div class="mb-4">
+                                    <div class="flex items-end gap-2 mb-1">
+                                        <span class="text-3xl font-bold" :class="item.score >= meta ? 'text-success' : 'text-danger'">{{ item.score.toFixed(0) }}%</span>
+                                        <span class="text-xs text-slate-400 mb-1">aproveitamento</span>
+                                    </div>
+                                    <div class="w-full bg-slate-100 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
+                                        <div class="h-full rounded-full" :class="item.score >= meta ? 'bg-success' : 'bg-danger'" :style="{width: item.score + '%'}"></div>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center justify-between pt-3 border-t dark:border-slate-700">
+                                    <span class="text-xs text-slate-400 truncate max-w-[150px]"><i class="fas fa-user mr-1"></i> {{ item.user.split('@')[0] }}</span>
+                                    <div class="flex gap-2">
+                                        <button @click="deleteInspection(item)" class="text-sm font-medium text-danger hover:text-red-700 flex items-center gap-1 px-3 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors" title="Excluir">
+                                            Excluir <i class="fas fa-trash-alt ml-1"></i>
+                                        </button>
+                                        <button @click="editFromHistory(item)" class="text-sm font-medium text-primary hover:text-blue-600 flex items-center gap-1 px-3 py-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors" title="Editar">
+                                            Editar <i class="fas fa-pen ml-1"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-if="currentView === 'reports'" class="space-y-6">
+                        <div class="flex space-x-2 overflow-x-auto pb-2">
+                            <button @click="reportType = 'monthly'" :class="reportType === 'monthly' ? 'bg-primary text-white' : 'bg-white dark:bg-darkcard text-slate-600 dark:text-slate-400'" class="px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap shadow-sm">Mensal</button>
+                            <button @click="reportType = 'annual'" :class="reportType === 'annual' ? 'bg-primary text-white' : 'bg-white dark:bg-darkcard text-slate-600 dark:text-slate-400'" class="px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap shadow-sm">Anual</button>
+                            <button @click="reportType = 'daily'" :class="reportType === 'daily' ? 'bg-primary text-white' : 'bg-white dark:bg-darkcard text-slate-600 dark:text-slate-400'" class="px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap shadow-sm">Diário Detalhado</button>
+                        </div>
+
+                        <div id="reportContent" class="bg-white dark:bg-darkcard p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
+                            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                                <div>
+                                    <h2 class="text-xl font-bold text-slate-800 dark:text-white">
+                                        {{ reportType === 'monthly' ? 'Desempenho Mensal' : reportType === 'annual' ? 'Evolução Anual' : 'Relatório Diário' }}
+                                    </h2>
+                                    <p class="text-sm text-slate-500">Métricas de qualidade (Meta: {{ meta }}%)</p>
+                                </div>
+                                <div class="flex gap-2">
+                                    <input v-if="reportType === 'monthly'" type="month" v-model="reportMonth" class="bg-slate-50 dark:bg-slate-700 dark:text-white border border-slate-200 dark:border-slate-600 rounded-lg p-2 text-sm outline-none">
+                                    <select v-if="reportType === 'annual'" v-model="reportYear" class="bg-slate-50 dark:bg-slate-700 dark:text-white border border-slate-200 dark:border-slate-600 rounded-lg p-2 text-sm outline-none">
+                                        <option v-for="y in [2024, 2025, 2026, 2027]" :value="y">{{ y }}</option>
+                                    </select>
+                                    
+                                    <div v-if="reportType === 'daily'" class="flex gap-2">
+                                        <input type="date" v-model="dailyDate" class="bg-slate-50 dark:bg-slate-700 dark:text-white border border-slate-200 dark:border-slate-600 rounded-lg p-2 text-sm outline-none">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div v-if="loadingReports" class="text-center py-10"><i class="fas fa-circle-notch fa-spin text-3xl text-primary"></i></div>
+                            
+                            <div v-else-if="reportType === 'monthly' || reportType === 'annual'">
+                                <div class="relative h-72 w-full mb-8">
+                                    <canvas id="mainChart"></canvas>
+                                </div>
+
+                                <div v-if="reportType === 'monthly'" class="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700 mb-8">
+                                    <table class="w-full text-sm text-left text-slate-600 dark:text-slate-300">
+                                        <thead class="bg-slate-50 dark:bg-slate-800 text-xs uppercase font-bold"><tr><th class="px-4 py-3">Pos</th><th class="px-4 py-3">Equipe</th><th class="px-4 py-3">Média</th><th class="px-4 py-3">Qtd</th></tr></thead>
+                                        <tbody>
+                                            <tr v-for="stat in teamStats" :key="stat.name" class="border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800">
+                                                <td class="px-4 py-3 font-bold">
+                                                    <span v-if="stat.rank === 1">🥇 1º</span>
+                                                    <span v-else-if="stat.rank === 2">🥈 2º</span>
+                                                    <span v-else-if="stat.rank === 3">🥉 3º</span>
+                                                    <span v-else>{{ stat.rank }}º</span>
+                                                </td>
+                                                <td class="px-4 py-3">{{ stat.name }}</td>
+                                                <td class="px-4 py-3" :class="stat.average >= meta ? 'text-green-600 font-bold' : 'text-red-500 font-bold'">{{ stat.average }}%</td>
+                                                <td class="px-4 py-3">{{ stat.count }}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div v-if="topOffenders.length > 0" class="mt-8 pt-8 border-t dark:border-slate-700">
+                                    <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+                                        <i class="fas fa-exclamation-triangle text-danger"></i>
+                                        Top 5 Pontos de Atenção (Mais Reprovados)
+                                    </h3>
+                                    <div class="relative h-64 w-full">
+                                        <canvas id="offendersChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div v-else-if="reportType === 'daily'">
+                                <div v-if="dailyDataList && dailyDataList.length > 0" class="space-y-8">
+                                    <div v-for="report in dailyDataList" :key="report.team" class="border dark:border-slate-700 rounded-xl overflow-hidden shadow-sm">
+                                        
+                                        <div class="bg-slate-50 dark:bg-slate-800 p-4 border-b dark:border-slate-700 flex justify-between items-center">
+                                            <div>
+                                                <h3 class="font-bold text-lg text-slate-800 dark:text-white">{{ report.team }}</h3>
+                                                <p class="text-xs text-slate-500">Inspetor: {{ report.user }}</p>
+                                            </div>
+                                            <div class="text-right">
+                                                <span class="text-2xl font-bold" :class="report.score >= meta ? 'text-green-600' : 'text-red-500'">{{ report.score.toFixed(0) }}%</span>
+                                            </div>
+                                        </div>
+
+                                        <div class="p-4 bg-white dark:bg-darkcard">
+                                            <div v-if="report.observation" class="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg">
+                                                <h4 class="text-xs font-bold text-yellow-800 dark:text-yellow-400 mb-1">Resumo Geral</h4>
+                                                <p class="text-sm text-yellow-900 dark:text-yellow-200">{{ report.observation }}</p>
+                                            </div>
+
+                                            <h4 class="font-bold text-sm text-slate-700 dark:text-slate-300 mb-2">Checklist</h4>
+                                            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                                <div v-for="point in report.points" :key="point.name" class="p-2 border rounded dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                                                    <div class="flex items-center gap-3">
+                                                        <i :class="point.checked ? 'fas fa-check-circle text-green-500' : 'fas fa-times-circle text-red-500'" class="text-lg"></i>
+                                                        <span class="text-sm font-medium dark:text-slate-300">{{ point.name }}</span>
+                                                    </div>
+                                                    <div v-if="point.obs" class="mt-1 ml-8 text-xs text-red-500 dark:text-red-400 italic">
+                                                        <i class="fas fa-comment mr-1"></i> {{ point.obs }}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div v-else class="text-center py-10 text-slate-500">
+                                    Nenhuma inspeção encontrada nesta data.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end gap-3 mt-4">
+                            <button @click="generatePDF" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2"><i class="fas fa-file-pdf"></i> PDF</button>
+                            <button @click="takeScreenshot" class="bg-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2"><i class="fas fa-camera"></i> Print</button>
+                        </div>
+                    </div>
+
+                    <div v-if="currentView === 'admin'" class="max-w-2xl mx-auto space-y-6">
+                        
+                        <div class="bg-white dark:bg-darkcard p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
+                            <h2 class="text-xl font-bold dark:text-white mb-4">Meta Global</h2>
+                            <div class="flex items-center gap-4">
+                                <div class="flex-1">
+                                    <input type="range" v-model="meta" min="50" max="100" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                                    <div class="flex justify-between text-xs text-slate-400 mt-1">
+                                        <span>50%</span>
+                                        <span>100%</span>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-2xl font-bold text-primary">{{ meta }}%</span>
+                                    <button @click="saveMeta" class="bg-primary text-white p-2 rounded-lg hover:bg-blue-600 transition-colors" title="Salvar Meta">
+                                        <i class="fas fa-save"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-2">Isso define a linha de corte para todas as equipes nos gráficos.</p>
+                        </div>
+
+                        <div class="bg-white dark:bg-darkcard p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
+                            <h2 class="text-xl font-bold dark:text-white mb-4">Gerenciar Pontos</h2>
+                            <div class="flex gap-2 mb-6">
+                                <input v-model="newPointName" @keyup.enter="addPoint" type="text" placeholder="Nome do novo ponto..." class="flex-1 p-3 border dark:bg-slate-700 dark:border-slate-600 dark:text-white rounded-lg outline-none focus:ring-2 focus:ring-primary">
+                                <button @click="addPoint" class="bg-success text-white px-4 rounded-lg hover:bg-green-600"><i class="fas fa-plus"></i></button>
+                            </div>
+                            <div class="space-y-2">
+                                <div v-for="(point, index) in pointsConfig" :key="point.id" class="flex justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border dark:border-slate-700">
+                                    <span class="dark:text-white">{{ point.name }}</span>
+                                    <button @click="deletePoint(point.id)" class="text-danger hover:text-red-700"><i class="fas fa-trash-alt"></i></button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </section>
-
-        <footer class="py-12 bg-white border-t border-slate-200">
-            <div class="max-w-7xl mx-auto px-6 text-center text-slate-400 text-sm">
-                <p>&copy; 2026 PartyPlanner Pro. Todos os direitos reservados.</p>
-            </div>
-        </footer>
+            </main>
+            
+            <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-darkcard border-t dark:border-slate-700 flex justify-around p-2 z-40 pb-safe">
+                <button v-for="item in menuItems" :key="item.id" @click="currentView = item.id" :class="currentView === item.id ? 'text-primary' : 'text-slate-400'" class="flex flex-col items-center justify-center p-2 w-full"><i :class="item.icon" class="text-xl mb-1"></i><span class="text-[10px]">{{ item.label }}</span></button>
+            </nav>
+        </template>
     </div>
 
-    <script src="landing.js"></script>
+    <script type="module" src="./app.js"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js')
+            .then((reg) => console.log('Service Worker registado:', reg.scope))
+            .catch((err) => console.log('Falha no Service Worker:', err));
+        });
+      }
+    </script>
 </body>
 </html>
