@@ -1,493 +1,421 @@
-import { createApp, ref, computed, onMounted, watch, nextTick } from 'https://unpkg.com/vue@3/dist/vue.esm-browser.js'
-import { db, auth, collection, addDoc, getDocs, doc, deleteDoc, query, setDoc, where, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, getDoc } from './firebase.js'
+const { createApp, ref, computed, reactive, onMounted, watch } = Vue;
+
+import { 
+    db, auth, 
+    collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDocs, query, where, setDoc, getDoc, 
+    signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged,
+    updatePassword, reauthenticateWithCredential, EmailAuthProvider, updateProfile 
+} from './firebase.js';
 
 createApp({
     setup() {
-        // === ESTADO GERAL ===
-        const user = ref(null);
-        const authMode = ref('login');
-        const authForm = ref({ email: '', password: '' });
-        const authError = ref('');
-        const loading = ref(false);
-        const isDarkMode = ref(localStorage.getItem('darkMode') === 'true');
+        // ============================================================
+        // 1. ESTADO (REFS & REACTIVE) - DECLARAR TUDO AQUI PRIMEIRO
+        // ============================================================
         
-        const currentView = ref('inspection');
-        const menuItems = [
-            { id: 'inspection', label: 'Inspeção', icon: 'fas fa-tasks' },
-            { id: 'history', label: 'Histórico', icon: 'fas fa-history' },
-            { id: 'reports', label: 'Relatórios', icon: 'fas fa-chart-pie' },
-            { id: 'admin', label: 'Admin', icon: 'fas fa-cogs' },
+        // -- Sistema e Auth --
+        const user = ref(null);
+        const view = ref('dashboard');
+        const isDark = ref(false);
+        const authLoading = ref(false);
+        const isRegistering = ref(false);
+        const authForm = reactive({ email: '', password: '', name: '' });
+        
+        // -- Configurações e Dados Mestres --
+        const company = reactive({ fantasia: '', logo: '', cnpj: '', email: '', phone: '', rua: '', bairro: '', cidade: '', estado: '' });
+        const dashboardMonth = ref(new Date().toISOString().slice(0, 7));
+        const isLoadingDashboard = ref(false);
+        
+        // -- Listas de Dados (Arrays) --
+        const services = ref([]);
+        const pendingAppointments = ref([]);
+        const historyList = ref([]);
+        const expensesList = ref([]); // <--- CORREÇÃO: Declarado antes do computed
+        const dashboardData = reactive({ appointments: [], expenses: [] });
+        const catalogClientsList = ref([]);
+        const scheduleClientsList = ref([]);
+        
+        // -- Cache e Controles --
+        const clientCache = reactive({});
+        const isExtractLoaded = ref(false);
+        const expensesFilter = reactive({ start: '', end: '' });
+        const agendaFilter = reactive({ start: '', end: '' });
+        const clientSearchTerm = ref('');
+        const isSelectingClient = ref(false);
+        const catalogClientSearch = ref('');
+        const appointmentViewMode = ref('list');
+        const calendarCursor = ref(new Date());
+        const selectedCalendarDate = ref(null);
+        const registrationTab = ref('clients');
+        const agendaTab = ref('pending');
+
+        // -- Modais e Edição --
+        const showAppointmentModal = ref(false);
+        const showClientModal = ref(false);
+        const showServiceModal = ref(false);
+        const showExpenseModal = ref(false);
+        const showReceiptModal = ref(false); // Modal de Detalhes/Recibo
+        const isEditing = ref(false);
+        const editingId = ref(null);
+        const editingExpenseId = ref(null);
+        const currentReceipt = ref(null);
+
+        // -- Objetos Temporários (Formulários) --
+        const newClient = reactive({ name: '', phone: '', cpf: '', email: '' });
+        const newService = reactive({ description: '', price: '' });
+        const newExpense = reactive({ description: '', value: '', date: new Date().toISOString().split('T')[0], category: 'outros' });
+        const tempServiceSelect = ref('');
+        const tempApp = reactive({ clientId: '', date: '', time: '', location: { bairro: '' }, details: { entryFee: 0, balloonColors: '' }, notes: '', selectedServices: [], checklist: [] });
+
+        // -- Área do Cliente --
+        const loginMode = ref('provider'); 
+        const clientAccessInput = ref('');
+        const clientData = ref(null);
+        const clientAppointments = ref([]);
+        const showSignatureModal = ref(false);
+        const signatureApp = ref(null);
+
+        // -- Constantes --
+        const expenseCategories = [
+            { id: 'combustivel', label: 'Combustível', icon: 'fa-gas-pump' },
+            { id: 'materiais', label: 'Materiais', icon: 'fa-box-open' },
+            { id: 'equipe', label: 'Equipe', icon: 'fa-users' },
+            { id: 'refeicao', label: 'Alimentação', icon: 'fa-utensils' },
+            { id: 'marketing', label: 'Marketing', icon: 'fa-bullhorn' },
+            { id: 'aluguel', label: 'Aluguel', icon: 'fa-house' },
+            { id: 'outros', label: 'Outras', icon: 'fa-money-bill' }
         ];
 
-        // === INSPEÇÃO ===
-        const currentTeam = ref('Equipe 1');
-        const currentDate = ref(new Date().toISOString().split('T')[0]);
-        const points = ref([]); 
-        const loadingPoints = ref(false);
-        const saving = ref(false);
-        const meta = ref(93); 
-        const inspectionObservation = ref(''); 
+        // ============================================================
+        // 2. FUNÇÕES AUXILIARES (PURE FUNCTIONS)
+        // ============================================================
+        const toNum = (v) => { if(!v) return 0; if(typeof v==='number') return v; const c=String(v).replace(',','.').replace(/[^0-9.-]/g,''); return parseFloat(c)||0; };
+        const formatCurrency = (v) => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(toNum(v));
+        const formatDate = (d) => { if(!d) return ''; try{return d.split('-').reverse().join('/');}catch(e){return d;} };
+        const getDay = (d) => d?d.split('-')[2]:'';
+        const getMonth = (d) => d?['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'][parseInt(d.split('-')[1])-1]:'';
+        const statusText = (s) => s==='concluded'?'Concluído':(s==='cancelled'?'Cancelado':'Pendente');
+        const getClientName = (id) => clientCache[id]?.name || 'Cliente Excluído';
+        const getCategoryIcon = (id) => expenseCategories.find(c=>c.id===id)?.icon || 'fa-tag';
+        
+        // Máscaras
+        const maskPhone = (v) => { if(!v) return ""; v=v.replace(/\D/g,""); v=v.replace(/^(\d{2})(\d)/g,"($1) $2"); v=v.replace(/(\d)(\d{4})$/,"$1-$2"); return v; };
+        const maskCPF = (v) => { if(!v) return ""; v=v.replace(/\D/g,""); v=v.replace(/(\d{3})(\d)/,"$1.$2"); v=v.replace(/(\d{3})(\d)/,"$1.$2"); v=v.replace(/(\d{3})(\d{1,2})$/,"$1-$2"); return v; };
 
-        // === HISTÓRICO ===
-        const historyList = ref([]);
-        const loadingHistory = ref(false);
-        const historyMonth = ref(new Date().toISOString().slice(0, 7));
+        // ============================================================
+        // 3. COMPUTED PROPERTIES (DEPENDEM DO ESTADO ACIMA)
+        // ============================================================
+        
+        // Financeiro
+        const statementList = computed(() => { 
+            if (!isExtractLoaded.value) return []; 
+            return expensesList.value.sort((a, b) => b.date.localeCompare(a.date)); 
+        });
+        
+        const financeSummary = computed(() => statementList.value.reduce((acc, item) => item.type === 'income' ? acc + item.value : acc - item.value, 0));
 
-        // === ADMIN ===
-        const pointsConfig = ref([]); 
-        const newPointName = ref('');
+        // Totais e KPIs
+        const totalServices = computed(() => tempApp.selectedServices.reduce((s,i) => s + toNum(i.price), 0));
+        const finalBalance = computed(() => totalServices.value - toNum(tempApp.details.entryFee));
+        
+        const kpiRevenue = computed(() => dashboardData.appointments.reduce((acc, a) => acc + toNum(a.totalServices), 0));
+        const kpiExpenses = computed(() => dashboardData.expenses.reduce((acc, e) => acc + toNum(e.value), 0));
+        const financeData = computed(() => ({ 
+            revenue: kpiRevenue.value, 
+            expenses: kpiExpenses.value, 
+            profit: kpiRevenue.value - kpiExpenses.value 
+        }));
+        
+        const totalAppointmentsCount = computed(() => dashboardData.appointments.length);
+        const kpiPendingReceivables = computed(() => dashboardData.appointments.filter(a => a.status === 'pending').reduce((acc, a) => acc + toNum(a.finalBalance), 0));
+        
+        const expensesByCategoryStats = computed(() => { 
+            if (!dashboardData.expenses.length) return []; 
+            return expenseCategories.map(cat => { 
+                const total = dashboardData.expenses.filter(e => e.category === cat.id).reduce((sum, e) => sum + toNum(e.value), 0); 
+                return { ...cat, total }; 
+            }).filter(c => c.total > 0).sort((a, b) => b.total - a.total); 
+        });
+        const topExpenseCategory = computed(() => expensesByCategoryStats.value[0] || null);
 
-        // === RELATÓRIOS ===
-        const reportType = ref('monthly'); 
-        const reportMonth = ref(new Date().toISOString().slice(0, 7));
-        const reportYear = ref(new Date().getFullYear());
-        const dailyDate = ref(new Date().toISOString().split('T')[0]);
-        const loadingReports = ref(false);
-        const teamStats = ref([]);
-        const dailyDataList = ref([]);
-        // NOVO: Estado para os ofensores
-        const topOffenders = ref([]);
-
-        // === COMPUTED ===
-        const progress = computed(() => {
-            if (points.value.length === 0) return 0;
-            const checkedCount = points.value.filter(p => p.checked).length;
-            return (checkedCount / points.value.length) * 100;
+        // Listas Filtradas
+        const next7DaysApps = computed(() => {
+            const today = new Date(); today.setHours(0,0,0,0);
+            const nextWeek = new Date(today); nextWeek.setDate(today.getDate() + 7);
+            const todayStr = today.toISOString().split('T')[0];
+            const nextWeekStr = nextWeek.toISOString().split('T')[0];
+            return pendingAppointments.value.filter(a => a.date >= todayStr && a.date <= nextWeekStr).sort((a,b) => a.date.localeCompare(b.date));
         });
 
-        const allSelected = computed(() => points.value.length > 0 && points.value.every(p => p.checked));
-
-        // === WATCHERS ===
-        watch(isDarkMode, (val) => {
-            if (val) document.documentElement.classList.add('dark');
-            else document.documentElement.classList.remove('dark');
-            localStorage.setItem('darkMode', val);
-            if(currentView.value === 'reports' && reportType.value !== 'daily') {
-                setTimeout(() => {
-                    renderChart(reportType.value === 'annual' ? 'line' : 'bar');
-                    renderOffendersChart();
-                }, 300);
+        const calendarGrid = computed(() => {
+            const year = calendarCursor.value.getFullYear(); const month = calendarCursor.value.getMonth();
+            const firstDay = new Date(year, month, 1).getDay(); const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const days = [];
+            for (let i = 0; i < firstDay; i++) days.push({ day: '', date: null });
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                days.push({ day: i, date: dateStr, hasEvent: pendingAppointments.value.some(a => a.date === dateStr) });
             }
-        }, { immediate: true });
-
-        watch([currentView, reportType, reportMonth, reportYear, dailyDate, historyMonth], () => {
-            if (currentView.value === 'reports') loadReports();
-            if (currentView.value === 'history') loadHistory();
+            return days;
         });
-
-        watch([currentTeam, currentDate], () => initializeChecklist());
-        watch(pointsConfig, () => { if (currentView.value === 'inspection') initializeChecklist(); });
-
-        // === INICIALIZAÇÃO ===
-        onMounted(() => {
-            if (auth) {
-                onAuthStateChanged(auth, (u) => {
-                    user.value = u;
-                    if (u) {
-                        loadMasterPoints();
-                        loadMeta();
-                    }
-                });
-            }
+        
+        const appointmentsOnSelectedDate = computed(() => pendingAppointments.value.filter(a => a.date === selectedCalendarDate.value));
+        const calendarTitle = computed(() => `${['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'][calendarCursor.value.getMonth()]} ${calendarCursor.value.getFullYear()}`);
+        
+        const filteredListAppointments = computed(() => { 
+            let list = agendaTab.value === 'pending' ? pendingAppointments.value : historyList.value;
+            if(clientSearchTerm.value) list = list.filter(a => getClientName(a.clientId).toLowerCase().includes(clientSearchTerm.value.toLowerCase())); 
+            return list.sort((a,b) => a.date.localeCompare(b.date)); 
         });
+        
+        const filteredClientsSearch = computed(() => scheduleClientsList.value);
 
-        // === FUNÇÕES GERAIS ===
-        const toggleDarkMode = () => isDarkMode.value = !isDarkMode.value;
-        const toggleAllPoints = () => {
-            const targetState = !allSelected.value;
-            points.value.forEach(p => p.checked = targetState);
+        // ============================================================
+        // 4. FUNÇÕES DE DADOS E LÓGICA (ASYNC)
+        // ============================================================
+
+        const fetchClientToCache = async (id) => {
+            if (!id || clientCache[id]) return;
+            try { const s = await getDoc(doc(db, "clients", id)); if (s.exists()) clientCache[id] = s.data(); else clientCache[id] = { name: 'Excluído', phone: '-' }; } catch (e) {}
         };
-        const togglePoint = (point) => point.checked = !point.checked;
 
-        const handleAuth = async () => {
-            loading.value = true;
-            authError.value = '';
+        const sanitizeApp = (docSnapshot) => {
+            const data = docSnapshot.data ? docSnapshot.data() : docSnapshot;
+            const safeServices = Array.isArray(data.selectedServices) ? data.selectedServices : [];
+            let total = toNum(data.totalServices);
+            if (total === 0 && safeServices.length > 0) total = safeServices.reduce((sum, item) => sum + toNum(item.price), 0);
+            let entry = toNum(data.entryFee || data.details?.entryFee);
+            let balance = toNum(data.finalBalance);
+            if (balance === 0 && total > 0) balance = total - entry;
+            return { id: docSnapshot.id || data.id, ...data, selectedServices: safeServices, totalServices: total, finalBalance: balance, entryFee: entry, checklist: data.checklist || [], details: { ...(data.details || {}), balloonColors: data.details?.balloonColors || '' }, notes: data.notes || '', clientSignature: data.clientSignature || '' };
+        };
+        const sanitizeExpense = (d) => { const data=d.data?d.data():d; return {id:d.id||data.id,...data,value:toNum(data.value)}; };
+
+        // Carregamento de Dados
+        const loadDashboardData = async () => {
+            if (!user.value) return;
+            isLoadingDashboard.value = true;
             try {
-                if (authMode.value === 'login') await signInWithEmailAndPassword(auth, authForm.value.email, authForm.value.password);
-                else await createUserWithEmailAndPassword(auth, authForm.value.email, authForm.value.password);
-            } catch (e) { authError.value = "Erro: " + e.message; } 
-            finally { loading.value = false; }
-        };
-        const logout = () => signOut(auth);
-
-        const loadMeta = async () => {
-            if (!db) return;
-            try {
-                const docRef = doc(db, "config_geral", "meta_padrao");
-                const snap = await getDoc(docRef);
-                if (snap.exists()) meta.value = snap.data().valor;
-            } catch (e) { console.log("Usando meta padrão 93%"); }
+                const [year, month] = dashboardMonth.value.split('-');
+                const startStr = `${year}-${month}-01`;
+                const lastDay = new Date(year, month, 0).getDate();
+                const endStr = `${year}-${month}-${lastDay}`;
+                const qApps = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("date", ">=", startStr), where("date", "<=", endStr));
+                const qExp = query(collection(db, "expenses"), where("userId", "==", user.value.uid), where("date", ">=", startStr), where("date", "<=", endStr));
+                const [snapApps, snapExp] = await Promise.all([getDocs(qApps), getDocs(qExp)]);
+                dashboardData.appointments = snapApps.docs.map(sanitizeApp).filter(a => a.status !== 'cancelled');
+                dashboardData.expenses = snapExp.docs.map(sanitizeExpense);
+                dashboardData.appointments.forEach(a => fetchClientToCache(a.clientId));
+            } catch (e) { console.error(e); } finally { isLoadingDashboard.value = false; }
         };
 
-        const saveMeta = async () => {
-            if (!db) return;
-            try {
-                await setDoc(doc(db, "config_geral", "meta_padrao"), { valor: meta.value });
-                alert("Nova meta definida com sucesso!");
-                if (currentView.value === 'reports' && reportType.value !== 'daily') {
-                   renderChart(reportType.value === 'annual' ? 'line' : 'bar');
-                   renderOffendersChart();
-                }
-            } catch (e) { alert("Erro ao salvar meta: " + e.message); }
-        };
-
-        // === LÓGICA DE DADOS ===
-        const loadMasterPoints = async () => {
-            if (!db || !user.value) return;
-            loadingPoints.value = true;
-            try {
-                const q = query(collection(db, "config_pontos"));
-                const querySnapshot = await getDocs(q);
-                let loadedPoints = [];
-                querySnapshot.forEach((doc) => loadedPoints.push({ id: doc.id, ...doc.data() }));
-                if (loadedPoints.length === 0) {
-                    loadedPoints = [{ name: 'Sala de Tonalidade L4' }, { name: 'Área da Qualitron L4' }].map(p => ({ ...p, id: 'temp_' + Math.random() })); 
-                }
-                pointsConfig.value = loadedPoints;
-                initializeChecklist();
-            } catch (e) { console.error(e); } finally { loadingPoints.value = false; }
-        };
-
-        const initializeChecklist = async () => {
-            const basePoints = pointsConfig.value.map(p => ({ 
-                id: p.id, name: p.name, checked: false, obs: '', showObs: false 
-            }));
-            inspectionObservation.value = '';
-
-            try {
-                const docId = `${currentTeam.value}_${currentDate.value}`;
-                const docRef = doc(db, "inspections", docId);
-                let sourceData = null;
-                
-                try {
-                   const docSnap = await getDoc(docRef);
-                   if (docSnap.exists()) sourceData = docSnap.data();
-                } catch(err) { console.log("Erro ao buscar inspeção:", err); }
-
-                if (!sourceData) {
-                    const localSaved = localStorage.getItem(`cp_temp_${docId}`);
-                    if (localSaved) sourceData = JSON.parse(localSaved);
-                }
-
-                if (sourceData) {
-                    basePoints.forEach(p => {
-                        const found = sourceData.points.find(sp => sp.name === p.name);
-                        if (found) {
-                            p.checked = found.checked;
-                            p.obs = found.obs || '';
-                            if(p.obs) p.showObs = true;
-                        }
-                    });
-                    if(sourceData.observation) inspectionObservation.value = sourceData.observation;
-                }
-            } catch (e) { console.error(e) }
-            
-            points.value = basePoints;
-        };
-
-        const saveInspection = async () => {
-            if (!db) return alert("Banco desconectado");
-            saving.value = true;
-            try {
-                const docId = `${currentTeam.value}_${currentDate.value}`;
-                const payload = {
-                    team: currentTeam.value, date: currentDate.value,
-                    points: points.value.map(p => ({ name: p.name, checked: p.checked, obs: p.obs })),
-                    score: progress.value, user: user.value.email, updatedAt: new Date(),
-                    observation: inspectionObservation.value
-                };
-                localStorage.setItem(`cp_temp_${docId}`, JSON.stringify(payload));
-                await setDoc(doc(db, "inspections", docId), payload);
-                alert(`Salvo com sucesso!`);
-            } catch (e) { alert("Erro: " + e.message); } finally { saving.value = false; }
-        };
-
-        const loadHistory = async () => {
-            if (!db || !user.value) return;
-            loadingHistory.value = true;
-            historyList.value = [];
-            try {
-                const startStr = historyMonth.value + "-01";
-                const endStr = historyMonth.value + "-31";
-                const q = query(collection(db, "inspections"), where("date", ">=", startStr), where("date", "<=", endStr));
-                const snapshot = await getDocs(q);
-                
-                let list = [];
-                snapshot.forEach(doc => list.push(doc.data()));
-                
-                list.sort((a, b) => {
-                    if (a.date !== b.date) return b.date.localeCompare(a.date);
-                    return a.team.localeCompare(b.team);
-                });
-                
-                historyList.value = list;
-            } catch (e) { console.error(e); } finally { loadingHistory.value = false; }
-        };
-
-        const editFromHistory = (item) => {
-            currentTeam.value = item.team;
-            currentDate.value = item.date;
-            currentView.value = 'inspection';
-        };
-
-        const deleteInspection = async (item) => {
-            if(!confirm(`Tem certeza que deseja excluir a inspeção da ${item.team} do dia ${item.date.split('-').reverse().join('/')}?`)) return;
-            try {
-                const docId = `${item.team}_${item.date}`;
-                await deleteDoc(doc(db, "inspections", docId));
-                historyList.value = historyList.value.filter(i => !(i.team === item.team && i.date === item.date));
-                localStorage.removeItem(`cp_temp_${docId}`);
-                alert("Registro excluído com sucesso.");
-            } catch (e) {
-                console.error(e);
-                alert("Erro ao excluir: " + e.message);
-            }
-        };
-
-        // === RELATÓRIOS ===
-        const loadReports = async () => {
-            if (!db || !user.value) return;
-            loadingReports.value = true;
-            teamStats.value = [];
-            dailyDataList.value = [];
-            topOffenders.value = []; // Reseta ofensores
-
-            try {
-                // Objeto auxiliar para contar falhas
-                let failures = {};
-
-                if (reportType.value === 'monthly') {
-                    const startStr = reportMonth.value + "-01";
-                    const endStr = reportMonth.value + "-31";
-                    const q = query(collection(db, "inspections"), where("date", ">=", startStr), where("date", "<=", endStr));
-                    const snapshot = await getDocs(q);
-                    
-                    const stats = {};
-                    snapshot.forEach(doc => {
-                        const d = doc.data();
-                        
-                        // Lógica de Estatísticas da Equipe
-                        const score = parseFloat(d.score) || 0;
-                        if (!stats[d.team]) stats[d.team] = { total: 0, count: 0, name: d.team };
-                        stats[d.team].total += score;
-                        stats[d.team].count++;
-
-                        // NOVO: Lógica de Top Ofensores
-                        if (d.points) {
-                            d.points.forEach(p => {
-                                if (!p.checked) { // Se o ponto não foi marcado (reprovado)
-                                    failures[p.name] = (failures[p.name] || 0) + 1;
-                                }
-                            });
-                        }
-                    });
-                    
-                    let sortedStats = Object.values(stats).map(s => ({
-                        name: s.name, average: parseFloat((s.total / s.count).toFixed(1)), count: s.count
-                    })).sort((a, b) => b.average - a.average);
-
-                    let currentRank = 1;
-                    for (let i = 0; i < sortedStats.length; i++) {
-                        if (i > 0 && sortedStats[i].average < sortedStats[i-1].average) currentRank++; 
-                        sortedStats[i].rank = currentRank;
-                    }
-                    teamStats.value = sortedStats;
-
-                    // Processa Top Ofensores
-                    topOffenders.value = Object.entries(failures)
-                        .map(([name, count]) => ({ name, count }))
-                        .sort((a, b) => b.count - a.count)
-                        .slice(0, 5); // Pega só os top 5
-
-                    loadingReports.value = false;
-                    setTimeout(() => {
-                        renderChart('bar');
-                        renderOffendersChart(); // Renderiza o novo gráfico
-                    }, 100);
-                } 
-                else if (reportType.value === 'annual') {
-                    const startStr = reportYear.value + "-01-01";
-                    const endStr = reportYear.value + "-12-31";
-                    const q = query(collection(db, "inspections"), where("date", ">=", startStr), where("date", "<=", endStr));
-                    const snapshot = await getDocs(q);
-                    const rawData = [];
-                    
-                    snapshot.forEach(doc => {
-                        const d = doc.data();
-                        rawData.push(d);
-
-                        // Lógica de Top Ofensores (Anual)
-                        if (d.points) {
-                            d.points.forEach(p => {
-                                if (!p.checked) failures[p.name] = (failures[p.name] || 0) + 1;
-                            });
-                        }
-                    });
-
-                    const teamsData = {};
-                    ['Equipe 1', 'Equipe 2', 'Equipe 3', 'Equipe 4'].forEach(t => teamsData[t] = Array(12).fill({ total: 0, count: 0 }));
-                    rawData.forEach(d => {
-                        if (teamsData[d.team]) {
-                            const month = parseInt(d.date.split('-')[1]) - 1; 
-                            teamsData[d.team][month] = { total: teamsData[d.team][month].total + (parseFloat(d.score)||0), count: teamsData[d.team][month].count + 1 };
-                        }
-                    });
-                    teamStats.value = Object.keys(teamsData).map(t => ({ name: t, data: teamsData[t].map(m => m.count > 0 ? parseFloat((m.total / m.count).toFixed(1)) : null) }));
-                    
-                    // Processa Top Ofensores
-                    topOffenders.value = Object.entries(failures)
-                        .map(([name, count]) => ({ name, count }))
-                        .sort((a, b) => b.count - a.count)
-                        .slice(0, 5);
-
-                    loadingReports.value = false;
-                    setTimeout(() => {
-                        renderChart('line');
-                        renderOffendersChart();
-                    }, 100);
-                }
-                else if (reportType.value === 'daily') {
-                    const q = query(collection(db, "inspections"), where("date", "==", dailyDate.value));
-                    const snapshot = await getDocs(q);
-                    let list = [];
-                    snapshot.forEach(doc => list.push(doc.data()));
-                    list.sort((a, b) => a.team.localeCompare(b.team));
-                    dailyDataList.value = list;
-                    loadingReports.value = false;
-                }
-            } catch (e) { console.error(e); loadingReports.value = false; }
-        };
-
-        const renderChart = (type) => {
-            const ctx = document.getElementById('mainChart');
-            if (!ctx) return;
-            const existingChart = window.Chart.getChart(ctx);
-            if (existingChart) existingChart.destroy();
-
-            const textColor = isDarkMode.value ? '#94a3b8' : '#64748b';
-            const ChartConstructor = window.Chart;
-            const currentMeta = meta.value;
-
-            if (type === 'bar') {
-                const labels = ['Equipe 1', 'Equipe 2', 'Equipe 3', 'Equipe 4'];
-                const data = labels.map(t => { const s = teamStats.value.find(x => x.name === t); return s ? s.average : 0; });
-                const colors = data.map(v => v >= currentMeta ? '#10b981' : '#ef4444');
-                
-                new ChartConstructor(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: labels,
-                        datasets: [
-                            { label: 'Média (%)', data: data, backgroundColor: colors, borderRadius: 5, order: 2 },
-                            { type: 'line', label: `Meta: ${currentMeta}%`, data: [currentMeta,currentMeta,currentMeta,currentMeta], borderColor: isDarkMode.value?'#fff':'#333', borderDash:[5,5], borderWidth: 3, pointRadius: 0, order: 1 }
-                        ]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 150, ticks:{color:textColor} }, x:{ticks:{color:textColor}} }, plugins:{ legend:{ display: true, position: 'bottom', labels:{color:textColor}} } }
-                });
-            } else if (type === 'line') {
-                const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-                const datasets = teamStats.value.map((t, i) => ({
-                    label: t.name, data: t.data, borderColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'][i], tension: 0.3
-                }));
-                new ChartConstructor(ctx, {
-                    type: 'line', data: { labels: months, datasets: datasets },
-                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 150, ticks:{color:textColor} }, x:{ticks:{color:textColor}} }, plugins:{ legend:{ position: 'bottom', labels:{color:textColor}} } }
-                });
-            }
-        };
-
-        // === NOVA FUNÇÃO: RENDERIZA GRÁFICO DE OFENSORES ===
-        const renderOffendersChart = () => {
-            const ctx = document.getElementById('offendersChart');
-            if (!ctx) return;
-            
-            // Destroi gráfico anterior se existir
-            const existingChart = window.Chart.getChart(ctx);
-            if (existingChart) existingChart.destroy();
-
-            // Se não houver dados, não renderiza nada
-            if(topOffenders.value.length === 0) return;
-
-            const textColor = isDarkMode.value ? '#94a3b8' : '#64748b';
-            const ChartConstructor = window.Chart;
-
-            new ChartConstructor(ctx, {
-                type: 'bar',
-                data: {
-                    labels: topOffenders.value.map(i => i.name),
-                    datasets: [{
-                        label: 'Qtd Reprovações',
-                        data: topOffenders.value.map(i => i.count),
-                        backgroundColor: '#ef4444', // Vermelho para indicar alerta
-                        borderRadius: 4,
-                        indexAxis: 'y', // Faz o gráfico ser horizontal
-                    }]
-                },
-                options: {
-                    indexAxis: 'y', // Horizontal
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: { 
-                            ticks: { color: textColor, stepSize: 1 },
-                            grid: { color: isDarkMode.value ? '#334155' : '#e2e8f0' }
-                        },
-                        y: { 
-                            ticks: { color: textColor },
-                            grid: { display: false }
-                        }
-                    },
-                    plugins: {
-                        legend: { display: false },
-                        title: { display: false }
-                    }
-                }
+        const syncData = () => {
+            const myId = user.value.uid;
+            onSnapshot(query(collection(db, "services"), where("userId", "==", myId)), (snap) => services.value = snap.docs.map(d => ({ id: d.id, ...d.data() })));
+            onSnapshot(query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "pending")), (snap) => {
+                pendingAppointments.value = snap.docs.map(sanitizeApp);
+                pendingAppointments.value.forEach(a => fetchClientToCache(a.clientId));
             });
         };
 
-        const generatePDF = async () => {
-            const element = document.getElementById('reportContent');
-            if(!element) return;
-            try {
-                const canvas = await window.html2canvas(element, { scale: 4, backgroundColor: isDarkMode.value ? '#1e293b' : '#ffffff' });
-                const imgData = canvas.toDataURL('image/png');
-                const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF('p', 'mm', 'a4');
-                const pdfWidth = pdf.internal.pageSize.getWidth();
-                const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-                pdf.addImage(imgData, 'PNG', 0, 10, pdfWidth, pdfHeight);
-                pdf.save(`Relatorio_${reportType.value}.pdf`);
-            } catch(e) { console.error(e); alert("Erro ao gerar PDF."); }
+        const searchExpenses = async () => {
+            if(!expensesFilter.start || !expensesFilter.end) return Swal.fire('Data', 'Selecione o período', 'info');
+            const qExp = query(collection(db, "expenses"), where("userId", "==", user.value.uid), where("date", ">=", expensesFilter.start), where("date", "<=", expensesFilter.end));
+            const snapExp = await getDocs(qExp);
+            const loadedExpenses = snapExp.docs.map(d => ({ ...sanitizeExpense(d), type: 'expense', icon: 'fa-arrow-down', color: 'text-red-500' }));
+            const qApp = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("date", ">=", expensesFilter.start), where("date", "<=", expensesFilter.end));
+            const snapApp = await getDocs(qApp);
+            const loadedIncome = snapApp.docs.map(d => { const app = sanitizeApp(d); return { id: app.id, date: app.date, value: app.totalServices, description: `Receita: ${getClientName(app.clientId)}`, type: 'income', icon: 'fa-arrow-up', color: 'text-green-500' }; });
+            expensesList.value = [...loadedExpenses, ...loadedIncome]; isExtractLoaded.value = true;
         };
 
-        const takeScreenshot = async () => {
-            const element = document.getElementById('reportContent');
-            if(!element) return;
-            try {
-                const canvas = await window.html2canvas(element, { scale: 4, backgroundColor: isDarkMode.value ? '#1e293b' : '#ffffff' });
-                const link = document.createElement('a');
-                link.download = `Print_${reportType.value}.png`;
-                link.href = canvas.toDataURL();
-                link.click();
-            } catch(e) { console.error(e); alert("Erro ao gerar Print."); }
+        const searchHistory = async () => {
+            if(!agendaFilter.start || !agendaFilter.end) return Swal.fire('Atenção', 'Selecione datas', 'warning');
+            const q = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("status", "==", agendaTab.value), where("date", ">=", agendaFilter.start), where("date", "<=", agendaFilter.end));
+            const snap = await getDocs(q);
+            historyList.value = snap.docs.map(sanitizeApp);
+            historyList.value.forEach(a => fetchClientToCache(a.clientId));
         };
 
-        const addPoint = async () => {
-            if (!newPointName.value.trim()) return;
-            try { const r = await addDoc(collection(db, "config_pontos"), { name: newPointName.value }); pointsConfig.value.push({id:r.id, name:newPointName.value}); newPointName.value=''; } catch(e){}
+        const searchCatalogClients = async () => { 
+            const q = query(collection(db, "clients"), where("userId", "==", user.value.uid)); 
+            const snap = await getDocs(q); 
+            catalogClientsList.value = snap.docs.map(d => ({id: d.id, ...d.data()})).filter(c => c.name.toLowerCase().includes(catalogClientSearch.value.toLowerCase())); 
         };
-        const deletePoint = async (id) => { if(confirm('Remover?')) { await deleteDoc(doc(db,"config_pontos",id)); pointsConfig.value=pointsConfig.value.filter(p=>p.id!==id); }};
+
+        // --- Lógica de Login e Cliente ---
+        const handleAuth = async () => {
+            if (!authForm.email || !authForm.password) return Swal.fire('Atenção', 'Preencha todos os campos.', 'warning');
+            authLoading.value = true;
+            try {
+                if (isRegistering.value) {
+                    const userCredential = await createUserWithEmailAndPassword(auth, authForm.email, authForm.password);
+                    const newUser = userCredential.user;
+                    await updateProfile(newUser, { displayName: authForm.name });
+                    await setDoc(doc(db, "users", newUser.uid), { email: authForm.email, role: 'user', createdAt: new Date().toISOString(), companyConfig: { fantasia: authForm.name || 'Minha Empresa', logo: '', cnpj: '', email: authForm.email, phone: '', rua: '', bairro: '', cidade: '', estado: '' } });
+                    await Swal.fire({ title: 'Sucesso!', text: 'Conta criada com sucesso!', icon: 'success', timer: 2000, showConfirmButton: false });
+                } else {
+                    await signInWithEmailAndPassword(auth, authForm.email, authForm.password);
+                    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, timerProgressBar: true });
+                    Toast.fire({ icon: 'success', title: 'Login realizado com sucesso' });
+                }
+            } catch (error) {
+                console.error("Erro Auth:", error.code);
+                Swal.fire('Ops!', 'Erro ao entrar. Verifique seus dados.', 'error');
+            } finally { authLoading.value = false; }
+        };
+
+        const handleClientAccess = async () => {
+            if (!clientAccessInput.value) return Swal.fire('Erro', 'Digite CPF ou E-mail', 'warning');
+            authLoading.value = true;
+            try {
+                const rawTerm = clientAccessInput.value.trim();
+                const numericTerm = rawTerm.replace(/\D/g, '');
+                let formattedCPF = rawTerm;
+                if (numericTerm.length === 11) formattedCPF = numericTerm.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+
+                let q = query(collection(db, "clients"), where("cpf", "==", rawTerm));
+                let snap = await getDocs(q);
+                if (snap.empty && numericTerm.length === 11) { q = query(collection(db, "clients"), where("cpf", "==", formattedCPF)); snap = await getDocs(q); }
+                if (snap.empty) { q = query(collection(db, "clients"), where("email", "==", rawTerm)); snap = await getDocs(q); }
+
+                if (snap.empty) throw new Error("Cadastro não encontrado.");
+
+                const clientDoc = snap.docs[0];
+                clientData.value = { id: clientDoc.id, ...clientDoc.data() };
+
+                const qApps = query(collection(db, "appointments"), where("clientId", "==", clientDoc.id));
+                const snapApps = await getDocs(qApps);
+                
+                const apps = snapApps.docs.map(sanitizeApp).filter(a => a.status !== 'cancelled').sort((a,b) => b.date.localeCompare(a.date));
+                clientAppointments.value = apps;
+
+                // Carregar dados da empresa para o portal do cliente
+                if (apps.length > 0) {
+                    const providerId = apps[0].userId;
+                    const uDoc = await getDoc(doc(db, "users", providerId));
+                    if (uDoc.exists() && uDoc.data().companyConfig) {
+                        Object.assign(company, uDoc.data().companyConfig);
+                        // Força a atualização do cache do cliente atual para o PDF funcionar
+                        clientCache[clientDoc.id] = clientDoc.data();
+                    }
+                }
+                view.value = 'client-portal';
+            } catch (e) {
+                console.error(e);
+                if(e.code === 'permission-denied') Swal.fire('Configuração', 'Erro de permissão nas regras do banco.', 'error');
+                else Swal.fire('Acesso Negado', 'Dados não encontrados.', 'error');
+            } finally { authLoading.value = false; }
+        };
+
+        // --- CRUDs Principais ---
+        const saveAppointment = async () => { const appData = { ...JSON.parse(JSON.stringify(tempApp)), totalServices: totalServices.value, finalBalance: finalBalance.value, userId: user.value.uid, status: 'pending' }; if(!appData.checklist.length) appData.checklist = [{text:'Materiais', done:false}]; if (isEditing.value) await updateDoc(doc(db, "appointments", editingId.value), appData); else await addDoc(collection(db, "appointments"), appData); loadDashboardData(); showAppointmentModal.value = false; Swal.fire('Salvo!', '', 'success'); };
+        const saveClient = async () => { if(!newClient.name) return; await addDoc(collection(db, "clients"), { name: newClient.name, phone: newClient.phone, cpf: newClient.cpf, email: newClient.email, userId: user.value.uid }); showClientModal.value = false; newClient.name = ''; newClient.phone = ''; newClient.cpf = ''; newClient.email = ''; if(view.value === 'registrations') searchCatalogClients(); Swal.fire('Salvo!', '', 'success'); };
+        const saveService = async () => { if(!newService.description || !newService.price) return; await addDoc(collection(db, "services"), { description: newService.description, price: toNum(newService.price), userId: user.value.uid }); newService.description = ''; newService.price = ''; showServiceModal.value = false; };
+        const saveExpenseLogic = async () => { const data = { ...newExpense, value: toNum(newExpense.value), userId: user.value.uid }; if (editingExpenseId.value) { await updateDoc(doc(db, "expenses", editingExpenseId.value), data); } else { await addDoc(collection(db, "expenses"), data); } showExpenseModal.value = false; Swal.fire('Salvo','','success'); if (expensesFilter.start && expensesFilter.end) searchExpenses(); loadDashboardData(); };
+        const saveCompany = () => { updateDoc(doc(db, "users", user.value.uid), { companyConfig: company }); Swal.fire('Salvo', '', 'success'); };
+
+        const deleteClient = async (id) => { if((await Swal.fire({title:'Excluir?',showCancelButton:true})).isConfirmed) { await deleteDoc(doc(db,"clients",id)); searchCatalogClients(); }};
+        const deleteService = async (id) => { await deleteDoc(doc(db, "services", id)); };
+        const deleteExpense = async (id) => { const { isConfirmed } = await Swal.fire({ title: 'Excluir?', text: 'Essa ação não pode ser desfeita.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33' }); if (isConfirmed) { await deleteDoc(doc(db, "expenses", id)); if (expensesFilter.start && expensesFilter.end) searchExpenses(); loadDashboardData(); Swal.fire('Excluído!', '', 'success'); } };
+        const changeStatus = async (app, status) => { const action = status === 'concluded' ? 'Concluir' : 'Cancelar'; const {isConfirmed} = await Swal.fire({title: action + '?', text: 'Deseja alterar o status?', icon:'question', showCancelButton:true}); if(isConfirmed) { await updateDoc(doc(db,"appointments",app.id), {status:status}); Swal.fire('Feito','','success'); loadDashboardData(); } };
+
+        // --- Assinatura (Canvas) ---
+        let canvasContext = null; let isDrawing = false;
+        const openSignatureModal = (app) => { signatureApp.value = app; showSignatureModal.value = true; setTimeout(() => initCanvas(), 100); };
+        const initCanvas = () => { const canvas = document.getElementById('signature-pad'); if(!canvas) return; const ratio = Math.max(window.devicePixelRatio || 1, 1); canvas.width = canvas.offsetWidth * ratio; canvas.height = canvas.offsetHeight * ratio; canvas.getContext("2d").scale(ratio, ratio); canvasContext = canvas.getContext('2d'); canvasContext.strokeStyle = "#000"; canvasContext.lineWidth = 2; canvas.addEventListener('mousedown', startDrawing); canvas.addEventListener('mousemove', draw); canvas.addEventListener('mouseup', stopDrawing); canvas.addEventListener('mouseout', stopDrawing); canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDrawing(e.touches[0]); }); canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e.touches[0]); }); canvas.addEventListener('touchend', (e) => { e.preventDefault(); stopDrawing(); }); };
+        const getPos = (e) => { const canvas = document.getElementById('signature-pad'); const rect = canvas.getBoundingClientRect(); return { x: e.clientX - rect.left, y: e.clientY - rect.top }; };
+        const startDrawing = (e) => { isDrawing = true; const pos = getPos(e); canvasContext.beginPath(); canvasContext.moveTo(pos.x, pos.y); };
+        const draw = (e) => { if(!isDrawing) return; const pos = getPos(e); canvasContext.lineTo(pos.x, pos.y); canvasContext.stroke(); };
+        const stopDrawing = () => { isDrawing = false; };
+        const clearSignature = () => { const canvas = document.getElementById('signature-pad'); canvasContext.clearRect(0, 0, canvas.width, canvas.height); };
+        const isCanvasBlank = (canvas) => !new Uint32Array(canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data.buffer).some(c=>c!==0);
+        
+        const saveSignature = async () => { 
+            const canvas = document.getElementById('signature-pad'); 
+            if (isCanvasBlank(canvas)) return Swal.fire('Ops', 'Assine antes de salvar.', 'warning'); 
+            const dataUrl = canvas.toDataURL(); 
+            authLoading.value = true; 
+            try { 
+                await updateDoc(doc(db, "appointments", signatureApp.value.id), { clientSignature: dataUrl }); 
+                const idx = clientAppointments.value.findIndex(a => a.id === signatureApp.value.id); 
+                if(idx !== -1) clientAppointments.value[idx].clientSignature = dataUrl; 
+                showSignatureModal.value = false; 
+                Swal.fire('Sucesso', 'Assinado!', 'success'); 
+            } catch (e) { console.error(e); Swal.fire('Erro', 'Não foi possível salvar.', 'error'); } finally { authLoading.value = false; } 
+        };
+
+        // --- Geração de PDF e Outros ---
+        const showReceipt = (app) => { currentReceipt.value = sanitizeApp(app); showReceiptModal.value = true; };
+        const downloadClientReceipt = async (app) => { currentReceipt.value = app; if(!clientCache[app.clientId] && clientData.value) { clientCache[app.clientId] = clientData.value; } generateContractPDF(); };
+        
+        const generateContractPDF = () => { 
+            const { jsPDF } = window.jspdf; const doc = new jsPDF(); const app = currentReceipt.value; const cli = clientCache[app.clientId] || {name:'...',cpf:'...', phone: '', email: ''};
+            doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text(company.fantasia.toUpperCase(), 105, 20, {align: "center"});
+            doc.setFontSize(10); doc.setFont("helvetica", "normal"); let headerY = 26;
+            if (company.cnpj) { doc.text(`CNPJ: ${company.cnpj}`, 105, headerY, {align: "center"}); headerY += 5; }
+            doc.text(`${company.rua} - ${company.bairro}`, 105, headerY, {align: "center"}); headerY += 5; doc.text(`${company.cidade}/${company.estado} - Tel: ${company.phone}`, 105, headerY, {align: "center"});
+            doc.line(20, headerY + 5, 190, headerY + 5); doc.setFontSize(14); doc.setFont("helvetica", "bold"); doc.text("CONTRATO DE PRESTAÇÃO DE SERVIÇOS", 105, headerY + 15, {align:"center"});
+            let y = headerY + 25; doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.text("CONTRATANTE:", 20, y); y += 5; doc.setFont("helvetica", "normal"); doc.text(`Nome: ${cli.name} | CPF: ${cli.cpf || '-'}`, 20, y); y += 5; doc.text(`Tel: ${cli.phone} | E-mail: ${cli.email || '-'}`, 20, y);
+            y += 10; doc.setFont("helvetica", "bold"); doc.text("EVENTO:", 20, y); y += 5; doc.setFont("helvetica", "normal"); doc.text(`Data: ${formatDate(app.date)} | Hora: ${app.time}`, 20, y); y += 5; doc.text(`Local: ${app.location.bairro}`, 20, y); if(app.details.balloonColors) { y += 5; doc.text(`Cores: ${app.details.balloonColors}`, 20, y); }
+            y += 10; const body = app.selectedServices.map(s => [s.description, formatCurrency(s.price)]); doc.autoTable({ startY: y, head: [['Descrição', 'Valor']], body: body, theme: 'grid', headStyles: { fillColor: [60, 60, 60] }, margin: { left: 20, right: 20 } });
+            y = doc.lastAutoTable.finalY + 10; doc.setFont("helvetica", "bold"); doc.text(`TOTAL: ${formatCurrency(app.totalServices)}`, 140, y, {align: "right"}); y += 5; doc.text(`SINAL: ${formatCurrency(app.entryFee)}`, 140, y, {align: "right"}); y += 5; doc.text(`RESTANTE: ${formatCurrency(app.finalBalance)}`, 140, y, {align: "right"});
+            y += 15; doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.text("CLÁUSULAS E CONDIÇÕES:", 20, y); y += 5; doc.setFont("helvetica", "normal");
+            const clauses = [ "1. RESERVA: O pagamento do sinal garante a reserva da data.", "2. DESISTÊNCIA: Em caso de cancelamento com menos de 15 dias, o sinal não será devolvido.", "3. DANOS: O CONTRATANTE responsabiliza-se pela conservação dos materiais.", "4. PAGAMENTO: O restante deve ser pago até a data do evento.", "5. MONTAGEM: O local deve estar liberado no horário combinado." ];
+            clauses.forEach(clause => { const lines = doc.splitTextToSize(clause, 170); doc.text(lines, 20, y); y += (lines.length * 4) + 2; if (y > 230) { doc.addPage(); y = 20; } });
+            if (y > 230) { doc.addPage(); y = 40; } else { y += 20; }
+            if (app.clientSignature) { doc.addImage(app.clientSignature, 'PNG', 115, y - 15, 60, 20); }
+            doc.line(20, y, 90, y); doc.line(110, y, 180, y); doc.text("CONTRATADA", 55, y + 5, {align: "center"}); doc.text("CONTRATANTE", 145, y + 5, {align: "center"}); doc.save(`Contrato_${cli.name.replace(/ /g, '_')}.pdf`);
+        };
+
+        // --- Helpers de Interface ---
+        const startNewSchedule = () => { isEditing.value=false; Object.assign(tempApp, { clientId:'', date:'', time:'', location:{bairro:''}, details:{entryFee:0, balloonColors:''}, notes: '', selectedServices:[], checklist:[] }); clientSearchTerm.value = ''; showAppointmentModal.value=true; };
+        const editAppointment = (app) => { isEditing.value=true; editingId.value=app.id; Object.assign(tempApp, JSON.parse(JSON.stringify(app))); clientSearchTerm.value = getClientName(app.clientId); showAppointmentModal.value=true; };
+        const openNewExpense = () => { editingExpenseId.value = null; Object.assign(newExpense, { description: '', value: '', date: new Date().toISOString().split('T')[0], category: 'outros' }); showExpenseModal.value = true; };
+        const openEditExpense = (expense) => { editingExpenseId.value = expense.id; Object.assign(newExpense, { description: expense.description, value: expense.value, date: expense.date, category: expense.category }); showExpenseModal.value = true; };
+        const openClientModal = () => { showClientModal.value = true; };
+        
+        const logoutClient = () => { clientData.value = null; clientAppointments.value = []; clientAccessInput.value = ''; view.value = 'dashboard'; loginMode.value = 'provider'; };
+        const logout = () => { signOut(auth); window.location.href="index.html"; };
+        const downloadReceiptImage = () => { html2canvas(document.getElementById('receipt-capture-area')).then(c => { const l = document.createElement('a'); l.download = 'Recibo.png'; l.href = c.toDataURL(); l.click(); }); };
+        const openWhatsApp = (app) => { const cli = clientCache[app.clientId]; if (!cli || !cli.phone) return Swal.fire('Erro', 'Cliente sem telefone cadastrado.', 'error'); const phoneClean = cli.phone.replace(/\D/g, ''); const msg = `Olá ${cli.name}, aqui é da ${company.fantasia}. Segue o comprovante do seu agendamento para o dia ${formatDate(app.date)}.`; window.open(`https://wa.me/55${phoneClean}?text=${encodeURIComponent(msg)}`, '_blank'); };
+        const openWhatsAppSupport = () => { window.open('https://wa.me/?text=Preciso%20de%20ajuda%20com%20meu%20evento', '_blank'); };
+        const handleLogoUpload = (e) => { const f = e.target.files[0]; if(f){ const r=new FileReader(); r.onload=x=>{company.logo=x.target.result; updateDoc(doc(db,"users",user.value.uid),{companyConfig:company});}; r.readAsDataURL(f); }};
+        const toggleDarkMode = () => { isDark.value=!isDark.value; document.documentElement.classList.toggle('dark'); };
+        const copyClientLink = () => { const url = `${window.location.origin}${window.location.pathname}?acesso=cliente`; navigator.clipboard.writeText(url).then(() => Swal.fire('Copiado!', 'Link copiado.', 'success')); };
+        const changeCalendarMonth = (off) => { const d = new Date(calendarCursor.value); d.setMonth(d.getMonth() + off); calendarCursor.value = d; };
+        const selectCalendarDay = (d) => { if(d.day) selectedCalendarDate.value = d.date; };
+        
+        const addServiceToApp = () => { if(tempServiceSelect.value) tempApp.selectedServices.push(tempServiceSelect.value); tempServiceSelect.value=''; };
+        const removeServiceFromApp = (i) => tempApp.selectedServices.splice(i,1);
+
+        // --- Watchers para Autocomplete ---
+        watch(dashboardMonth, () => loadDashboardData());
+        watch(clientSearchTerm, async (val) => { if (isSelectingClient.value) return; if (val && val.length > 2) { const q = query(collection(db, "clients"), where("userId", "==", user.value.uid)); const snap = await getDocs(q); scheduleClientsList.value = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => c.name.toLowerCase().includes(val.toLowerCase())); } else { scheduleClientsList.value = []; } });
+        const selectClient = (client) => { isSelectingClient.value = true; tempApp.clientId = client.id; clientSearchTerm.value = client.name; scheduleClientsList.value = []; setTimeout(() => { isSelectingClient.value = false; }, 500); };
 
         return {
-            user, authMode, authForm, authError, loading, handleAuth, logout,
-            currentView, menuItems, currentTeam, currentDate, points, progress, meta, loadingPoints, saving, 
-            pointsConfig, newPointName, addPoint, deletePoint, 
-            isDarkMode, toggleDarkMode, toggleAllPoints, allSelected, inspectionObservation,
-            reportType, reportMonth, reportYear, dailyDate, loadingReports, teamStats, dailyDataList,
-            generatePDF, takeScreenshot, saveInspection, togglePoint, saveMeta,
-            historyList, loadingHistory, historyMonth, editFromHistory, deleteInspection,
-            // NOVO RETORNO
-            topOffenders 
+            user, view, isDark, authForm, authLoading, isRegistering, handleAuth, logout,
+            dashboardMonth, financeData, next7DaysApps, statementList, isExtractLoaded, financeSummary, expensesFilter, searchExpenses,
+            showExpenseModal, newExpense, 
+            addExpense: saveExpenseLogic, saveExpenseLogic, openNewExpense, openEditExpense, deleteExpense, editingExpenseId,
+            startNewSchedule, editAppointment, saveAppointment, showAppointmentModal, showClientModal, showServiceModal, newService, saveService, deleteService,
+            newClient, saveClient, 
+            tempApp, tempServiceSelect, services, totalServices, finalBalance, isEditing, clientSearchTerm, filteredClientsSearch, selectClient,
+            addServiceToApp, removeServiceFromApp,
+            appointmentViewMode, calendarGrid, calendarTitle, changeCalendarMonth, selectCalendarDay, selectedCalendarDate, appointmentsOnSelectedDate, filteredListAppointments,
+            catalogClientsList, catalogClientSearch, searchCatalogClients, openClientModal, deleteClient,
+            currentReceipt, showReceipt, showReceiptModal,
+            company, handleLogoUpload, saveCompany, downloadReceiptImage, 
+            generateContractPDF, openWhatsApp, 
+            formatCurrency, formatDate, getDay, getMonth, statusText, getClientName, 
+            toggleDarkMode, expenseCategories, expensesByCategoryStats,
+            agendaTab, agendaFilter, searchHistory, changeStatus,
+            registrationTab,
+            kpiPendingReceivables, totalAppointmentsCount, topExpenseCategory, getCategoryIcon,
+            maskPhone, maskCPF,
+            loginMode, clientAccessInput, handleClientAccess, clientData, clientAppointments, logoutClient, openWhatsAppSupport, downloadClientReceipt,
+            showSignatureModal, openSignatureModal, clearSignature, saveSignature, copyClientLink
         };
     }
-}).mount('#app')
+}).mount('#app');
