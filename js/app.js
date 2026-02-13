@@ -10,7 +10,7 @@ import {
 createApp({
     setup() {
         // ============================================================
-        // 1. ESTADO (REFS & REACTIVE) - DECLARAR TUDO AQUI PRIMEIRO
+        // 1. ESTADO (REFS & REACTIVE)
         // ============================================================
         
         // -- Sistema e Auth --
@@ -30,7 +30,7 @@ createApp({
         const services = ref([]);
         const pendingAppointments = ref([]);
         const historyList = ref([]);
-        const expensesList = ref([]); // <--- CORREÇÃO: Declarado antes do computed
+        const expensesList = ref([]);
         const dashboardData = reactive({ appointments: [], expenses: [] });
         const catalogClientsList = ref([]);
         const scheduleClientsList = ref([]);
@@ -54,7 +54,7 @@ createApp({
         const showClientModal = ref(false);
         const showServiceModal = ref(false);
         const showExpenseModal = ref(false);
-        const showReceiptModal = ref(false); // Modal de Detalhes/Recibo
+        const showReceiptModal = ref(false);
         const isEditing = ref(false);
         const editingId = ref(null);
         const editingExpenseId = ref(null);
@@ -87,6 +87,31 @@ createApp({
         ];
 
         // ============================================================
+        // CORREÇÃO APLICADA AQUI: Monitorar Login
+        // ============================================================
+        onMounted(() => {
+            onAuthStateChanged(auth, async (u) => {
+                user.value = u; // Atualiza a variável reativa 'user'
+                
+                if (u) {
+                    // Se estiver logado, carrega os dados iniciais e configurações
+                    await loadDashboardData();
+                    syncData();
+                    
+                    // Carregar config da empresa
+                    try {
+                        const uDoc = await getDoc(doc(db, "users", u.uid));
+                        if (uDoc.exists() && uDoc.data().companyConfig) {
+                            Object.assign(company, uDoc.data().companyConfig);
+                        }
+                    } catch (e) {
+                        console.error("Erro ao carregar perfil:", e);
+                    }
+                }
+            });
+        });
+
+        // ============================================================
         // 2. FUNÇÕES AUXILIARES (PURE FUNCTIONS)
         // ============================================================
         const toNum = (v) => { if(!v) return 0; if(typeof v==='number') return v; const c=String(v).replace(',','.').replace(/[^0-9.-]/g,''); return parseFloat(c)||0; };
@@ -103,10 +128,9 @@ createApp({
         const maskCPF = (v) => { if(!v) return ""; v=v.replace(/\D/g,""); v=v.replace(/(\d{3})(\d)/,"$1.$2"); v=v.replace(/(\d{3})(\d)/,"$1.$2"); v=v.replace(/(\d{3})(\d{1,2})$/,"$1-$2"); return v; };
 
         // ============================================================
-        // 3. COMPUTED PROPERTIES (DEPENDEM DO ESTADO ACIMA)
+        // 3. COMPUTED PROPERTIES
         // ============================================================
         
-        // Financeiro
         const statementList = computed(() => { 
             if (!isExtractLoaded.value) return []; 
             return expensesList.value.sort((a, b) => b.date.localeCompare(a.date)); 
@@ -114,7 +138,6 @@ createApp({
         
         const financeSummary = computed(() => statementList.value.reduce((acc, item) => item.type === 'income' ? acc + item.value : acc - item.value, 0));
 
-        // Totais e KPIs
         const totalServices = computed(() => tempApp.selectedServices.reduce((s,i) => s + toNum(i.price), 0));
         const finalBalance = computed(() => totalServices.value - toNum(tempApp.details.entryFee));
         
@@ -138,7 +161,6 @@ createApp({
         });
         const topExpenseCategory = computed(() => expensesByCategoryStats.value[0] || null);
 
-        // Listas Filtradas
         const next7DaysApps = computed(() => {
             const today = new Date(); today.setHours(0,0,0,0);
             const nextWeek = new Date(today); nextWeek.setDate(today.getDate() + 7);
@@ -191,7 +213,6 @@ createApp({
         };
         const sanitizeExpense = (d) => { const data=d.data?d.data():d; return {id:d.id||data.id,...data,value:toNum(data.value)}; };
 
-        // Carregamento de Dados
         const loadDashboardData = async () => {
             if (!user.value) return;
             isLoadingDashboard.value = true;
@@ -290,13 +311,11 @@ createApp({
                 const apps = snapApps.docs.map(sanitizeApp).filter(a => a.status !== 'cancelled').sort((a,b) => b.date.localeCompare(a.date));
                 clientAppointments.value = apps;
 
-                // Carregar dados da empresa para o portal do cliente
                 if (apps.length > 0) {
                     const providerId = apps[0].userId;
                     const uDoc = await getDoc(doc(db, "users", providerId));
                     if (uDoc.exists() && uDoc.data().companyConfig) {
                         Object.assign(company, uDoc.data().companyConfig);
-                        // Força a atualização do cache do cliente atual para o PDF funcionar
                         clientCache[clientDoc.id] = clientDoc.data();
                     }
                 }
