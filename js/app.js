@@ -19,6 +19,7 @@ createApp({
         const isDark = ref(false);
         const authLoading = ref(false);
         const isRegistering = ref(false);
+        const isGlobalLoading = ref(true); // <--- NOVO: Estado de carregamento global
         const authForm = reactive({ email: '', password: '', name: '' });
         
         // -- Configurações e Dados Mestres --
@@ -29,6 +30,7 @@ createApp({
         // -- Listas de Dados (Arrays) --
         const services = ref([]);
         const pendingAppointments = ref([]);
+        const budgetList = ref([]); // <--- NOVO: Lista de Orçamentos
         const historyList = ref([]);
         const expensesList = ref([]);
         const dashboardData = reactive({ appointments: [], expenses: [] });
@@ -87,18 +89,16 @@ createApp({
         ];
 
         // ============================================================
-        // CORREÇÃO APLICADA AQUI: Monitorar Login
+        // MONITORAMENTO DE AUTH E INICIALIZAÇÃO
         // ============================================================
         onMounted(() => {
             onAuthStateChanged(auth, async (u) => {
-                user.value = u; // Atualiza a variável reativa 'user'
+                user.value = u;
                 
                 if (u) {
-                    // Se estiver logado, carrega os dados iniciais e configurações
                     await loadDashboardData();
                     syncData();
                     
-                    // Carregar config da empresa
                     try {
                         const uDoc = await getDoc(doc(db, "users", u.uid));
                         if (uDoc.exists() && uDoc.data().companyConfig) {
@@ -108,6 +108,11 @@ createApp({
                         console.error("Erro ao carregar perfil:", e);
                     }
                 }
+
+                // NOVO: Remove a tela de carregamento após verificar auth
+                setTimeout(() => {
+                    isGlobalLoading.value = false;
+                }, 800);
             });
         });
 
@@ -119,11 +124,13 @@ createApp({
         const formatDate = (d) => { if(!d) return ''; try{return d.split('-').reverse().join('/');}catch(e){return d;} };
         const getDay = (d) => d?d.split('-')[2]:'';
         const getMonth = (d) => d?['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'][parseInt(d.split('-')[1])-1]:'';
-        const statusText = (s) => s==='concluded'?'Concluído':(s==='cancelled'?'Cancelado':'Pendente');
+        const statusText = (s) => {
+            if (s === 'budget') return 'Orçamento';
+            return s==='concluded'?'Concluído':(s==='cancelled'?'Cancelado':'Pendente');
+        };
         const getClientName = (id) => clientCache[id]?.name || 'Cliente Excluído';
         const getCategoryIcon = (id) => expenseCategories.find(c=>c.id===id)?.icon || 'fa-tag';
         
-        // Máscaras
         const maskPhone = (v) => { if(!v) return ""; v=v.replace(/\D/g,""); v=v.replace(/^(\d{2})(\d)/g,"($1) $2"); v=v.replace(/(\d)(\d{4})$/,"$1-$2"); return v; };
         const maskCPF = (v) => { if(!v) return ""; v=v.replace(/\D/g,""); v=v.replace(/(\d{3})(\d)/,"$1.$2"); v=v.replace(/(\d{3})(\d)/,"$1.$2"); v=v.replace(/(\d{3})(\d{1,2})$/,"$1-$2"); return v; };
 
@@ -141,16 +148,25 @@ createApp({
         const totalServices = computed(() => tempApp.selectedServices.reduce((s,i) => s + toNum(i.price), 0));
         const finalBalance = computed(() => totalServices.value - toNum(tempApp.details.entryFee));
         
-        const kpiRevenue = computed(() => dashboardData.appointments.reduce((acc, a) => acc + toNum(a.totalServices), 0));
+        // NOVO: Filtramos 'budget' para não contar no financeiro ainda
+        const kpiRevenue = computed(() => dashboardData.appointments
+            .filter(a => a.status !== 'budget') 
+            .reduce((acc, a) => acc + toNum(a.totalServices), 0)
+        );
         const kpiExpenses = computed(() => dashboardData.expenses.reduce((acc, e) => acc + toNum(e.value), 0));
+        
         const financeData = computed(() => ({ 
             revenue: kpiRevenue.value, 
             expenses: kpiExpenses.value, 
             profit: kpiRevenue.value - kpiExpenses.value 
         }));
         
-        const totalAppointmentsCount = computed(() => dashboardData.appointments.length);
-        const kpiPendingReceivables = computed(() => dashboardData.appointments.filter(a => a.status === 'pending').reduce((acc, a) => acc + toNum(a.finalBalance), 0));
+        const totalAppointmentsCount = computed(() => dashboardData.appointments.filter(a => a.status !== 'budget').length);
+        
+        const kpiPendingReceivables = computed(() => dashboardData.appointments
+            .filter(a => a.status === 'pending')
+            .reduce((acc, a) => acc + toNum(a.finalBalance), 0)
+        );
         
         const expensesByCategoryStats = computed(() => { 
             if (!dashboardData.expenses.length) return []; 
@@ -232,10 +248,20 @@ createApp({
 
         const syncData = () => {
             const myId = user.value.uid;
+            
+            // Serviços
             onSnapshot(query(collection(db, "services"), where("userId", "==", myId)), (snap) => services.value = snap.docs.map(d => ({ id: d.id, ...d.data() })));
+            
+            // Agendamentos Pendentes
             onSnapshot(query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "pending")), (snap) => {
                 pendingAppointments.value = snap.docs.map(sanitizeApp);
                 pendingAppointments.value.forEach(a => fetchClientToCache(a.clientId));
+            });
+
+            // NOVO: Orçamentos
+            onSnapshot(query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "budget")), (snap) => {
+                budgetList.value = snap.docs.map(sanitizeApp);
+                budgetList.value.forEach(a => fetchClientToCache(a.clientId));
             });
         };
 
@@ -244,9 +270,15 @@ createApp({
             const qExp = query(collection(db, "expenses"), where("userId", "==", user.value.uid), where("date", ">=", expensesFilter.start), where("date", "<=", expensesFilter.end));
             const snapExp = await getDocs(qExp);
             const loadedExpenses = snapExp.docs.map(d => ({ ...sanitizeExpense(d), type: 'expense', icon: 'fa-arrow-down', color: 'text-red-500' }));
+            
+            // NOVO: Filtrar orçamento aqui também
             const qApp = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("date", ">=", expensesFilter.start), where("date", "<=", expensesFilter.end));
             const snapApp = await getDocs(qApp);
-            const loadedIncome = snapApp.docs.map(d => { const app = sanitizeApp(d); return { id: app.id, date: app.date, value: app.totalServices, description: `Receita: ${getClientName(app.clientId)}`, type: 'income', icon: 'fa-arrow-up', color: 'text-green-500' }; });
+            const loadedIncome = snapApp.docs
+                .map(d => sanitizeApp(d))
+                .filter(a => a.status !== 'budget') // Ignora orçamentos no extrato
+                .map(app => { return { id: app.id, date: app.date, value: app.totalServices, description: `Receita: ${getClientName(app.clientId)}`, type: 'income', icon: 'fa-arrow-up', color: 'text-green-500' }; });
+            
             expensesList.value = [...loadedExpenses, ...loadedIncome]; isExtractLoaded.value = true;
         };
 
@@ -308,7 +340,7 @@ createApp({
                 const qApps = query(collection(db, "appointments"), where("clientId", "==", clientDoc.id));
                 const snapApps = await getDocs(qApps);
                 
-                const apps = snapApps.docs.map(sanitizeApp).filter(a => a.status !== 'cancelled').sort((a,b) => b.date.localeCompare(a.date));
+                const apps = snapApps.docs.map(sanitizeApp).filter(a => a.status !== 'cancelled' && a.status !== 'budget').sort((a,b) => b.date.localeCompare(a.date));
                 clientAppointments.value = apps;
 
                 if (apps.length > 0) {
@@ -328,7 +360,55 @@ createApp({
         };
 
         // --- CRUDs Principais ---
-        const saveAppointment = async () => { const appData = { ...JSON.parse(JSON.stringify(tempApp)), totalServices: totalServices.value, finalBalance: finalBalance.value, userId: user.value.uid, status: 'pending' }; if(!appData.checklist.length) appData.checklist = [{text:'Materiais', done:false}]; if (isEditing.value) await updateDoc(doc(db, "appointments", editingId.value), appData); else await addDoc(collection(db, "appointments"), appData); loadDashboardData(); showAppointmentModal.value = false; Swal.fire('Salvo!', '', 'success'); };
+        const saveAppointment = async () => { 
+            const appData = { ...JSON.parse(JSON.stringify(tempApp)), totalServices: totalServices.value, finalBalance: finalBalance.value, userId: user.value.uid, status: 'pending' }; 
+            if(!appData.checklist.length) appData.checklist = [{text:'Materiais', done:false}]; 
+            if (isEditing.value) await updateDoc(doc(db, "appointments", editingId.value), appData); 
+            else await addDoc(collection(db, "appointments"), appData); 
+            
+            loadDashboardData(); showAppointmentModal.value = false; Swal.fire('Agendado!', '', 'success'); 
+        };
+
+        // NOVO: Função para salvar Orçamento
+        const saveAsBudget = async () => {
+            const appData = { 
+                ...JSON.parse(JSON.stringify(tempApp)), 
+                totalServices: totalServices.value, 
+                finalBalance: finalBalance.value, 
+                userId: user.value.uid, 
+                status: 'budget' 
+            }; 
+            
+            if(!appData.checklist.length) appData.checklist = [{text:'Materiais', done:false}];
+            
+            if (isEditing.value && editingId.value) {
+                await updateDoc(doc(db, "appointments", editingId.value), appData);
+            } else {
+                await addDoc(collection(db, "appointments"), appData);
+            }
+            
+            showAppointmentModal.value = false;
+            Swal.fire('Orçamento Criado!', 'Você pode aprová-lo na aba Orçamentos.', 'success');
+        };
+
+        // NOVO: Aprovar Orçamento (Virar Venda)
+        const approveBudget = async (app) => {
+            const { isConfirmed } = await Swal.fire({
+                title: 'Aprovar Orçamento?',
+                text: 'Isso moverá o item para a Agenda e contará no Financeiro.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#4F46E5',
+                confirmButtonText: 'Sim, Aprovar'
+            });
+
+            if (isConfirmed) {
+                await updateDoc(doc(db, "appointments", app.id), { status: 'pending' });
+                Swal.fire('Aprovado!', 'Evento agendado com sucesso.', 'success');
+                view.value = 'schedule'; // Leva o usuário para a agenda
+            }
+        };
+
         const saveClient = async () => { if(!newClient.name) return; await addDoc(collection(db, "clients"), { name: newClient.name, phone: newClient.phone, cpf: newClient.cpf, email: newClient.email, userId: user.value.uid }); showClientModal.value = false; newClient.name = ''; newClient.phone = ''; newClient.cpf = ''; newClient.email = ''; if(view.value === 'registrations') searchCatalogClients(); Swal.fire('Salvo!', '', 'success'); };
         const saveService = async () => { if(!newService.description || !newService.price) return; await addDoc(collection(db, "services"), { description: newService.description, price: toNum(newService.price), userId: user.value.uid }); newService.description = ''; newService.price = ''; showServiceModal.value = false; };
         const saveExpenseLogic = async () => { const data = { ...newExpense, value: toNum(newExpense.value), userId: user.value.uid }; if (editingExpenseId.value) { await updateDoc(doc(db, "expenses", editingExpenseId.value), data); } else { await addDoc(collection(db, "expenses"), data); } showExpenseModal.value = false; Swal.fire('Salvo','','success'); if (expensesFilter.start && expensesFilter.end) searchExpenses(); loadDashboardData(); };
@@ -370,21 +450,33 @@ createApp({
         
         const generateContractPDF = () => { 
             const { jsPDF } = window.jspdf; const doc = new jsPDF(); const app = currentReceipt.value; const cli = clientCache[app.clientId] || {name:'...',cpf:'...', phone: '', email: ''};
+            
+            // Título dinâmico (Contrato ou Orçamento)
+            let docTitle = "CONTRATO DE PRESTAÇÃO DE SERVIÇOS";
+            if(app.status === 'budget') docTitle = "ORÇAMENTO";
+
             doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text(company.fantasia.toUpperCase(), 105, 20, {align: "center"});
             doc.setFontSize(10); doc.setFont("helvetica", "normal"); let headerY = 26;
             if (company.cnpj) { doc.text(`CNPJ: ${company.cnpj}`, 105, headerY, {align: "center"}); headerY += 5; }
             doc.text(`${company.rua} - ${company.bairro}`, 105, headerY, {align: "center"}); headerY += 5; doc.text(`${company.cidade}/${company.estado} - Tel: ${company.phone}`, 105, headerY, {align: "center"});
-            doc.line(20, headerY + 5, 190, headerY + 5); doc.setFontSize(14); doc.setFont("helvetica", "bold"); doc.text("CONTRATO DE PRESTAÇÃO DE SERVIÇOS", 105, headerY + 15, {align:"center"});
+            doc.line(20, headerY + 5, 190, headerY + 5); doc.setFontSize(14); doc.setFont("helvetica", "bold"); doc.text(docTitle, 105, headerY + 15, {align:"center"});
             let y = headerY + 25; doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.text("CONTRATANTE:", 20, y); y += 5; doc.setFont("helvetica", "normal"); doc.text(`Nome: ${cli.name} | CPF: ${cli.cpf || '-'}`, 20, y); y += 5; doc.text(`Tel: ${cli.phone} | E-mail: ${cli.email || '-'}`, 20, y);
             y += 10; doc.setFont("helvetica", "bold"); doc.text("EVENTO:", 20, y); y += 5; doc.setFont("helvetica", "normal"); doc.text(`Data: ${formatDate(app.date)} | Hora: ${app.time}`, 20, y); y += 5; doc.text(`Local: ${app.location.bairro}`, 20, y); if(app.details.balloonColors) { y += 5; doc.text(`Cores: ${app.details.balloonColors}`, 20, y); }
             y += 10; const body = app.selectedServices.map(s => [s.description, formatCurrency(s.price)]); doc.autoTable({ startY: y, head: [['Descrição', 'Valor']], body: body, theme: 'grid', headStyles: { fillColor: [60, 60, 60] }, margin: { left: 20, right: 20 } });
             y = doc.lastAutoTable.finalY + 10; doc.setFont("helvetica", "bold"); doc.text(`TOTAL: ${formatCurrency(app.totalServices)}`, 140, y, {align: "right"}); y += 5; doc.text(`SINAL: ${formatCurrency(app.entryFee)}`, 140, y, {align: "right"}); y += 5; doc.text(`RESTANTE: ${formatCurrency(app.finalBalance)}`, 140, y, {align: "right"});
-            y += 15; doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.text("CLÁUSULAS E CONDIÇÕES:", 20, y); y += 5; doc.setFont("helvetica", "normal");
-            const clauses = [ "1. RESERVA: O pagamento do sinal garante a reserva da data.", "2. DESISTÊNCIA: Em caso de cancelamento com menos de 15 dias, o sinal não será devolvido.", "3. DANOS: O CONTRATANTE responsabiliza-se pela conservação dos materiais.", "4. PAGAMENTO: O restante deve ser pago até a data do evento.", "5. MONTAGEM: O local deve estar liberado no horário combinado." ];
-            clauses.forEach(clause => { const lines = doc.splitTextToSize(clause, 170); doc.text(lines, 20, y); y += (lines.length * 4) + 2; if (y > 230) { doc.addPage(); y = 20; } });
-            if (y > 230) { doc.addPage(); y = 40; } else { y += 20; }
-            if (app.clientSignature) { doc.addImage(app.clientSignature, 'PNG', 115, y - 15, 60, 20); }
-            doc.line(20, y, 90, y); doc.line(110, y, 180, y); doc.text("CONTRATADA", 55, y + 5, {align: "center"}); doc.text("CONTRATANTE", 145, y + 5, {align: "center"}); doc.save(`Contrato_${cli.name.replace(/ /g, '_')}.pdf`);
+            
+            if (app.status !== 'budget') {
+                y += 15; doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.text("CLÁUSULAS E CONDIÇÕES:", 20, y); y += 5; doc.setFont("helvetica", "normal");
+                const clauses = [ "1. RESERVA: O pagamento do sinal garante a reserva da data.", "2. DESISTÊNCIA: Em caso de cancelamento com menos de 15 dias, o sinal não será devolvido.", "3. DANOS: O CONTRATANTE responsabiliza-se pela conservação dos materiais.", "4. PAGAMENTO: O restante deve ser pago até a data do evento.", "5. MONTAGEM: O local deve estar liberado no horário combinado." ];
+                clauses.forEach(clause => { const lines = doc.splitTextToSize(clause, 170); doc.text(lines, 20, y); y += (lines.length * 4) + 2; if (y > 230) { doc.addPage(); y = 20; } });
+                if (y > 230) { doc.addPage(); y = 40; } else { y += 20; }
+                if (app.clientSignature) { doc.addImage(app.clientSignature, 'PNG', 115, y - 15, 60, 20); }
+                doc.line(20, y, 90, y); doc.line(110, y, 180, y); doc.text("CONTRATADA", 55, y + 5, {align: "center"}); doc.text("CONTRATANTE", 145, y + 5, {align: "center"}); 
+            } else {
+                y += 20; doc.setFontSize(8); doc.text("* Este documento é apenas um orçamento e não garante a reserva da data.", 105, y, {align: "center"});
+            }
+
+            doc.save(`Doc_${cli.name.replace(/ /g, '_')}.pdf`);
         };
 
         // --- Helpers de Interface ---
@@ -414,7 +506,7 @@ createApp({
         const selectClient = (client) => { isSelectingClient.value = true; tempApp.clientId = client.id; clientSearchTerm.value = client.name; scheduleClientsList.value = []; setTimeout(() => { isSelectingClient.value = false; }, 500); };
 
         return {
-            user, view, isDark, authForm, authLoading, isRegistering, handleAuth, logout,
+            user, view, isDark, authForm, authLoading, isRegistering, handleAuth, logout, isGlobalLoading,
             dashboardMonth, financeData, next7DaysApps, statementList, isExtractLoaded, financeSummary, expensesFilter, searchExpenses,
             showExpenseModal, newExpense, 
             addExpense: saveExpenseLogic, saveExpenseLogic, openNewExpense, openEditExpense, deleteExpense, editingExpenseId,
@@ -434,7 +526,8 @@ createApp({
             kpiPendingReceivables, totalAppointmentsCount, topExpenseCategory, getCategoryIcon,
             maskPhone, maskCPF,
             loginMode, clientAccessInput, handleClientAccess, clientData, clientAppointments, logoutClient, openWhatsAppSupport, downloadClientReceipt,
-            showSignatureModal, openSignatureModal, clearSignature, saveSignature, copyClientLink
+            showSignatureModal, openSignatureModal, clearSignature, saveSignature, copyClientLink,
+            budgetList, saveAsBudget, approveBudget // NOVO: Exportar para o template
         };
     }
 }).mount('#app');
