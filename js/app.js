@@ -28,7 +28,7 @@ createApp({
         // Listas
         const services = ref([]);
         const pendingAppointments = ref([]);
-        const budgetList = ref([]); // Lista de Orçamentos
+        const budgetList = ref([]); 
         const historyList = ref([]);
         const expensesList = ref([]);
         const dashboardData = reactive({ appointments: [], expenses: [] });
@@ -124,6 +124,10 @@ createApp({
         const maskCPF = (v) => { if(!v) return ""; v=v.replace(/\D/g,""); v=v.replace(/(\d{3})(\d)/,"$1.$2"); v=v.replace(/(\d{3})(\d)/,"$1.$2"); v=v.replace(/(\d{3})(\d{1,2})$/,"$1-$2"); return v; };
 
         const statementList = computed(() => { if (!isExtractLoaded.value) return []; return expensesList.value.sort((a, b) => b.date.localeCompare(a.date)); });
+        
+        // --- CORREÇÃO AQUI: Declaração do financeSummary ---
+        const financeSummary = computed(() => statementList.value.reduce((acc, item) => item.type === 'income' ? acc + item.value : acc - item.value, 0));
+        
         const totalServices = computed(() => tempApp.selectedServices.reduce((s,i) => s + toNum(i.price), 0));
         const finalBalance = computed(() => totalServices.value - toNum(tempApp.details.entryFee));
         
