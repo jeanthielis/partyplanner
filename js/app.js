@@ -125,7 +125,6 @@ createApp({
 
         const statementList = computed(() => { if (!isExtractLoaded.value) return []; return expensesList.value.sort((a, b) => b.date.localeCompare(a.date)); });
         
-        // --- CORREÇÃO AQUI: Declaração do financeSummary ---
         const financeSummary = computed(() => statementList.value.reduce((acc, item) => item.type === 'income' ? acc + item.value : acc - item.value, 0));
         
         const totalServices = computed(() => tempApp.selectedServices.reduce((s,i) => s + toNum(i.price), 0));
@@ -400,8 +399,8 @@ createApp({
             company, handleLogoUpload, saveCompany, downloadReceiptImage, generateContractPDF, openWhatsApp, formatCurrency, formatDate, getDay, getMonth, statusText, getClientName, 
             toggleDarkMode, expenseCategories, expensesByCategoryStats, agendaTab, agendaFilter, searchHistory, changeStatus, registrationTab, kpiPendingReceivables, totalAppointmentsCount, topExpenseCategory, getCategoryIcon, maskPhone, maskCPF,
             loginMode, clientAccessInput, handleClientAccess, clientData, clientAppointments, logoutClient, openWhatsAppSupport, downloadClientReceipt, showSignatureModal, openSignatureModal, clearSignature, saveSignature, copyClientLink,
-            // NOVOS EXPORTS
-            budgetList, saveAsBudget, approveBudget 
+            // NOVOS EXPORTS (PENDING APPOINTMENTS ESTAVA FALTANDO)
+            budgetList, saveAsBudget, approveBudget, pendingAppointments 
         };
     }
 }).mount('#app');
