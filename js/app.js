@@ -19,7 +19,7 @@ createApp({
         const isDark = ref(false);
         const authLoading = ref(false);
         const isRegistering = ref(false);
-        const isGlobalLoading = ref(true); // <--- NOVO: Estado de carregamento global
+        const isGlobalLoading = ref(true); // <--- CORREÇÃO DO FLASH
         const authForm = reactive({ email: '', password: '', name: '' });
         
         // -- Configurações e Dados Mestres --
@@ -30,7 +30,7 @@ createApp({
         // -- Listas de Dados (Arrays) --
         const services = ref([]);
         const pendingAppointments = ref([]);
-        const budgetList = ref([]); // <--- NOVO: Lista de Orçamentos
+        const budgetList = ref([]); // <--- NOVA LISTA DE ORÇAMENTOS
         const historyList = ref([]);
         const expensesList = ref([]);
         const dashboardData = reactive({ appointments: [], expenses: [] });
@@ -109,7 +109,7 @@ createApp({
                     }
                 }
 
-                // NOVO: Remove a tela de carregamento após verificar auth
+                // <--- CORREÇÃO DO FLASH: Remove a tela de carregamento após verificar auth
                 setTimeout(() => {
                     isGlobalLoading.value = false;
                 }, 800);
@@ -124,6 +124,8 @@ createApp({
         const formatDate = (d) => { if(!d) return ''; try{return d.split('-').reverse().join('/');}catch(e){return d;} };
         const getDay = (d) => d?d.split('-')[2]:'';
         const getMonth = (d) => d?['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'][parseInt(d.split('-')[1])-1]:'';
+        
+        // <--- ATUALIZADO: Suporte a status 'budget'
         const statusText = (s) => {
             if (s === 'budget') return 'Orçamento';
             return s==='concluded'?'Concluído':(s==='cancelled'?'Cancelado':'Pendente');
@@ -148,7 +150,7 @@ createApp({
         const totalServices = computed(() => tempApp.selectedServices.reduce((s,i) => s + toNum(i.price), 0));
         const finalBalance = computed(() => totalServices.value - toNum(tempApp.details.entryFee));
         
-        // NOVO: Filtramos 'budget' para não contar no financeiro ainda
+        // <--- ATUALIZADO: Ignora orçamentos no KPI Financeiro
         const kpiRevenue = computed(() => dashboardData.appointments
             .filter(a => a.status !== 'budget') 
             .reduce((acc, a) => acc + toNum(a.totalServices), 0)
@@ -240,7 +242,8 @@ createApp({
                 const qApps = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("date", ">=", startStr), where("date", "<=", endStr));
                 const qExp = query(collection(db, "expenses"), where("userId", "==", user.value.uid), where("date", ">=", startStr), where("date", "<=", endStr));
                 const [snapApps, snapExp] = await Promise.all([getDocs(qApps), getDocs(qExp)]);
-                dashboardData.appointments = snapApps.docs.map(sanitizeApp).filter(a => a.status !== 'cancelled');
+                // <--- Filtra orçamentos do dashboard
+                dashboardData.appointments = snapApps.docs.map(sanitizeApp).filter(a => a.status !== 'cancelled' && a.status !== 'budget');
                 dashboardData.expenses = snapExp.docs.map(sanitizeExpense);
                 dashboardData.appointments.forEach(a => fetchClientToCache(a.clientId));
             } catch (e) { console.error(e); } finally { isLoadingDashboard.value = false; }
@@ -258,7 +261,7 @@ createApp({
                 pendingAppointments.value.forEach(a => fetchClientToCache(a.clientId));
             });
 
-            // NOVO: Orçamentos
+            // <--- NOVO: Sincronizar Orçamentos
             onSnapshot(query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "budget")), (snap) => {
                 budgetList.value = snap.docs.map(sanitizeApp);
                 budgetList.value.forEach(a => fetchClientToCache(a.clientId));
@@ -271,12 +274,12 @@ createApp({
             const snapExp = await getDocs(qExp);
             const loadedExpenses = snapExp.docs.map(d => ({ ...sanitizeExpense(d), type: 'expense', icon: 'fa-arrow-down', color: 'text-red-500' }));
             
-            // NOVO: Filtrar orçamento aqui também
+            // <--- ATUALIZADO: Ignora orçamentos no extrato
             const qApp = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("date", ">=", expensesFilter.start), where("date", "<=", expensesFilter.end));
             const snapApp = await getDocs(qApp);
             const loadedIncome = snapApp.docs
                 .map(d => sanitizeApp(d))
-                .filter(a => a.status !== 'budget') // Ignora orçamentos no extrato
+                .filter(a => a.status !== 'budget') 
                 .map(app => { return { id: app.id, date: app.date, value: app.totalServices, description: `Receita: ${getClientName(app.clientId)}`, type: 'income', icon: 'fa-arrow-up', color: 'text-green-500' }; });
             
             expensesList.value = [...loadedExpenses, ...loadedIncome]; isExtractLoaded.value = true;
@@ -369,7 +372,7 @@ createApp({
             loadDashboardData(); showAppointmentModal.value = false; Swal.fire('Agendado!', '', 'success'); 
         };
 
-        // NOVO: Função para salvar Orçamento
+        // <--- NOVO: Função para salvar Orçamento
         const saveAsBudget = async () => {
             const appData = { 
                 ...JSON.parse(JSON.stringify(tempApp)), 
@@ -391,7 +394,7 @@ createApp({
             Swal.fire('Orçamento Criado!', 'Você pode aprová-lo na aba Orçamentos.', 'success');
         };
 
-        // NOVO: Aprovar Orçamento (Virar Venda)
+        // <--- NOVO: Aprovar Orçamento (Virar Venda)
         const approveBudget = async (app) => {
             const { isConfirmed } = await Swal.fire({
                 title: 'Aprovar Orçamento?',
@@ -451,7 +454,7 @@ createApp({
         const generateContractPDF = () => { 
             const { jsPDF } = window.jspdf; const doc = new jsPDF(); const app = currentReceipt.value; const cli = clientCache[app.clientId] || {name:'...',cpf:'...', phone: '', email: ''};
             
-            // Título dinâmico (Contrato ou Orçamento)
+            // <--- ATUALIZADO: Título dinâmico (Contrato ou Orçamento)
             let docTitle = "CONTRATO DE PRESTAÇÃO DE SERVIÇOS";
             if(app.status === 'budget') docTitle = "ORÇAMENTO";
 
@@ -527,7 +530,7 @@ createApp({
             maskPhone, maskCPF,
             loginMode, clientAccessInput, handleClientAccess, clientData, clientAppointments, logoutClient, openWhatsAppSupport, downloadClientReceipt,
             showSignatureModal, openSignatureModal, clearSignature, saveSignature, copyClientLink,
-            budgetList, saveAsBudget, approveBudget // NOVO: Exportar para o template
+            budgetList, saveAsBudget, approveBudget // <--- EXPORTADO
         };
     }
 }).mount('#app');
