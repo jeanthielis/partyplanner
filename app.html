@@ -282,7 +282,7 @@
                 
                 <button @click="view='schedule'" class="relative p-3 rounded-2xl transition" :class="view==='schedule'?'text-brand-600 bg-brand-50 dark:bg-brand-900/30':'text-slate-400'">
                     <i class="fa-solid fa-calendar text-xl"></i>
-                    <span v-if="pendingAppointments.length > 0" class="absolute top-2 right-2 w-4 h-4 bg-red-500 text-white text-[9px] flex items-center justify-center rounded-full border-2 border-white dark:border-slate-900 font-bold">{{ pendingAppointments.length }}</span>
+                    <span v-if="pendingAppointments.length > 0" class="absolute top-0 right-1 w-4 h-4 bg-red-500 text-white text-[9px] flex items-center justify-center rounded-full border-2 border-white dark:border-slate-900 font-bold">{{ pendingAppointments.length }}</span>
                 </button>
                 
                 <button @click="startNewSchedule" class="w-14 h-14 bg-brand-600 text-white rounded-2xl shadow-lg shadow-brand-500/40 flex items-center justify-center -mt-10 border-4 border-slate-50 dark:border-[#0F172A] transform active:scale-95 transition"><i class="fa-solid fa-plus text-2xl"></i></button>
@@ -291,7 +291,7 @@
                 
                 <button @click="view='budgets'" class="relative p-3 rounded-2xl transition" :class="view==='budgets'?'text-brand-600 bg-brand-50 dark:bg-brand-900/30':'text-slate-400'">
                     <i class="fa-solid fa-file-invoice-dollar text-xl"></i>
-                    <span v-if="budgetList.length > 0" class="absolute top-2 right-2 w-4 h-4 bg-yellow-500 text-white text-[9px] flex items-center justify-center rounded-full border-2 border-white dark:border-slate-900 font-bold">{{ budgetList.length }}</span>
+                    <span v-if="budgetList.length > 0" class="absolute top-0 right-1 w-4 h-4 bg-yellow-500 text-white text-[9px] flex items-center justify-center rounded-full border-2 border-white dark:border-slate-900 font-bold">{{ budgetList.length }}</span>
                 </button>
             </div>
         </div>
