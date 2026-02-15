@@ -1,43 +1,42 @@
 const { createApp, ref, computed, reactive, onMounted, watch } = Vue;
 
+// Importação segura do Firebase
 import { 
     db, auth, 
     collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDocs, query, where, setDoc, getDoc, 
     signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged,
-    updatePassword, reauthenticateWithCredential, EmailAuthProvider, updateProfile 
+    updateProfile 
 } from './firebase.js';
 
 createApp({
     setup() {
         // ============================================================
-        // 1. ESTADO (REFS & REACTIVE)
+        // 1. ESTADO GLOBAL
         // ============================================================
-        
-        // -- Sistema e Auth --
         const user = ref(null);
         const view = ref('dashboard');
         const isDark = ref(false);
         const authLoading = ref(false);
         const isRegistering = ref(false);
-        const isGlobalLoading = ref(true); // <--- CORREÇÃO DO FLASH
+        const isGlobalLoading = ref(true); // Controle do Loading Inicial
         const authForm = reactive({ email: '', password: '', name: '' });
         
-        // -- Configurações e Dados Mestres --
+        // Dados da Empresa e Dashboard
         const company = reactive({ fantasia: '', logo: '', cnpj: '', email: '', phone: '', rua: '', bairro: '', cidade: '', estado: '' });
         const dashboardMonth = ref(new Date().toISOString().slice(0, 7));
         const isLoadingDashboard = ref(false);
         
-        // -- Listas de Dados (Arrays) --
+        // Listas Principais
         const services = ref([]);
         const pendingAppointments = ref([]);
-        const budgetList = ref([]); // <--- NOVA LISTA DE ORÇAMENTOS
+        const budgetList = ref([]); // <--- LISTA DE ORÇAMENTOS
         const historyList = ref([]);
         const expensesList = ref([]);
         const dashboardData = reactive({ appointments: [], expenses: [] });
         const catalogClientsList = ref([]);
         const scheduleClientsList = ref([]);
         
-        // -- Cache e Controles --
+        // Controles de Interface e Filtros
         const clientCache = reactive({});
         const isExtractLoaded = ref(false);
         const expensesFilter = reactive({ start: '', end: '' });
@@ -51,7 +50,7 @@ createApp({
         const registrationTab = ref('clients');
         const agendaTab = ref('pending');
 
-        // -- Modais e Edição --
+        // Modais
         const showAppointmentModal = ref(false);
         const showClientModal = ref(false);
         const showServiceModal = ref(false);
@@ -62,14 +61,14 @@ createApp({
         const editingExpenseId = ref(null);
         const currentReceipt = ref(null);
 
-        // -- Objetos Temporários (Formulários) --
+        // Formulários Temporários
         const newClient = reactive({ name: '', phone: '', cpf: '', email: '' });
         const newService = reactive({ description: '', price: '' });
         const newExpense = reactive({ description: '', value: '', date: new Date().toISOString().split('T')[0], category: 'outros' });
         const tempServiceSelect = ref('');
         const tempApp = reactive({ clientId: '', date: '', time: '', location: { bairro: '' }, details: { entryFee: 0, balloonColors: '' }, notes: '', selectedServices: [], checklist: [] });
 
-        // -- Área do Cliente --
+        // Área do Cliente (Portal)
         const loginMode = ref('provider'); 
         const clientAccessInput = ref('');
         const clientData = ref(null);
@@ -77,7 +76,7 @@ createApp({
         const showSignatureModal = ref(false);
         const signatureApp = ref(null);
 
-        // -- Constantes --
+        // Categorias de Despesa
         const expenseCategories = [
             { id: 'combustivel', label: 'Combustível', icon: 'fa-gas-pump' },
             { id: 'materiais', label: 'Materiais', icon: 'fa-box-open' },
@@ -89,7 +88,7 @@ createApp({
         ];
 
         // ============================================================
-        // MONITORAMENTO DE AUTH E INICIALIZAÇÃO
+        // 2. INICIALIZAÇÃO E AUTH
         // ============================================================
         onMounted(() => {
             onAuthStateChanged(auth, async (u) => {
@@ -105,19 +104,17 @@ createApp({
                             Object.assign(company, uDoc.data().companyConfig);
                         }
                     } catch (e) {
-                        console.error("Erro ao carregar perfil:", e);
+                        console.error("Erro perfil:", e);
                     }
                 }
 
-                // <--- CORREÇÃO DO FLASH: Remove a tela de carregamento após verificar auth
-                setTimeout(() => {
-                    isGlobalLoading.value = false;
-                }, 800);
+                // Remove loading após verificar login
+                setTimeout(() => { isGlobalLoading.value = false; }, 800);
             });
         });
 
         // ============================================================
-        // 2. FUNÇÕES AUXILIARES (PURE FUNCTIONS)
+        // 3. HELPERS E FORMATADORES
         // ============================================================
         const toNum = (v) => { if(!v) return 0; if(typeof v==='number') return v; const c=String(v).replace(',','.').replace(/[^0-9.-]/g,''); return parseFloat(c)||0; };
         const formatCurrency = (v) => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(toNum(v));
@@ -125,9 +122,8 @@ createApp({
         const getDay = (d) => d?d.split('-')[2]:'';
         const getMonth = (d) => d?['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'][parseInt(d.split('-')[1])-1]:'';
         
-        // <--- ATUALIZADO: Suporte a status 'budget'
         const statusText = (s) => {
-            if (s === 'budget') return 'Orçamento';
+            if (s === 'budget') return 'Orçamento'; // <--- Texto para Orçamento
             return s==='concluded'?'Concluído':(s==='cancelled'?'Cancelado':'Pendente');
         };
         const getClientName = (id) => clientCache[id]?.name || 'Cliente Excluído';
@@ -137,7 +133,7 @@ createApp({
         const maskCPF = (v) => { if(!v) return ""; v=v.replace(/\D/g,""); v=v.replace(/(\d{3})(\d)/,"$1.$2"); v=v.replace(/(\d{3})(\d)/,"$1.$2"); v=v.replace(/(\d{3})(\d{1,2})$/,"$1-$2"); return v; };
 
         // ============================================================
-        // 3. COMPUTED PROPERTIES
+        // 4. COMPUTED PROPERTIES (LÓGICA REATIVA)
         // ============================================================
         
         const statementList = computed(() => { 
@@ -150,7 +146,7 @@ createApp({
         const totalServices = computed(() => tempApp.selectedServices.reduce((s,i) => s + toNum(i.price), 0));
         const finalBalance = computed(() => totalServices.value - toNum(tempApp.details.entryFee));
         
-        // <--- ATUALIZADO: Ignora orçamentos no KPI Financeiro
+        // KPI Financeiro (Ignora orçamentos)
         const kpiRevenue = computed(() => dashboardData.appointments
             .filter(a => a.status !== 'budget') 
             .reduce((acc, a) => acc + toNum(a.totalServices), 0)
@@ -211,7 +207,7 @@ createApp({
         const filteredClientsSearch = computed(() => scheduleClientsList.value);
 
         // ============================================================
-        // 4. FUNÇÕES DE DADOS E LÓGICA (ASYNC)
+        // 5. FUNÇÕES DE BANCO DE DADOS (ASYNC)
         // ============================================================
 
         const fetchClientToCache = async (id) => {
@@ -242,7 +238,8 @@ createApp({
                 const qApps = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("date", ">=", startStr), where("date", "<=", endStr));
                 const qExp = query(collection(db, "expenses"), where("userId", "==", user.value.uid), where("date", ">=", startStr), where("date", "<=", endStr));
                 const [snapApps, snapExp] = await Promise.all([getDocs(qApps), getDocs(qExp)]);
-                // <--- Filtra orçamentos do dashboard
+                
+                // Filtra orçamentos do dashboard geral
                 dashboardData.appointments = snapApps.docs.map(sanitizeApp).filter(a => a.status !== 'cancelled' && a.status !== 'budget');
                 dashboardData.expenses = snapExp.docs.map(sanitizeExpense);
                 dashboardData.appointments.forEach(a => fetchClientToCache(a.clientId));
@@ -261,7 +258,7 @@ createApp({
                 pendingAppointments.value.forEach(a => fetchClientToCache(a.clientId));
             });
 
-            // <--- NOVO: Sincronizar Orçamentos
+            // Sincronizar Orçamentos
             onSnapshot(query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "budget")), (snap) => {
                 budgetList.value = snap.docs.map(sanitizeApp);
                 budgetList.value.forEach(a => fetchClientToCache(a.clientId));
@@ -274,7 +271,7 @@ createApp({
             const snapExp = await getDocs(qExp);
             const loadedExpenses = snapExp.docs.map(d => ({ ...sanitizeExpense(d), type: 'expense', icon: 'fa-arrow-down', color: 'text-red-500' }));
             
-            // <--- ATUALIZADO: Ignora orçamentos no extrato
+            // Ignora orçamentos no extrato
             const qApp = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("date", ">=", expensesFilter.start), where("date", "<=", expensesFilter.end));
             const snapApp = await getDocs(qApp);
             const loadedIncome = snapApp.docs
@@ -299,7 +296,10 @@ createApp({
             catalogClientsList.value = snap.docs.map(d => ({id: d.id, ...d.data()})).filter(c => c.name.toLowerCase().includes(catalogClientSearch.value.toLowerCase())); 
         };
 
-        // --- Lógica de Login e Cliente ---
+        // ============================================================
+        // 6. AÇÕES DO USUÁRIO
+        // ============================================================
+
         const handleAuth = async () => {
             if (!authForm.email || !authForm.password) return Swal.fire('Atenção', 'Preencha todos os campos.', 'warning');
             authLoading.value = true;
@@ -357,12 +357,10 @@ createApp({
                 view.value = 'client-portal';
             } catch (e) {
                 console.error(e);
-                if(e.code === 'permission-denied') Swal.fire('Configuração', 'Erro de permissão nas regras do banco.', 'error');
-                else Swal.fire('Acesso Negado', 'Dados não encontrados.', 'error');
+                Swal.fire('Acesso Negado', 'Dados não encontrados.', 'error');
             } finally { authLoading.value = false; }
         };
 
-        // --- CRUDs Principais ---
         const saveAppointment = async () => { 
             const appData = { ...JSON.parse(JSON.stringify(tempApp)), totalServices: totalServices.value, finalBalance: finalBalance.value, userId: user.value.uid, status: 'pending' }; 
             if(!appData.checklist.length) appData.checklist = [{text:'Materiais', done:false}]; 
@@ -372,14 +370,14 @@ createApp({
             loadDashboardData(); showAppointmentModal.value = false; Swal.fire('Agendado!', '', 'success'); 
         };
 
-        // <--- NOVO: Função para salvar Orçamento
+        // --- SALVAR ORÇAMENTO (FUNÇÃO NOVA) ---
         const saveAsBudget = async () => {
             const appData = { 
                 ...JSON.parse(JSON.stringify(tempApp)), 
                 totalServices: totalServices.value, 
                 finalBalance: finalBalance.value, 
                 userId: user.value.uid, 
-                status: 'budget' 
+                status: 'budget' // Define status como Orçamento
             }; 
             
             if(!appData.checklist.length) appData.checklist = [{text:'Materiais', done:false}];
@@ -394,7 +392,7 @@ createApp({
             Swal.fire('Orçamento Criado!', 'Você pode aprová-lo na aba Orçamentos.', 'success');
         };
 
-        // <--- NOVO: Aprovar Orçamento (Virar Venda)
+        // --- APROVAR ORÇAMENTO (FUNÇÃO NOVA) ---
         const approveBudget = async (app) => {
             const { isConfirmed } = await Swal.fire({
                 title: 'Aprovar Orçamento?',
@@ -408,7 +406,7 @@ createApp({
             if (isConfirmed) {
                 await updateDoc(doc(db, "appointments", app.id), { status: 'pending' });
                 Swal.fire('Aprovado!', 'Evento agendado com sucesso.', 'success');
-                view.value = 'schedule'; // Leva o usuário para a agenda
+                view.value = 'schedule';
             }
         };
 
@@ -422,7 +420,7 @@ createApp({
         const deleteExpense = async (id) => { const { isConfirmed } = await Swal.fire({ title: 'Excluir?', text: 'Essa ação não pode ser desfeita.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33' }); if (isConfirmed) { await deleteDoc(doc(db, "expenses", id)); if (expensesFilter.start && expensesFilter.end) searchExpenses(); loadDashboardData(); Swal.fire('Excluído!', '', 'success'); } };
         const changeStatus = async (app, status) => { const action = status === 'concluded' ? 'Concluir' : 'Cancelar'; const {isConfirmed} = await Swal.fire({title: action + '?', text: 'Deseja alterar o status?', icon:'question', showCancelButton:true}); if(isConfirmed) { await updateDoc(doc(db,"appointments",app.id), {status:status}); Swal.fire('Feito','','success'); loadDashboardData(); } };
 
-        // --- Assinatura (Canvas) ---
+        // Assinatura
         let canvasContext = null; let isDrawing = false;
         const openSignatureModal = (app) => { signatureApp.value = app; showSignatureModal.value = true; setTimeout(() => initCanvas(), 100); };
         const initCanvas = () => { const canvas = document.getElementById('signature-pad'); if(!canvas) return; const ratio = Math.max(window.devicePixelRatio || 1, 1); canvas.width = canvas.offsetWidth * ratio; canvas.height = canvas.offsetHeight * ratio; canvas.getContext("2d").scale(ratio, ratio); canvasContext = canvas.getContext('2d'); canvasContext.strokeStyle = "#000"; canvasContext.lineWidth = 2; canvas.addEventListener('mousedown', startDrawing); canvas.addEventListener('mousemove', draw); canvas.addEventListener('mouseup', stopDrawing); canvas.addEventListener('mouseout', stopDrawing); canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDrawing(e.touches[0]); }); canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e.touches[0]); }); canvas.addEventListener('touchend', (e) => { e.preventDefault(); stopDrawing(); }); };
@@ -447,14 +445,13 @@ createApp({
             } catch (e) { console.error(e); Swal.fire('Erro', 'Não foi possível salvar.', 'error'); } finally { authLoading.value = false; } 
         };
 
-        // --- Geração de PDF e Outros ---
         const showReceipt = (app) => { currentReceipt.value = sanitizeApp(app); showReceiptModal.value = true; };
         const downloadClientReceipt = async (app) => { currentReceipt.value = app; if(!clientCache[app.clientId] && clientData.value) { clientCache[app.clientId] = clientData.value; } generateContractPDF(); };
         
         const generateContractPDF = () => { 
             const { jsPDF } = window.jspdf; const doc = new jsPDF(); const app = currentReceipt.value; const cli = clientCache[app.clientId] || {name:'...',cpf:'...', phone: '', email: ''};
             
-            // <--- ATUALIZADO: Título dinâmico (Contrato ou Orçamento)
+            // Título dinâmico (Contrato ou Orçamento)
             let docTitle = "CONTRATO DE PRESTAÇÃO DE SERVIÇOS";
             if(app.status === 'budget') docTitle = "ORÇAMENTO";
 
@@ -482,7 +479,6 @@ createApp({
             doc.save(`Doc_${cli.name.replace(/ /g, '_')}.pdf`);
         };
 
-        // --- Helpers de Interface ---
         const startNewSchedule = () => { isEditing.value=false; Object.assign(tempApp, { clientId:'', date:'', time:'', location:{bairro:''}, details:{entryFee:0, balloonColors:''}, notes: '', selectedServices:[], checklist:[] }); clientSearchTerm.value = ''; showAppointmentModal.value=true; };
         const editAppointment = (app) => { isEditing.value=true; editingId.value=app.id; Object.assign(tempApp, JSON.parse(JSON.stringify(app))); clientSearchTerm.value = getClientName(app.clientId); showAppointmentModal.value=true; };
         const openNewExpense = () => { editingExpenseId.value = null; Object.assign(newExpense, { description: '', value: '', date: new Date().toISOString().split('T')[0], category: 'outros' }); showExpenseModal.value = true; };
@@ -503,11 +499,13 @@ createApp({
         const addServiceToApp = () => { if(tempServiceSelect.value) tempApp.selectedServices.push(tempServiceSelect.value); tempServiceSelect.value=''; };
         const removeServiceFromApp = (i) => tempApp.selectedServices.splice(i,1);
 
-        // --- Watchers para Autocomplete ---
         watch(dashboardMonth, () => loadDashboardData());
         watch(clientSearchTerm, async (val) => { if (isSelectingClient.value) return; if (val && val.length > 2) { const q = query(collection(db, "clients"), where("userId", "==", user.value.uid)); const snap = await getDocs(q); scheduleClientsList.value = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => c.name.toLowerCase().includes(val.toLowerCase())); } else { scheduleClientsList.value = []; } });
         const selectClient = (client) => { isSelectingClient.value = true; tempApp.clientId = client.id; clientSearchTerm.value = client.name; scheduleClientsList.value = []; setTimeout(() => { isSelectingClient.value = false; }, 500); };
 
+        // ============================================================
+        // 7. EXPORTAÇÃO (IMPORTANTE)
+        // ============================================================
         return {
             user, view, isDark, authForm, authLoading, isRegistering, handleAuth, logout, isGlobalLoading,
             dashboardMonth, financeData, next7DaysApps, statementList, isExtractLoaded, financeSummary, expensesFilter, searchExpenses,
@@ -530,7 +528,9 @@ createApp({
             maskPhone, maskCPF,
             loginMode, clientAccessInput, handleClientAccess, clientData, clientAppointments, logoutClient, openWhatsAppSupport, downloadClientReceipt,
             showSignatureModal, openSignatureModal, clearSignature, saveSignature, copyClientLink,
-            budgetList, saveAsBudget, approveBudget // <--- EXPORTADO
+            
+            // ---> EXPORTAÇÕES NOVAS OBRIGATÓRIAS <---
+            budgetList, saveAsBudget, approveBudget 
         };
     }
 }).mount('#app');
