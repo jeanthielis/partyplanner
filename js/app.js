@@ -89,10 +89,12 @@ createApp({
         // 2. INICIALIZAÇÃO
         // ============================================================
         onMounted(() => {
+            // Verifica link do cliente (?acesso=cliente)
             const params = new URLSearchParams(window.location.search);
-                if (params.get('acesso') === 'cliente') {
-                    loginMode.value = 'client';
-                }
+            if (params.get('acesso') === 'cliente') {
+                loginMode.value = 'client';
+            }
+
             onAuthStateChanged(auth, async (u) => {
                 user.value = u;
                 if (u) {
@@ -293,7 +295,8 @@ createApp({
                 clientData.value = { id: clientDoc.id, ...clientDoc.data() };
                 const qApps = query(collection(db, "appointments"), where("clientId", "==", clientDoc.id));
                 const snapApps = await getDocs(qApps);
-                const apps = snapApps.docs.map(sanitizeApp).filter(a => a.status !== 'cancelled' && a.status !== 'budget').sort((a,b) => b.date.localeCompare(a.date));
+                // MELHORIA: Agora inclui 'budget'
+                const apps = snapApps.docs.map(sanitizeApp).filter(a => a.status !== 'cancelled').sort((a,b) => b.date.localeCompare(a.date));
                 clientAppointments.value = apps;
                 if (apps.length > 0) {
                     const uDoc = await getDoc(doc(db, "users", apps[0].userId));
@@ -301,6 +304,36 @@ createApp({
                 }
                 view.value = 'client-portal';
             } catch (e) { Swal.fire('Acesso Negado', 'Dados não encontrados.', 'error'); } finally { authLoading.value = false; }
+        };
+
+        const clientApproveBudget = async (app) => {
+            const { isConfirmed } = await Swal.fire({
+                title: 'Aprovar Orçamento?',
+                text: 'Ao confirmar, a data será pré-reservada e o decorador será notificado.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#4F46E5',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Sim, Aprovar!',
+                cancelButtonText: 'Voltar'
+            });
+
+            if (isConfirmed) {
+                authLoading.value = true;
+                try {
+                    await updateDoc(doc(db, "appointments", app.id), { status: 'pending' });
+                    const idx = clientAppointments.value.findIndex(a => a.id === app.id);
+                    if(idx !== -1) {
+                        clientAppointments.value[idx].status = 'pending';
+                    }
+                    await Swal.fire({ title: 'Sucesso!', text: 'Orçamento aprovado! Aguarde o contato para pagamento.', icon: 'success' });
+                } catch (e) {
+                    console.error(e);
+                    Swal.fire('Erro', 'Não foi possível aprovar.', 'error');
+                } finally {
+                    authLoading.value = false;
+                }
+            }
         };
 
         const saveAppointment = async () => { 
@@ -403,8 +436,8 @@ createApp({
             company, handleLogoUpload, saveCompany, downloadReceiptImage, generateContractPDF, openWhatsApp, formatCurrency, formatDate, getDay, getMonth, statusText, getClientName, 
             toggleDarkMode, expenseCategories, expensesByCategoryStats, agendaTab, agendaFilter, searchHistory, changeStatus, registrationTab, kpiPendingReceivables, totalAppointmentsCount, topExpenseCategory, getCategoryIcon, maskPhone, maskCPF,
             loginMode, clientAccessInput, handleClientAccess, clientData, clientAppointments, logoutClient, openWhatsAppSupport, downloadClientReceipt, showSignatureModal, openSignatureModal, clearSignature, saveSignature, copyClientLink,
-            // NOVOS EXPORTS (PENDING APPOINTMENTS ESTAVA FALTANDO)
-            budgetList, saveAsBudget, approveBudget, pendingAppointments 
+            budgetList, saveAsBudget, approveBudget, pendingAppointments,
+            clientApproveBudget // EXPORTADO AQUI
         };
     }
 }).mount('#app');
