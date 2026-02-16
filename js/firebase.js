@@ -8,9 +8,13 @@ import {
 
 // SUAS CONFIGURAÇÕES DO FIREBASE (Mantenha as suas aqui)
 const firebaseConfig = {
-    // ... (Mantenha suas chaves originais aqui) ...
-    // Se não tiver o código original à mão, copie do seu arquivo antigo.
-    // O importante é garantir que as funções exportadas abaixo existam.
+  apiKey: "AIzaSyAhHRcZwrzD36oEFaeQzD1Fd-685YRAxBA",
+  authDomain: "partyplanner-3f352.firebaseapp.com",
+  projectId: "partyplanner-3f352",
+  storageBucket: "partyplanner-3f352.firebasestorage.app",
+  messagingSenderId: "748641483081",
+  appId: "1:748641483081:web:dec19c31c9e58d9040c298",
+  measurementId: "G-YVYD6MEXC1"
 };
 
 // Inicializa (se não tiver config, vai dar erro, certifique-se de manter sua config)
