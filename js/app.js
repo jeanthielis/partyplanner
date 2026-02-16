@@ -8,7 +8,9 @@ import {
 
 createApp({
     setup() {
-        // --- ESTADO GLOBAL ---
+        // ============================================================
+        // 1. ESTADO GLOBAL
+        // ============================================================
         const user = ref(null);
         const view = ref('dashboard');
         const isDark = ref(false);
@@ -26,7 +28,7 @@ createApp({
         const services = ref([]);
         const pendingAppointments = ref([]);
         const budgetList = ref([]); 
-        const historyList = ref([]); // Lista para Concluídos/Cancelados
+        const historyList = ref([]); 
         const expensesList = ref([]); 
         const dashboardData = reactive({ appointments: [], expenses: [] });
         const catalogClientsList = ref([]);
@@ -37,7 +39,7 @@ createApp({
         // Filtros
         const expensesFilter = reactive({ start: '', end: '' });
         
-        // Filtro Agenda (Padrão: Mês Atual)
+        // Filtro Agenda
         const dateNow = new Date();
         const firstDay = new Date(dateNow.getFullYear(), dateNow.getMonth(), 1).toISOString().split('T')[0];
         const today = dateNow.toISOString().split('T')[0];
@@ -52,7 +54,7 @@ createApp({
         const registrationTab = ref('clients');
         const agendaTab = ref('pending');
 
-        // Modais e UI
+        // Modais
         const showAppointmentModal = ref(false);
         const showClientModal = ref(false);
         const showServiceModal = ref(false);
@@ -62,8 +64,6 @@ createApp({
         const editingId = ref(null);
         const editingExpenseId = ref(null);
         const currentReceipt = ref(null);
-        
-        // Assinatura Admin
         const showSignatureModal = ref(false);
         const signatureApp = ref(null);
         const signatureMode = ref('company');
@@ -90,7 +90,7 @@ createApp({
             onAuthStateChanged(auth, async (u) => {
                 user.value = u;
                 if (u) {
-                    if (u.isAnonymous) { isGlobalLoading.value = false; return; } // Ignora cliente
+                    if (u.isAnonymous) { isGlobalLoading.value = false; return; }
                     await loadDashboardData();
                     syncData();
                     const uDoc = await getDoc(doc(db, "users", u.uid));
@@ -123,21 +123,36 @@ createApp({
         const totalAppointmentsCount = computed(() => dashboardData.appointments.filter(a => a.status !== 'budget').length);
         const expensesByCategoryStats = computed(() => { if (!dashboardData.expenses.length) return []; return expenseCategories.map(cat => { const total = dashboardData.expenses.filter(e => e.category === cat.id).reduce((sum, e) => sum + toNum(e.value), 0); return { ...cat, total }; }).filter(c => c.total > 0).sort((a, b) => b.total - a.total); });
         const topExpenseCategory = computed(() => expensesByCategoryStats.value[0] || null);
-        const next7DaysApps = computed(() => { const todayStr = new Date().toISOString().split('T')[0]; return pendingAppointments.value.filter(a => a.date >= todayStr).sort((a,b) => a.date.localeCompare(b.date)).slice(0,6); });
         
+        // --- CORREÇÃO: LÓGICA PRÓXIMOS 7 DIAS ---
+        const next7DaysApps = computed(() => { 
+            const now = new Date();
+            now.setHours(0,0,0,0); // Zera hora para comparar apenas data
+            
+            const nextWeek = new Date(now);
+            nextWeek.setDate(now.getDate() + 7); // Soma 7 dias
+
+            const startStr = now.toISOString().split('T')[0];
+            const endStr = nextWeek.toISOString().split('T')[0];
+
+            return pendingAppointments.value
+                .filter(a => a.date >= startStr && a.date <= endStr)
+                .sort((a,b) => a.date.localeCompare(b.date))
+                .slice(0,6); 
+        });
+        
+        // Calendário sempre usa pendingAppointments
         const calendarGrid = computed(() => { const year = calendarCursor.value.getFullYear(); const month = calendarCursor.value.getMonth(); const firstDay = new Date(year, month, 1).getDay(); const daysInMonth = new Date(year, month + 1, 0).getDate(); const days = []; for (let i = 0; i < firstDay; i++) days.push({ day: '', date: null }); for (let i = 1; i <= daysInMonth; i++) { const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`; days.push({ day: i, date: dateStr, hasEvent: pendingAppointments.value.some(a => a.date === dateStr) }); } return days; });
         const appointmentsOnSelectedDate = computed(() => pendingAppointments.value.filter(a => a.date === selectedCalendarDate.value));
         const calendarTitle = computed(() => `${['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'][calendarCursor.value.getMonth()]} ${calendarCursor.value.getFullYear()}`);
         
-        // --- FILTRAGEM DE AGENDA ---
         const filteredListAppointments = computed(() => { 
             let list = [];
-            // Se for pendente, usa a lista em tempo real + busca por nome
             if (agendaTab.value === 'pending') {
+                // Garante que só exibe Pendentes
                 list = pendingAppointments.value;
                 if(clientSearchTerm.value) list = list.filter(a => getClientName(a.clientId).toLowerCase().includes(clientSearchTerm.value.toLowerCase())); 
             } else {
-                // Se for Histórico (Concluído/Cancelado), usa a lista buscada por data
                 list = historyList.value;
             }
             return list.sort((a,b) => a.date.localeCompare(b.date)); 
@@ -154,7 +169,6 @@ createApp({
         
         const syncData = () => { const myId = user.value.uid; onSnapshot(query(collection(db, "services"), where("userId", "==", myId)), (snap) => services.value = snap.docs.map(d => ({ id: d.id, ...d.data() }))); onSnapshot(query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "pending")), (snap) => { pendingAppointments.value = snap.docs.map(sanitizeApp); pendingAppointments.value.forEach(a => fetchClientToCache(a.clientId)); }); onSnapshot(query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "budget")), (snap) => { budgetList.value = snap.docs.map(sanitizeApp); budgetList.value.forEach(a => fetchClientToCache(a.clientId)); }); };
         
-        // Busca Histórico por Data
         const searchHistory = async () => { 
             if(!agendaFilter.start || !agendaFilter.end) return Swal.fire('Atenção', 'Selecione datas', 'warning'); 
             const q = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("status", "==", agendaTab.value), where("date", ">=", agendaFilter.start), where("date", "<=", agendaFilter.end)); 
@@ -168,18 +182,12 @@ createApp({
 
         // --- ACTIONS ---
         const handleAuth = async () => { authLoading.value = true; try { if (isRegistering.value) { const res = await createUserWithEmailAndPassword(auth, authForm.email, authForm.password); await setDoc(doc(db, "users", res.user.uid), { email: authForm.email, role: 'user', createdAt: new Date().toISOString(), companyConfig: { fantasia: authForm.name || 'Minha Empresa', email: authForm.email } }); } else { await signInWithEmailAndPassword(auth, authForm.email, authForm.password); } } catch (e) { Swal.fire('Ops', 'Erro no login.', 'error'); } finally { authLoading.value = false; } };
-        
-        const copyClientLink = () => { 
-            const path = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
-            const url = `${window.location.origin}${path}client.html?uid=${user.value.uid}`;
-            navigator.clipboard.writeText(url).then(() => Swal.fire('Copiado!', 'Link da Área do Cliente copiado.', 'success')); 
-        };
-
+        const copyClientLink = () => { const path = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1); const url = `${window.location.origin}${path}client.html?uid=${user.value.uid}`; navigator.clipboard.writeText(url).then(() => Swal.fire('Copiado!', 'Link da Área do Cliente copiado.', 'success')); };
         const saveAppointment = async () => { const data = { ...tempApp, totalServices: totalServices.value, finalBalance: finalBalance.value, userId: user.value.uid, status: 'pending' }; if (isEditing.value) await updateDoc(doc(db, "appointments", editingId.value), data); else await addDoc(collection(db, "appointments"), data); showAppointmentModal.value = false; loadDashboardData(); };
         const showReceipt = (app) => { currentReceipt.value = sanitizeApp(app); showReceiptModal.value = true; };
         const logout = () => { signOut(auth); window.location.href="index.html"; };
 
-        // Assinatura Organizador
+        // Assinatura
         let canvasContext = null; let isDrawing = false;
         const openSignatureModal = (target, mode = 'company') => { signatureApp.value = target; signatureMode.value = mode; showSignatureModal.value = true; setTimeout(() => initCanvas(), 100); };
         const initCanvas = () => { const canvas = document.getElementById('signature-pad'); if(!canvas) return; const ratio = Math.max(window.devicePixelRatio || 1, 1); canvas.width = canvas.offsetWidth * ratio; canvas.height = canvas.offsetHeight * ratio; canvas.getContext("2d").scale(ratio, ratio); canvasContext = canvas.getContext('2d'); canvasContext.strokeStyle = "#000"; canvasContext.lineWidth = 2; canvas.addEventListener('mousedown', startDrawing); canvas.addEventListener('mousemove', draw); canvas.addEventListener('mouseup', stopDrawing); canvas.addEventListener('mouseout', stopDrawing); canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDrawing(e.touches[0]); }); canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e.touches[0]); }); canvas.addEventListener('touchend', (e) => { e.preventDefault(); stopDrawing(); }); };
