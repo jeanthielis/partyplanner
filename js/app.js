@@ -9,7 +9,9 @@ import {
 
 createApp({
     setup() {
-        // --- ESTADO GLOBAL ---
+        // ============================================================
+        // 1. ESTADO GLOBAL E CONFIGURAÇÕES
+        // ============================================================
         const user = ref(null);
         const view = ref('dashboard');
         const isDark = ref(false);
@@ -18,12 +20,13 @@ createApp({
         const isGlobalLoading = ref(true);
         const authForm = reactive({ email: '', password: '', name: '' });
         
-        // Configuração da Empresa (Incluindo nova Assinatura)
+        // Dados da Empresa (Com Assinatura)
         const company = reactive({ 
-            fantasia: '', logo: '', signature: '', // <--- Nova Assinatura do Organizador
+            fantasia: '', logo: '', signature: '', 
             cnpj: '', email: '', phone: '', rua: '', bairro: '', cidade: '', estado: '' 
         });
 
+        // Dashboard e Listas
         const dashboardMonth = ref(new Date().toISOString().slice(0, 7));
         const isLoadingDashboard = ref(false);
         
@@ -31,13 +34,14 @@ createApp({
         const pendingAppointments = ref([]);
         const budgetList = ref([]); 
         const historyList = ref([]);
-        const expensesList = ref([]);
+        const expensesList = ref([]); // <--- Necessário para statementList
         const dashboardData = reactive({ appointments: [], expenses: [] });
         const catalogClientsList = ref([]);
         const scheduleClientsList = ref([]);
         
+        // Cache e Filtros
         const clientCache = reactive({});
-        const isExtractLoaded = ref(false);
+        const isExtractLoaded = ref(false); // <--- Necessário para statementList
         const expensesFilter = reactive({ start: '', end: '' });
         const agendaFilter = reactive({ start: '', end: '' });
         const clientSearchTerm = ref('');
@@ -49,6 +53,7 @@ createApp({
         const registrationTab = ref('clients');
         const agendaTab = ref('pending');
 
+        // Modais
         const showAppointmentModal = ref(false);
         const showClientModal = ref(false);
         const showServiceModal = ref(false);
@@ -59,20 +64,21 @@ createApp({
         const editingExpenseId = ref(null);
         const currentReceipt = ref(null);
 
+        // Forms
         const newClient = reactive({ name: '', phone: '', cpf: '', email: '' });
         const newService = reactive({ description: '', price: '' });
         const newExpense = reactive({ description: '', value: '', date: new Date().toISOString().split('T')[0], category: 'outros' });
         const tempServiceSelect = ref('');
         const tempApp = reactive({ clientId: '', date: '', time: '', location: { bairro: '' }, details: { entryFee: 0, balloonColors: '' }, notes: '', selectedServices: [], checklist: [] });
 
-        // --- PORTAL E ASSINATURAS ---
+        // Portal do Cliente
         const loginMode = ref('provider'); 
         const clientAccessInput = ref('');
         const clientData = ref(null);
         const clientAppointments = ref([]);
         const showSignatureModal = ref(false);
         const signatureApp = ref(null);
-        const signatureMode = ref('appointment'); // 'appointment' (Cliente) ou 'company' (Organizador)
+        const signatureMode = ref('appointment');
         const targetProviderId = ref(null); 
 
         const expenseCategories = [
@@ -85,6 +91,9 @@ createApp({
             { id: 'outros', label: 'Outras', icon: 'fa-money-bill' }
         ];
 
+        // ============================================================
+        // 2. INICIALIZAÇÃO
+        // ============================================================
         onMounted(async () => {
             const params = new URLSearchParams(window.location.search);
             if (params.get('acesso') === 'cliente') {
@@ -113,7 +122,9 @@ createApp({
             });
         });
 
-        // --- HELPERS ---
+        // ============================================================
+        // 3. COMPUTED & HELPERS
+        // ============================================================
         const toNum = (v) => { if(!v) return 0; if(typeof v==='number') return v; const c=String(v).replace(',','.').replace(/[^0-9.-]/g,''); return parseFloat(c)||0; };
         const formatCurrency = (v) => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(toNum(v));
         const formatDate = (d) => { if(!d) return ''; try{return d.split('-').reverse().join('/');}catch(e){return d;} };
@@ -125,61 +136,158 @@ createApp({
         const maskPhone = (v) => { if(!v) return ""; v=v.replace(/\D/g,"").replace(/^(\d{2})(\d)/g,"($1) $2").replace(/(\d)(\d{4})$/,"$1-$2"); return v; };
         const maskCPF = (v) => { if(!v) return ""; v=v.replace(/\D/g,"").replace(/(\d{3})(\d)/,"$1.$2").replace(/(\d{3})(\d)/,"$1.$2").replace(/(\d{3})(\d{1,2})$/,"$1-$2"); return v; };
 
-        // --- COMPUTED ---
+        // --- AQUI ESTÁ A CORREÇÃO PRINCIPAL: Definição clara do statementList ---
+        const statementList = computed(() => { 
+            if (!isExtractLoaded.value) return []; 
+            return expensesList.value.sort((a, b) => b.date.localeCompare(a.date)); 
+        });
+        
+        const financeSummary = computed(() => statementList.value.reduce((acc, item) => item.type === 'income' ? acc + item.value : acc - item.value, 0));
+        
         const totalServices = computed(() => tempApp.selectedServices.reduce((s,i) => s + toNum(i.price), 0));
         const finalBalance = computed(() => totalServices.value - toNum(tempApp.details.entryFee));
-        const financeData = computed(() => {
-            const rev = dashboardData.appointments.reduce((acc, a) => acc + toNum(a.totalServices), 0);
-            const exp = dashboardData.expenses.reduce((acc, e) => acc + toNum(e.value), 0);
-            return { revenue: rev, expenses: exp, profit: rev - exp };
-        });
+        
+        const kpiRevenue = computed(() => dashboardData.appointments.filter(a => a.status !== 'budget').reduce((acc, a) => acc + toNum(a.totalServices), 0));
+        const kpiExpenses = computed(() => dashboardData.expenses.reduce((acc, e) => acc + toNum(e.value), 0));
+        const financeData = computed(() => ({ revenue: kpiRevenue.value, expenses: kpiExpenses.value, profit: kpiRevenue.value - kpiExpenses.value }));
         const kpiPendingReceivables = computed(() => dashboardData.appointments.filter(a => a.status === 'pending').reduce((acc, a) => acc + toNum(a.finalBalance), 0));
+        const totalAppointmentsCount = computed(() => dashboardData.appointments.filter(a => a.status !== 'budget').length);
+
+        const expensesByCategoryStats = computed(() => { 
+            if (!dashboardData.expenses.length) return []; 
+            return expenseCategories.map(cat => { 
+                const total = dashboardData.expenses.filter(e => e.category === cat.id).reduce((sum, e) => sum + toNum(e.value), 0); 
+                return { ...cat, total }; 
+            }).filter(c => c.total > 0).sort((a, b) => b.total - a.total); 
+        });
+        const topExpenseCategory = computed(() => expensesByCategoryStats.value[0] || null);
+
         const next7DaysApps = computed(() => {
             const today = new Date().toISOString().split('T')[0];
             return pendingAppointments.value.filter(a => a.date >= today).sort((a,b) => a.date.localeCompare(b.date)).slice(0,6);
         });
 
-        // --- DATA SYNC ---
+        const calendarGrid = computed(() => {
+            const year = calendarCursor.value.getFullYear(); const month = calendarCursor.value.getMonth();
+            const firstDay = new Date(year, month, 1).getDay(); const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const days = [];
+            for (let i = 0; i < firstDay; i++) days.push({ day: '', date: null });
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                days.push({ day: i, date: dateStr, hasEvent: pendingAppointments.value.some(a => a.date === dateStr) });
+            }
+            return days;
+        });
+        const appointmentsOnSelectedDate = computed(() => pendingAppointments.value.filter(a => a.date === selectedCalendarDate.value));
+        const calendarTitle = computed(() => `${['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'][calendarCursor.value.getMonth()]} ${calendarCursor.value.getFullYear()}`);
+        
+        const filteredListAppointments = computed(() => { 
+            let list = agendaTab.value === 'pending' ? pendingAppointments.value : historyList.value;
+            if(clientSearchTerm.value) list = list.filter(a => getClientName(a.clientId).toLowerCase().includes(clientSearchTerm.value.toLowerCase())); 
+            return list.sort((a,b) => a.date.localeCompare(b.date)); 
+        });
+        const filteredClientsSearch = computed(() => scheduleClientsList.value);
+
+        // ============================================================
+        // 4. FIREBASE
+        // ============================================================
+        const fetchClientToCache = async (id) => {
+            if (!id || clientCache[id]) return;
+            try { const s = await getDoc(doc(db, "clients", id)); if (s.exists()) clientCache[id] = s.data(); else clientCache[id] = { name: 'Excluído', phone: '-' }; } catch (e) {}
+        };
+
         const sanitizeApp = (d) => {
             const data = d.data ? d.data() : d;
             return { 
                 id: d.id || data.id, ...data, 
-                selectedServices: data.selectedServices || [], 
-                details: data.details || {entryFee:0, balloonColors:''}, 
+                selectedServices: Array.isArray(data.selectedServices) ? data.selectedServices : [], 
+                details: { ...(data.details || {}), balloonColors: data.details?.balloonColors || '' }, 
                 checklist: data.checklist || [],
-                clientSignature: data.clientSignature || ''
+                clientSignature: data.clientSignature || '',
+                // Removido pagamento pix/comprovante daqui para limpar
             };
         };
+        const sanitizeExpense = (d) => { const data=d.data?d.data():d; return {id:d.id||data.id,...data,value:toNum(data.value)}; };
 
         const loadDashboardData = async () => {
             if (!user.value) return;
             isLoadingDashboard.value = true;
-            const [y, m] = dashboardMonth.value.split('-');
-            const qApps = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("date", ">=", `${y}-${m}-01`), where("date", "<=", `${y}-${m}-31`));
-            const qExp = query(collection(db, "expenses"), where("userId", "==", user.value.uid), where("date", ">=", `${y}-${m}-01`), where("date", "<=", `${y}-${m}-31`));
-            const [sA, sE] = await Promise.all([getDocs(qApps), getDocs(qExp)]);
-            dashboardData.appointments = sA.docs.map(sanitizeApp).filter(a => a.status !== 'cancelled' && a.status !== 'budget');
-            dashboardData.expenses = sE.docs.map(d => ({id: d.id, ...d.data()}));
-            dashboardData.appointments.forEach(a => fetchClientToCache(a.clientId));
-            isLoadingDashboard.value = false;
+            try {
+                const [year, month] = dashboardMonth.value.split('-');
+                const startStr = `${year}-${month}-01`;
+                const lastDay = new Date(year, month, 0).getDate();
+                const endStr = `${year}-${month}-${lastDay}`;
+                const qApps = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("date", ">=", startStr), where("date", "<=", endStr));
+                const qExp = query(collection(db, "expenses"), where("userId", "==", user.value.uid), where("date", ">=", startStr), where("date", "<=", endStr));
+                const [snapApps, snapExp] = await Promise.all([getDocs(qApps), getDocs(qExp)]);
+                dashboardData.appointments = snapApps.docs.map(sanitizeApp).filter(a => a.status !== 'cancelled' && a.status !== 'budget');
+                dashboardData.expenses = snapExp.docs.map(sanitizeExpense);
+                dashboardData.appointments.forEach(a => fetchClientToCache(a.clientId));
+            } catch (e) { console.error(e); } finally { isLoadingDashboard.value = false; }
         };
 
         const syncData = () => {
-            onSnapshot(query(collection(db, "services"), where("userId", "==", user.value.uid)), s => services.value = s.docs.map(d => ({id: d.id, ...d.data()})));
-            onSnapshot(query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("status", "==", "pending")), s => {
-                pendingAppointments.value = s.docs.map(sanitizeApp);
+            const myId = user.value.uid;
+            onSnapshot(query(collection(db, "services"), where("userId", "==", myId)), (snap) => services.value = snap.docs.map(d => ({ id: d.id, ...d.data() })));
+            onSnapshot(query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "pending")), (snap) => {
+                pendingAppointments.value = snap.docs.map(sanitizeApp);
                 pendingAppointments.value.forEach(a => fetchClientToCache(a.clientId));
             });
-            onSnapshot(query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("status", "==", "budget")), s => {
-                budgetList.value = s.docs.map(sanitizeApp);
+            onSnapshot(query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "budget")), (snap) => {
+                budgetList.value = snap.docs.map(sanitizeApp);
                 budgetList.value.forEach(a => fetchClientToCache(a.clientId));
             });
         };
 
-        const fetchClientToCache = async (id) => { if(id && !clientCache[id]) { const s = await getDoc(doc(db, "clients", id)); if(s.exists()) clientCache[id] = s.data(); } };
+        const searchExpenses = async () => {
+            if(!expensesFilter.start || !expensesFilter.end) return Swal.fire('Data', 'Selecione o período', 'info');
+            const qExp = query(collection(db, "expenses"), where("userId", "==", user.value.uid), where("date", ">=", expensesFilter.start), where("date", "<=", expensesFilter.end));
+            const snapExp = await getDocs(qExp);
+            const loadedExpenses = snapExp.docs.map(d => ({ ...sanitizeExpense(d), type: 'expense', icon: 'fa-arrow-down', color: 'text-red-500' }));
+            const qApp = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("date", ">=", expensesFilter.start), where("date", "<=", expensesFilter.end));
+            const snapApp = await getDocs(qApp);
+            const loadedIncome = snapApp.docs.map(d => sanitizeApp(d)).filter(a => a.status !== 'budget').map(app => { return { id: app.id, date: app.date, value: app.totalServices, description: `Receita: ${getClientName(app.clientId)}`, type: 'income', icon: 'fa-arrow-up', color: 'text-green-500' }; });
+            expensesList.value = [...loadedExpenses, ...loadedIncome]; isExtractLoaded.value = true;
+        };
 
-        // --- ACTIONS ---
+        const searchHistory = async () => {
+            if(!agendaFilter.start || !agendaFilter.end) return Swal.fire('Atenção', 'Selecione datas', 'warning');
+            const q = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("status", "==", agendaTab.value), where("date", ">=", agendaFilter.start), where("date", "<=", agendaFilter.end));
+            const snap = await getDocs(q);
+            historyList.value = snap.docs.map(sanitizeApp);
+            historyList.value.forEach(a => fetchClientToCache(a.clientId));
+        };
+
+        const searchCatalogClients = async () => { 
+            const q = query(collection(db, "clients"), where("userId", "==", user.value.uid)); 
+            const snap = await getDocs(q); 
+            catalogClientsList.value = snap.docs.map(d => ({id: d.id, ...d.data()})).filter(c => c.name.toLowerCase().includes(catalogClientSearch.value.toLowerCase())); 
+        };
+
+        // ============================================================
+        // 5. ACTIONS
+        // ============================================================
+        const handleAuth = async () => {
+            if (!authForm.email || !authForm.password) return Swal.fire('Atenção', 'Preencha todos os campos.', 'warning');
+            authLoading.value = true;
+            try {
+                if (isRegistering.value) {
+                    const userCredential = await createUserWithEmailAndPassword(auth, authForm.email, authForm.password);
+                    await updateProfile(userCredential.user, { displayName: authForm.name });
+                    await setDoc(doc(db, "users", userCredential.user.uid), { 
+                        email: authForm.email, role: 'user', createdAt: new Date().toISOString(), 
+                        companyConfig: { fantasia: authForm.name || 'Minha Empresa', email: authForm.email } 
+                    });
+                    await Swal.fire({ title: 'Sucesso!', text: 'Conta criada!', icon: 'success', timer: 2000, showConfirmButton: false });
+                } else {
+                    await signInWithEmailAndPassword(auth, authForm.email, authForm.password);
+                    Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, timerProgressBar: true }).fire({ icon: 'success', title: 'Login realizado' });
+                }
+            } catch (error) { Swal.fire('Ops!', 'Erro ao entrar.', 'error'); } finally { authLoading.value = false; }
+        };
+
         const handleClientAccess = async () => {
+            if (!clientAccessInput.value) return Swal.fire('Erro', 'Digite CPF ou E-mail', 'warning');
             authLoading.value = true;
             try {
                 const term = clientAccessInput.value.trim();
@@ -198,7 +306,6 @@ createApp({
                 if (targetProviderId.value) appQ = query(collection(db, "appointments"), where("clientId", "==", clientDoc.id), where("userId", "==", targetProviderId.value));
                 
                 const snapApps = await getDocs(appQ);
-                // Permite Orçamentos e Pendentes
                 clientAppointments.value = snapApps.docs.map(sanitizeApp).filter(a => a.status !== 'cancelled').sort((a,b) => b.date.localeCompare(a.date));
                 view.value = 'client-portal';
                 
@@ -227,22 +334,21 @@ createApp({
             showReceiptModal.value = true; 
         };
 
-        // --- ASSINATURA (CLIENTE & ORGANIZADOR) ---
+        // --- ASSINATURAS ---
         let canvasContext = null; let isDrawing = false;
         
-        // Abre o modal de assinatura com o modo correto
         const openSignatureModal = (target, mode = 'appointment') => { 
             signatureApp.value = target; 
-            signatureMode.value = mode; // 'appointment' ou 'company'
+            signatureMode.value = mode; 
             showSignatureModal.value = true; 
             setTimeout(() => initCanvas(), 100); 
         };
 
         const initCanvas = () => { const canvas = document.getElementById('signature-pad'); if(!canvas) return; const ratio = Math.max(window.devicePixelRatio || 1, 1); canvas.width = canvas.offsetWidth * ratio; canvas.height = canvas.offsetHeight * ratio; canvas.getContext("2d").scale(ratio, ratio); canvasContext = canvas.getContext('2d'); canvasContext.strokeStyle = "#000"; canvasContext.lineWidth = 2; canvas.addEventListener('mousedown', startDrawing); canvas.addEventListener('mousemove', draw); canvas.addEventListener('mouseup', stopDrawing); canvas.addEventListener('mouseout', stopDrawing); canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDrawing(e.touches[0]); }); canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e.touches[0]); }); canvas.addEventListener('touchend', (e) => { e.preventDefault(); stopDrawing(); }); };
-        const getPos = (e) => { const canvas = document.getElementById('signature-pad'); const rect = canvas.getBoundingClientRect(); return { x: e.clientX - rect.left, y: e.clientY - rect.top }; };
         const startDrawing = (e) => { isDrawing = true; const pos = getPos(e); canvasContext.beginPath(); canvasContext.moveTo(pos.x, pos.y); };
         const draw = (e) => { if(!isDrawing) return; const pos = getPos(e); canvasContext.lineTo(pos.x, pos.y); canvasContext.stroke(); };
         const stopDrawing = () => { isDrawing = false; };
+        const getPos = (e) => { const canvas = document.getElementById('signature-pad'); const rect = canvas.getBoundingClientRect(); return { x: e.clientX - rect.left, y: e.clientY - rect.top }; };
         const clearSignature = () => { const canvas = document.getElementById('signature-pad'); canvasContext.clearRect(0, 0, canvas.width, canvas.height); };
         
         const saveSignature = async () => { 
@@ -251,15 +357,13 @@ createApp({
             authLoading.value = true; 
             try { 
                 if (signatureMode.value === 'company') {
-                    // Salva assinatura da empresa
                     company.signature = dataUrl;
                     await updateDoc(doc(db, "users", user.value.uid), { companyConfig: company });
                     Swal.fire('Sucesso', 'Assinatura da empresa salva!', 'success');
                 } else {
-                    // Salva assinatura do cliente no evento e confirma (passa para pending se era budget)
                     await updateDoc(doc(db, "appointments", signatureApp.value.id), { 
                         clientSignature: dataUrl,
-                        status: 'pending' // Assinou = Confirmou
+                        status: 'pending' // Confirma o evento
                     }); 
                     const idx = clientAppointments.value.findIndex(a => a.id === signatureApp.value.id); 
                     if(idx !== -1) {
@@ -277,49 +381,32 @@ createApp({
         
         const generateContractPDF = () => { 
             const { jsPDF } = window.jspdf; const doc = new jsPDF(); const app = currentReceipt.value; const cli = clientCache[app.clientId] || {name:'...',cpf:'...', phone: '', email: ''};
-            
-            // Título
-            let docTitle = "CONTRATO DE PRESTAÇÃO DE SERVIÇOS"; 
+            let docTitle = "CONTRATO DE PRESTAÇÃO DE SERVIÇOS"; if(app.status === 'budget') docTitle = "ORÇAMENTO";
             
             doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text(company.fantasia.toUpperCase(), 105, 20, {align: "center"});
             doc.setFontSize(10); doc.setFont("helvetica", "normal"); let headerY = 26;
             if (company.cnpj) { doc.text(`CNPJ: ${company.cnpj}`, 105, headerY, {align: "center"}); headerY += 5; }
             doc.text(`${company.rua} - ${company.bairro}`, 105, headerY, {align: "center"}); headerY += 5; doc.text(`${company.cidade}/${company.estado} - Tel: ${company.phone}`, 105, headerY, {align: "center"});
             doc.line(20, headerY + 5, 190, headerY + 5); doc.setFontSize(14); doc.setFont("helvetica", "bold"); doc.text(docTitle, 105, headerY + 15, {align:"center"});
+            
             let y = headerY + 25; doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.text("CONTRATANTE:", 20, y); y += 5; doc.setFont("helvetica", "normal"); doc.text(`Nome: ${cli.name} | CPF: ${cli.cpf || '-'}`, 20, y); y += 5; doc.text(`Tel: ${cli.phone} | E-mail: ${cli.email || '-'}`, 20, y);
             y += 10; doc.setFont("helvetica", "bold"); doc.text("EVENTO:", 20, y); y += 5; doc.setFont("helvetica", "normal"); doc.text(`Data: ${formatDate(app.date)} | Hora: ${app.time}`, 20, y); y += 5; doc.text(`Local: ${app.location.bairro}`, 20, y); if(app.details.balloonColors) { y += 5; doc.text(`Cores: ${app.details.balloonColors}`, 20, y); }
             y += 10; const body = app.selectedServices.map(s => [s.description, formatCurrency(s.price)]); doc.autoTable({ startY: y, head: [['Descrição', 'Valor']], body: body, theme: 'grid', headStyles: { fillColor: [60, 60, 60] }, margin: { left: 20, right: 20 } });
             y = doc.lastAutoTable.finalY + 10; doc.setFont("helvetica", "bold"); doc.text(`TOTAL: ${formatCurrency(app.totalServices)}`, 140, y, {align: "right"}); y += 5; doc.text(`SINAL: ${formatCurrency(app.entryFee)}`, 140, y, {align: "right"}); y += 5; doc.text(`RESTANTE: ${formatCurrency(app.finalBalance)}`, 140, y, {align: "right"});
             
-            // Cláusulas
-            y += 15; doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.text("CLÁUSULAS E CONDIÇÕES:", 20, y); y += 5; doc.setFont("helvetica", "normal");
-            const clauses = [ "1. RESERVA: O pagamento do sinal garante a reserva da data.", "2. DESISTÊNCIA: Em caso de cancelamento com menos de 15 dias, o sinal não será devolvido.", "3. DANOS: O CONTRATANTE responsabiliza-se pela conservação dos materiais.", "4. PAGAMENTO: O restante deve ser pago até a data do evento.", "5. MONTAGEM: O local deve estar liberado no horário combinado." ];
-            clauses.forEach(clause => { const lines = doc.splitTextToSize(clause, 170); doc.text(lines, 20, y); y += (lines.length * 4) + 2; if (y > 230) { doc.addPage(); y = 20; } });
-            
-            // Assinaturas
-            if (y > 230) { doc.addPage(); y = 40; } else { y += 20; }
-            
-            // Assinatura do Cliente
-            if (app.clientSignature) { doc.addImage(app.clientSignature, 'PNG', 115, y - 15, 60, 20); }
-            // Assinatura do Organizador (Se configurada)
-            if (company.signature) { doc.addImage(company.signature, 'PNG', 25, y - 15, 60, 20); }
+            if (app.status !== 'budget') {
+                y += 15; doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.text("CLÁUSULAS E CONDIÇÕES:", 20, y); y += 5; doc.setFont("helvetica", "normal");
+                const clauses = [ "1. RESERVA: O pagamento do sinal garante a reserva da data.", "2. DESISTÊNCIA: Em caso de cancelamento com menos de 15 dias, o sinal não será devolvido.", "3. DANOS: O CONTRATANTE responsabiliza-se pela conservação dos materiais.", "4. PAGAMENTO: O restante deve ser pago até a data do evento.", "5. MONTAGEM: O local deve estar liberado no horário combinado." ];
+                clauses.forEach(clause => { const lines = doc.splitTextToSize(clause, 170); doc.text(lines, 20, y); y += (lines.length * 4) + 2; if (y > 230) { doc.addPage(); y = 20; } });
+                
+                if (y > 230) { doc.addPage(); y = 40; } else { y += 20; }
+                
+                if (app.clientSignature) { doc.addImage(app.clientSignature, 'PNG', 115, y - 15, 60, 20); }
+                if (company.signature) { doc.addImage(company.signature, 'PNG', 25, y - 15, 60, 20); }
 
-            doc.line(20, y, 90, y); doc.line(110, y, 180, y); 
-            doc.text("CONTRATADA", 55, y + 5, {align: "center"}); 
-            doc.text("CONTRATANTE", 145, y + 5, {align: "center"}); 
-            
+                doc.line(20, y, 90, y); doc.line(110, y, 180, y); doc.text("CONTRATADA", 55, y + 5, {align: "center"}); doc.text("CONTRATANTE", 145, y + 5, {align: "center"}); 
+            } else { y += 20; doc.setFontSize(8); doc.text("* Este documento é apenas um orçamento.", 105, y, {align: "center"}); }
             doc.save(`Doc_${cli.name.replace(/ /g, '_')}.pdf`);
-        };
-
-        const handleAuth = async () => {
-            authLoading.value = true;
-            try {
-                if (isRegistering.value) {
-                    const res = await createUserWithEmailAndPassword(auth, authForm.email, authForm.password);
-                    await setDoc(doc(db, "users", res.user.uid), { companyConfig: { fantasia: authForm.name, email: authForm.email } });
-                } else { await signInWithEmailAndPassword(auth, authForm.email, authForm.password); }
-            } catch (e) { Swal.fire('Erro', 'Falha na autenticação.', 'error'); }
-            finally { authLoading.value = false; }
         };
 
         const logout = () => { signOut(auth); window.location.href="index.html"; };
