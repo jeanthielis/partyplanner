@@ -1,4 +1,4 @@
-const CACHE_NAME = 'partyplanner-v13';
+const CACHE_NAME = 'partyplanner-v14';
 
 // Lista de arquivos CRÍTICOS (Locais)
 // Se estes falharem, o app não funciona offline.
