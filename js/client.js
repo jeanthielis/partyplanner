@@ -124,26 +124,76 @@ createApp({
             setTimeout(initCanvas, 100);
         };
 
+       // --- EM js/client.js (Substitua a função initCanvas antiga por esta) ---
+
         const initCanvas = () => {
             const canvas = document.getElementById('signature-pad');
             if(!canvas) return;
+            
+            // Ajusta a resolução para telas de alta densidade (Retina/Mobile)
             const ratio = Math.max(window.devicePixelRatio || 1, 1);
             canvas.width = canvas.offsetWidth * ratio;
             canvas.height = canvas.offsetHeight * ratio;
             canvas.getContext("2d").scale(ratio, ratio);
+            
             canvasContext = canvas.getContext('2d');
             canvasContext.strokeStyle = "#000";
             canvasContext.lineWidth = 2;
+            canvasContext.lineCap = "round"; // Deixa o traço mais suave
             
-            // Eventos Mouse/Touch
-            const start = (e) => { isDrawing = true; canvasContext.beginPath(); canvasContext.moveTo(getPos(e).x, getPos(e).y); };
-            const move = (e) => { if(!isDrawing) return; e.preventDefault(); canvasContext.lineTo(getPos(e).x, getPos(e).y); canvasContext.stroke(); };
-            const end = () => { isDrawing = false; };
+            // --- FUNÇÕES DE DESENHO ---
+            const start = (e) => { 
+                // Se for toque, previne scroll
+                if(e.type === 'touchstart') e.preventDefault(); 
+                
+                isDrawing = true; 
+                canvasContext.beginPath(); 
+                
+                const { x, y } = getPos(e);
+                canvasContext.moveTo(x, y); 
+            };
+            
+            const move = (e) => { 
+                if(!isDrawing) return; 
+                e.preventDefault(); // Essencial para não rolar a tela
+                
+                const { x, y } = getPos(e);
+                canvasContext.lineTo(x, y); 
+                canvasContext.stroke(); 
+            };
+            
+            const end = (e) => { 
+                if(e.type === 'touchend') e.preventDefault();
+                isDrawing = false; 
+            };
 
-            canvas.onmousedown = start; canvas.onmousemove = move; canvas.onmouseup = end; canvas.onmouseout = end;
-            canvas.ontouchstart = (e) => start(e.touches[0]);
-            canvas.ontouchmove = (e) => move(e.touches[0]);
-            canvas.ontouchend = end;
+            // --- EVENT LISTENERS (Mouse e Touch) ---
+            
+            // Mouse (Desktop)
+            canvas.onmousedown = start;
+            canvas.onmousemove = move;
+            canvas.onmouseup = end;
+            canvas.onmouseout = end;
+
+            // Touch (Celular) - Usando addEventListener com { passive: false } é mais garantido no iOS
+            canvas.addEventListener('touchstart', (e) => start(e.touches[0] || e), { passive: false });
+            canvas.addEventListener('touchmove', (e) => move(e.touches[0] || e), { passive: false });
+            canvas.addEventListener('touchend', end, { passive: false });
+        };
+
+        // Certifique-se que a função getPos também trata o toque corretamente:
+        const getPos = (e) => {
+            const canvas = document.getElementById('signature-pad');
+            const rect = canvas.getBoundingClientRect();
+            
+            // Verifica se é evento de toque ou mouse
+            const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+            const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+
+            return { 
+                x: clientX - rect.left, 
+                y: clientY - rect.top 
+            };
         };
 
         const getPos = (e) => {
