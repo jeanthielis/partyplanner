@@ -89,6 +89,10 @@ createApp({
         // 2. INICIALIZAÇÃO
         // ============================================================
         onMounted(() => {
+            const params = new URLSearchParams(window.location.search);
+                if (params.get('acesso') === 'cliente') {
+                    loginMode.value = 'client';
+                }
             onAuthStateChanged(auth, async (u) => {
                 user.value = u;
                 if (u) {
