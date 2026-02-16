@@ -209,31 +209,97 @@ createApp({
             generateContractPDF(); 
         };
 
-        const generateContractPDF = () => { 
-            const { jsPDF } = window.jspdf; const doc = new jsPDF(); const app = currentReceipt.value; const cli = clientCache[app.clientId] || {name:'...',cpf:'...', phone: '', email: ''};
-            let docTitle = "CONTRATO DE PRESTAÇÃO DE SERVIÇOS"; if(app.status === 'budget') docTitle = "ORÇAMENTO";
-            doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text(company.fantasia.toUpperCase(), 105, 20, {align: "center"});
-            doc.setFontSize(10); doc.setFont("helvetica", "normal"); let headerY = 26;
-            if (company.cnpj) { doc.text(`CNPJ: ${company.cnpj}`, 105, headerY, {align: "center"}); headerY += 5; }
-            doc.text(`${company.rua} - ${company.bairro}`, 105, headerY, {align: "center"}); headerY += 5; doc.text(`${company.cidade}/${company.estado} - Tel: ${company.phone}`, 105, headerY, {align: "center"});
-            doc.line(20, headerY + 5, 190, headerY + 5); doc.setFontSize(14); doc.setFont("helvetica", "bold"); doc.text(docTitle, 105, headerY + 15, {align:"center"});
-            let y = headerY + 25; doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.text("CONTRATANTE:", 20, y); y += 5; doc.setFont("helvetica", "normal"); doc.text(`Nome: ${cli.name} | CPF: ${cli.cpf || '-'}`, 20, y); y += 5; doc.text(`Tel: ${cli.phone} | E-mail: ${cli.email || '-'}`, 20, y);
-            y += 10; doc.setFont("helvetica", "bold"); doc.text("EVENTO:", 20, y); y += 5; doc.setFont("helvetica", "normal"); doc.text(`Data: ${formatDate(app.date)} | Hora: ${app.time}`, 20, y); y += 5; doc.text(`Local: ${app.location.bairro}`, 20, y); if(app.details.balloonColors) { y += 5; doc.text(`Cores: ${app.details.balloonColors}`, 20, y); }
-            y += 10; const body = app.selectedServices.map(s => [s.description, formatCurrency(s.price)]); doc.autoTable({ startY: y, head: [['Descrição', 'Valor']], body: body, theme: 'grid', headStyles: { fillColor: [60, 60, 60] }, margin: { left: 20, right: 20 } });
-            y = doc.lastAutoTable.finalY + 10; doc.setFont("helvetica", "bold"); doc.text(`TOTAL: ${formatCurrency(app.totalServices)}`, 140, y, {align: "right"}); y += 5; doc.text(`SINAL: ${formatCurrency(app.entryFee)}`, 140, y, {align: "right"}); y += 5; doc.text(`RESTANTE: ${formatCurrency(app.finalBalance)}`, 140, y, {align: "right"});
-            
-            if (app.status !== 'budget') {
-                y += 15; doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.text("CLÁUSULAS E CONDIÇÕES:", 20, y); y += 5; doc.setFont("helvetica", "normal");
-                const clauses = [ "1. RESERVA: O pagamento do sinal garante a reserva da data.", "2. DESISTÊNCIA: Em caso de cancelamento com menos de 15 dias, o sinal não será devolvido.", "3. DANOS: O CONTRATANTE responsabiliza-se pela conservação dos materiais.", "4. PAGAMENTO: O restante deve ser pago até a data do evento.", "5. MONTAGEM: O local deve estar liberado no horário combinado." ];
-                clauses.forEach(clause => { const lines = doc.splitTextToSize(clause, 170); doc.text(lines, 20, y); y += (lines.length * 4) + 2; if (y > 230) { doc.addPage(); y = 20; } });
-                if (y > 230) { doc.addPage(); y = 40; } else { y += 20; }
-                if (app.clientSignature) { doc.addImage(app.clientSignature, 'PNG', 115, y - 15, 60, 20); }
-                if (company.signature) { doc.addImage(company.signature, 'PNG', 25, y - 15, 60, 20); }
-                doc.line(20, y, 90, y); doc.line(110, y, 180, y); doc.text("CONTRATADA", 55, y + 5, {align: "center"}); doc.text("CONTRATANTE", 145, y + 5, {align: "center"}); 
-            } else { y += 20; doc.setFontSize(8); doc.text("* Este documento é apenas um orçamento.", 105, y, {align: "center"}); }
-            doc.save(`Doc_${cli.name.replace(/ /g, '_')}.pdf`);
-        };
+       // --- EM js/app.js ---
 
+        const generateContractPDF = () => { 
+            const { jsPDF } = window.jspdf; 
+            const doc = new jsPDF(); 
+            
+            // Pega dados do app atual (seja da modal ou clicado)
+            const app = currentReceipt.value; 
+            const cli = clientCache[app.clientId] || {name:'Consumidor', cpf:'-', phone: '', email: ''};
+            
+            // 1. CABEÇALHO
+            doc.setFont("helvetica", "bold"); doc.setFontSize(14); 
+            doc.text((company.fantasia || 'Minha Empresa').toUpperCase(), 105, 20, {align: "center"});
+            
+            doc.setFontSize(10); doc.setFont("helvetica", "normal"); 
+            let y = 28;
+            if (company.cnpj) { doc.text(`CNPJ: ${company.cnpj}`, 105, y, {align: "center"}); y += 5; }
+            doc.text(`${company.rua || ''} ${company.bairro || ''} ${company.cidade || ''}`, 105, y, {align: "center"});
+            doc.line(20, y + 5, 190, y + 5); 
+            y += 15;
+
+            // 2. TÍTULO
+            doc.setFont("helvetica", "bold"); doc.setFontSize(12); 
+            const docTitle = app.status === 'budget' ? "ORÇAMENTO" : "CONTRATO DE SERVIÇOS";
+            doc.text(docTitle, 105, y, {align:"center"});
+            y += 15;
+
+            // 3. DADOS
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "bold"); doc.text("CONTRATANTE:", 20, y); y += 5;
+            doc.setFont("helvetica", "normal");
+            doc.text(`Nome: ${cli.name}`, 20, y); y += 5;
+            doc.text(`CPF: ${cli.cpf || '-'} | Tel: ${cli.phone || '-'}`, 20, y); y += 10;
+            
+            doc.setFont("helvetica", "bold"); doc.text("EVENTO:", 20, y); y += 5;
+            doc.setFont("helvetica", "normal");
+            doc.text(`Data: ${formatDate(app.date)} | Hora: ${app.time}`, 20, y); y += 5;
+            doc.text(`Local: ${app.location.bairro}`, 20, y); y += 5;
+            if(app.details.balloonColors) { doc.text(`Cores: ${app.details.balloonColors}`, 20, y); y += 5; }
+            y += 5;
+
+            // 4. TABELA
+            const body = app.selectedServices.map(s => [s.description, formatCurrency(s.price)]);
+            doc.autoTable({ 
+                startY: y, head: [['Item', 'Valor']], body: body, theme: 'grid', 
+                headStyles: { fillColor: [60, 60, 60] } 
+            });
+            y = doc.lastAutoTable.finalY + 10;
+
+            // 5. VALORES
+            doc.setFont("helvetica", "bold");
+            doc.text(`TOTAL: ${formatCurrency(app.totalServices)}`, 190, y, {align: "right"}); y += 5;
+            doc.text(`SINAL: ${formatCurrency(app.entryFee || app.details.entryFee)}`, 190, y, {align: "right"}); y += 5;
+            doc.text(`RESTANTE: ${formatCurrency(app.finalBalance)}`, 190, y, {align: "right"}); y += 15;
+
+            // 6. CLÁUSULAS
+            doc.setFontSize(9);
+            if (app.status !== 'budget') {
+                doc.setFont("helvetica", "bold"); doc.text("CLÁUSULAS E CONDIÇÕES:", 20, y); y += 7;
+                doc.setFont("helvetica", "normal");
+                
+                const clauses = [
+                    "1. OBJETO: Prestação de serviços de decoração conforme itens listados.",
+                    "2. RESERVA: Garantida mediante pagamento do sinal. Cancelamentos com menos de 30 dias implicam retenção do sinal.",
+                    "3. DANOS: O cliente responsabiliza-se por danos ou extravios de materiais durante o evento.",
+                    "4. PAGAMENTO: O saldo restante deve ser pago até a data do evento.",
+                    "5. DISPOSIÇÕES GERAIS: A contratada não se responsabiliza por intercorrências externas (clima, falta de energia)."
+                ];
+
+                clauses.forEach(clause => {
+                    const lines = doc.splitTextToSize(clause, 170);
+                    if (y + (lines.length * 4) > 270) { doc.addPage(); y = 20; }
+                    doc.text(lines, 20, y);
+                    y += (lines.length * 4) + 2;
+                });
+
+                if (y > 240) { doc.addPage(); y = 40; } else { y += 20; }
+
+                // 7. ASSINATURAS
+                if (company.signature) doc.addImage(company.signature, 'PNG', 30, y - 15, 50, 20);
+                doc.line(30, y, 90, y); doc.text("CONTRATADA", 60, y + 5, {align: "center"});
+
+                if (app.clientSignature) doc.addImage(app.clientSignature, 'PNG', 120, y - 15, 50, 20);
+                doc.line(120, y, 180, y); doc.text("CONTRATANTE", 150, y + 5, {align: "center"});
+            } else {
+                y += 20; doc.setFontSize(8); 
+                doc.text("* Este documento é apenas um orçamento e não garante reserva de data.", 105, y, {align: "center"});
+            }
+            
+            doc.save(`Contrato_${cli.name.replace(/ /g, '_')}.pdf`);
+        };
         const saveAsBudget = async () => { const appData = { ...JSON.parse(JSON.stringify(tempApp)), totalServices: totalServices.value, finalBalance: finalBalance.value, userId: user.value.uid, status: 'budget' }; if(!appData.checklist.length) appData.checklist = [{text:'Materiais', done:false}]; if (isEditing.value && editingId.value) await updateDoc(doc(db, "appointments", editingId.value), appData); else await addDoc(collection(db, "appointments"), appData); showAppointmentModal.value = false; Swal.fire('Orçamento Criado!', 'Ver na aba Orçamentos.', 'success'); };
         const approveBudget = async (app) => { const { isConfirmed } = await Swal.fire({ title: 'Aprovar Orçamento?', text: 'Mover para Agenda?', icon: 'question', showCancelButton: true, confirmButtonColor: '#4F46E5' }); if (isConfirmed) { await updateDoc(doc(db, "appointments", app.id), { status: 'pending' }); Swal.fire('Aprovado!', '', 'success'); view.value = 'schedule'; } };
         const saveClient = async () => { if(!newClient.name) return; await addDoc(collection(db, "clients"), { name: newClient.name, phone: newClient.phone, cpf: newClient.cpf, email: newClient.email, userId: user.value.uid }); showClientModal.value = false; newClient.name = ''; newClient.phone = ''; newClient.cpf = ''; newClient.email = ''; if(view.value === 'registrations') searchCatalogClients(); Swal.fire('Salvo!', '', 'success'); };
