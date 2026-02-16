@@ -6,15 +6,18 @@ import {
 
 createApp({
     setup() {
-        // Estado
+        // --- ESTADO ---
         const loadingState = ref('global'); // 'global', 'login', 'portal'
         const authLoading = ref(false);
         const accessInput = ref('');
         const showSignModal = ref(false);
         const currentApp = ref(null);
         
-        // Dados
-        const company = reactive({ fantasia: '', logo: '', signature: '', email: '', phone: '', rua: '', bairro: '', cidade: '', estado: '', cnpj: '' });
+        // --- DADOS ---
+        const company = reactive({ 
+            fantasia: '', logo: '', signature: '', 
+            email: '', phone: '', rua: '', bairro: '', cidade: '', estado: '', cnpj: '' 
+        });
         const clientData = ref(null);
         const appointments = ref([]);
         
@@ -22,9 +25,11 @@ createApp({
         const urlParams = new URLSearchParams(window.location.search);
         const providerUid = urlParams.get('uid');
 
-        // --- INICIALIZAÇÃO ---
+        // ============================================================
+        // 1. INICIALIZAÇÃO
+        // ============================================================
         onMounted(async () => {
-            // 1. Carrega dados da empresa se tiver UID na URL
+            // Tenta carregar dados da empresa (Logo/Nome) para a tela de login
             if (providerUid) {
                 try {
                     const docSnap = await getDoc(doc(db, "users", providerUid));
@@ -34,14 +39,16 @@ createApp({
                 } catch (e) { console.error("Erro ao carregar empresa:", e); }
             }
             
-            // 2. Verifica se já existe um cliente "logado" na memória (opcional, por segurança pedimos login sempre)
-            // Mas liberamos a tela de login
+            // Libera a tela de login
             setTimeout(() => { loadingState.value = 'login'; }, 800);
         });
 
-        // --- MÁSCARA INPUT ---
+        // ============================================================
+        // 2. MÁSCARA E LOGIN
+        // ============================================================
         const handleInputMask = (e) => {
             let val = e.target.value;
+            // Se começar com número, aplica máscara de CPF
             if (/^\d/.test(val)) { 
                 val = val.replace(/\D/g, "").slice(0, 11);
                 val = val.replace(/(\d{3})(\d)/, "$1.$2");
@@ -51,13 +58,12 @@ createApp({
             accessInput.value = val;
         };
 
-        // --- LOGIN E BUSCA ---
         const handleAccess = async () => {
             if (!accessInput.value) return Swal.fire('Erro', 'Preencha o campo.', 'warning');
             
             authLoading.value = true;
             try {
-                // Login Anônimo Obrigatório
+                // 1. Login Anônimo OBRIGATÓRIO (para ter permissão de leitura/escrita)
                 if (!auth.currentUser) await signInAnonymously(auth);
 
                 const term = accessInput.value.trim();
@@ -67,18 +73,16 @@ createApp({
                 let constraints = [];
                 if (providerUid) constraints.push(where("userId", "==", providerUid));
 
-                // Tenta achar cliente
+                // 2. Buscas (CPF com ponto, CPF sem ponto, Email)
                 let q = query(collection(db, "clients"), where("cpf", "==", term), ...constraints);
                 let snap = await getDocs(q);
                 
-                // Tenta CPF formatado
                 if (snap.empty && numericTerm.length === 11) {
                     const formatted = numericTerm.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
                     q = query(collection(db, "clients"), where("cpf", "==", formatted), ...constraints);
                     snap = await getDocs(q);
                 }
                 
-                // Tenta Email
                 if (snap.empty) {
                     q = query(collection(db, "clients"), where("email", "==", term), ...constraints);
                     snap = await getDocs(q);
@@ -86,10 +90,11 @@ createApp({
 
                 if (snap.empty) throw new Error("Cliente não encontrado.");
 
+                // 3. Carrega Cliente
                 const docData = snap.docs[0];
                 clientData.value = { id: docData.id, ...docData.data() };
 
-                // Busca Eventos
+                // 4. Carrega Eventos do Cliente
                 let appQ = query(collection(db, "appointments"), where("clientId", "==", docData.id));
                 if (providerUid) appQ = query(collection(db, "appointments"), where("clientId", "==", docData.id), where("userId", "==", providerUid));
                 
@@ -98,7 +103,7 @@ createApp({
                     .filter(a => a.status !== 'cancelled')
                     .sort((a,b) => b.date.localeCompare(a.date));
 
-                // Se não carregou empresa via URL mas achou evento, carrega agora
+                // Se não carregou empresa via URL mas achou evento, carrega agora (backup)
                 if (appointments.value.length > 0 && !providerUid) {
                     const uDoc = await getDoc(doc(db, "users", appointments.value[0].userId));
                     if (uDoc.exists() && uDoc.data().companyConfig) Object.assign(company, uDoc.data().companyConfig);
@@ -108,13 +113,15 @@ createApp({
 
             } catch (e) {
                 console.error(e);
-                Swal.fire('Acesso Negado', 'Dados não encontrados neste organizador.', 'error');
+                Swal.fire('Acesso Negado', 'Dados não encontrados.', 'error');
             } finally {
                 authLoading.value = false;
             }
         };
 
-        // --- ASSINATURA ---
+        // ============================================================
+        // 3. ASSINATURA (CORREÇÃO MOBILE)
+        // ============================================================
         let canvasContext = null;
         let isDrawing = false;
 
@@ -124,13 +131,11 @@ createApp({
             setTimeout(initCanvas, 100);
         };
 
-       // --- EM js/client.js (Substitua a função initCanvas antiga por esta) ---
-
         const initCanvas = () => {
             const canvas = document.getElementById('signature-pad');
             if(!canvas) return;
             
-            // Ajusta a resolução para telas de alta densidade (Retina/Mobile)
+            // Ajuste de Resolução (Retina/Mobile)
             const ratio = Math.max(window.devicePixelRatio || 1, 1);
             canvas.width = canvas.offsetWidth * ratio;
             canvas.height = canvas.offsetHeight * ratio;
@@ -139,26 +144,22 @@ createApp({
             canvasContext = canvas.getContext('2d');
             canvasContext.strokeStyle = "#000";
             canvasContext.lineWidth = 2;
-            canvasContext.lineCap = "round"; // Deixa o traço mais suave
+            canvasContext.lineCap = "round"; // Traço mais suave
             
-            // --- FUNÇÕES DE DESENHO ---
+            // Funções de Desenho
             const start = (e) => { 
-                // Se for toque, previne scroll
-                if(e.type === 'touchstart') e.preventDefault(); 
-                
+                if(e.type === 'touchstart') e.preventDefault(); // Previne conflito inicial
                 isDrawing = true; 
                 canvasContext.beginPath(); 
-                
-                const { x, y } = getPos(e);
-                canvasContext.moveTo(x, y); 
+                const pos = getPos(e);
+                canvasContext.moveTo(pos.x, pos.y); 
             };
             
             const move = (e) => { 
                 if(!isDrawing) return; 
-                e.preventDefault(); // Essencial para não rolar a tela
-                
-                const { x, y } = getPos(e);
-                canvasContext.lineTo(x, y); 
+                e.preventDefault(); // BLOQUEIA SCROLL DA PÁGINA AO DESENHAR
+                const pos = getPos(e);
+                canvasContext.lineTo(pos.x, pos.y); 
                 canvasContext.stroke(); 
             };
             
@@ -167,26 +168,23 @@ createApp({
                 isDrawing = false; 
             };
 
-            // --- EVENT LISTENERS (Mouse e Touch) ---
-            
-            // Mouse (Desktop)
-            canvas.onmousedown = start;
-            canvas.onmousemove = move;
-            canvas.onmouseup = end;
+            // Event Listeners (Desktop)
+            canvas.onmousedown = start; 
+            canvas.onmousemove = move; 
+            canvas.onmouseup = end; 
             canvas.onmouseout = end;
 
-            // Touch (Celular) - Usando addEventListener com { passive: false } é mais garantido no iOS
+            // Event Listeners (Mobile - com passive: false para permitir preventDefault)
             canvas.addEventListener('touchstart', (e) => start(e.touches[0] || e), { passive: false });
             canvas.addEventListener('touchmove', (e) => move(e.touches[0] || e), { passive: false });
             canvas.addEventListener('touchend', end, { passive: false });
         };
 
-        // Certifique-se que a função getPos também trata o toque corretamente:
         const getPos = (e) => {
             const canvas = document.getElementById('signature-pad');
             const rect = canvas.getBoundingClientRect();
             
-            // Verifica se é evento de toque ou mouse
+            // Suporte híbrido (Touch ou Mouse)
             const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
             const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
 
@@ -194,11 +192,6 @@ createApp({
                 x: clientX - rect.left, 
                 y: clientY - rect.top 
             };
-        };
-
-        const getPos = (e) => {
-            const rect = document.getElementById('signature-pad').getBoundingClientRect();
-            return { x: e.clientX - rect.left, y: e.clientY - rect.top };
         };
 
         const clearCanvas = () => {
@@ -219,12 +212,13 @@ createApp({
             try {
                 const dataUrl = document.getElementById('signature-pad').toDataURL();
                 
+                // Salva no Firestore
                 await updateDoc(doc(db, "appointments", currentApp.value.id), {
                     clientSignature: dataUrl,
-                    status: 'pending' // Confirma orçamento
+                    status: 'pending' // Confirma o evento ao assinar
                 });
 
-                // Atualiza local
+                // Atualiza visualmente na hora
                 const idx = appointments.value.findIndex(a => a.id === currentApp.value.id);
                 if (idx !== -1) {
                     appointments.value[idx].clientSignature = dataUrl;
@@ -234,19 +228,21 @@ createApp({
                 showSignModal.value = false;
                 await Swal.fire({ title: 'Assinado!', text: 'Contrato confirmado. Baixando PDF...', icon: 'success', timer: 1500, showConfirmButton:false });
                 
-                // Gera PDF atualizado
-                currentApp.value.clientSignature = dataUrl; // Garante que o PDF tenha a assinatura
+                // Gera o PDF com a nova assinatura
+                currentApp.value.clientSignature = dataUrl; 
                 downloadContract(currentApp.value);
 
             } catch (e) {
                 console.error(e);
-                Swal.fire('Erro', 'Falha ao salvar assinatura.', 'error');
+                Swal.fire('Erro', 'Falha ao salvar assinatura. Tente novamente.', 'error');
             } finally {
                 authLoading.value = false;
             }
         };
 
-        // --- PDF E UTILS ---
+        // ============================================================
+        // 4. PDF E HELPERS
+        // ============================================================
         const sanitizeApp = (d) => { 
             const data = d.data ? d.data() : d; 
             return { 
@@ -262,25 +258,18 @@ createApp({
         const getMonth = (d) => d ? ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'][parseInt(d.split('-')[1])-1] : '';
         const statusText = (s) => s==='budget'?'Orçamento':(s==='concluded'?'Concluído':(s==='cancelled'?'Cancelado':'Pendente'));
 
-        // --- EM js/client.js ---
-        
         const downloadContract = (app) => {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             
-            // 1. CABEÇALHO DA EMPRESA
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(14);
+            // 1. CABEÇALHO
+            doc.setFont("helvetica", "bold"); doc.setFontSize(14);
             doc.text((company.fantasia || 'Nome da Empresa').toUpperCase(), 105, 20, {align: "center"});
             
-            doc.setFontSize(10);
-            doc.setFont("helvetica", "normal");
+            doc.setFontSize(10); doc.setFont("helvetica", "normal");
             let y = 28;
             
-            if(company.cnpj) { 
-                doc.text(`CNPJ: ${company.cnpj}`, 105, y, {align:"center"}); 
-                y += 5; 
-            }
+            if(company.cnpj) { doc.text(`CNPJ: ${company.cnpj}`, 105, y, {align:"center"}); y += 5; }
             if(company.rua || company.bairro) {
                 doc.text(`${company.rua || ''} - ${company.bairro || ''} - ${company.cidade || ''}/${company.estado || ''}`, 105, y, {align:"center"});
                 y += 5;
@@ -290,33 +279,23 @@ createApp({
                 y += 5;
             }
 
-            doc.line(20, y, 190, y); // Linha separadora
-            y += 10;
+            doc.line(20, y, 190, y); y += 10;
 
-            // 2. TÍTULO DO DOCUMENTO
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(12);
+            // 2. TÍTULO
+            doc.setFont("helvetica", "bold"); doc.setFontSize(12);
             const title = app.status === 'budget' ? "ORÇAMENTO DE PRESTAÇÃO DE SERVIÇOS" : "CONTRATO DE PRESTAÇÃO DE SERVIÇOS";
-            doc.text(title, 105, y, {align:"center"});
-            y += 15;
+            doc.text(title, 105, y, {align:"center"}); y += 15;
 
-            // 3. DADOS DAS PARTES (CONTRATANTE E EVENTO)
+            // 3. DADOS
             doc.setFontSize(10);
-            
-            // Coluna Esquerda: Cliente
-            doc.setFont("helvetica", "bold");
-            doc.text("CONTRATANTE:", 20, y);
-            y += 5;
+            doc.setFont("helvetica", "bold"); doc.text("CONTRATANTE:", 20, y); y += 5;
             doc.setFont("helvetica", "normal");
             doc.text(`Nome: ${clientData.value.name}`, 20, y); y += 5;
             doc.text(`CPF: ${clientData.value.cpf || '-'}`, 20, y); y += 5;
             doc.text(`Tel: ${clientData.value.phone || '-'}`, 20, y); y += 5;
             
-            // Reset Y para coluna direita (se quisesse fazer lado a lado), mas vamos fazer sequencial para caber tudo
             y += 5;
-            doc.setFont("helvetica", "bold");
-            doc.text("DADOS DO EVENTO:", 20, y);
-            y += 5;
+            doc.setFont("helvetica", "bold"); doc.text("DADOS DO EVENTO:", 20, y); y += 5;
             doc.setFont("helvetica", "normal");
             doc.text(`Data: ${formatDate(app.date)}`, 20, y); 
             doc.text(`Horário: ${app.time}`, 80, y); y += 5;
@@ -325,30 +304,24 @@ createApp({
                 doc.text(`Decoração/Cores: ${app.details.balloonColors}`, 20, y); y += 5;
             }
 
-            // 4. TABELA DE ITENS (Usando autoTable)
+            // 4. TABELA
             y += 5;
             const body = app.selectedServices.map(s => [s.description, formatCurrency(s.price)]);
             doc.autoTable({
-                startY: y,
-                head: [['Descrição do Serviço/Item', 'Valor']],
-                body: body,
-                theme: 'grid',
-                headStyles: { fillColor: [50, 50, 50] },
-                styles: { fontSize: 9 }
+                startY: y, head: [['Descrição do Serviço/Item', 'Valor']], body: body,
+                theme: 'grid', headStyles: { fillColor: [50, 50, 50] }, styles: { fontSize: 9 }
             });
             y = doc.lastAutoTable.finalY + 10;
 
-            // 5. RESUMO FINANCEIRO
+            // 5. FINANCEIRO
             doc.setFont("helvetica", "bold");
             doc.text(`VALOR TOTAL: ${formatCurrency(app.totalServices)}`, 190, y, {align: "right"}); y += 5;
             doc.text(`SINAL (PAGO): ${formatCurrency(app.entryFee || app.details.entryFee)}`, 190, y, {align: "right"}); y += 5;
             doc.text(`RESTANTE: ${formatCurrency(app.finalBalance)}`, 190, y, {align: "right"}); y += 15;
 
-            // 6. CLÁUSULAS CONTRATUAIS (Profissional)
+            // 6. CLÁUSULAS
             doc.setFontSize(9);
-            doc.setFont("helvetica", "bold");
-            doc.text("CLÁUSULAS E CONDIÇÕES:", 20, y);
-            y += 7;
+            doc.setFont("helvetica", "bold"); doc.text("CLÁUSULAS E CONDIÇÕES:", 20, y); y += 7;
             doc.setFont("helvetica", "normal");
 
             const clauses = [
@@ -360,41 +333,23 @@ createApp({
                 "6. DE FORÇA MAIOR: A CONTRATADA não se responsabiliza por falhas decorrentes de casos fortuitos ou força maior (tempestades, falta de energia no local, etc)."
             ];
 
-            // Loop para escrever as cláusulas com quebra de linha automática
             clauses.forEach(clause => {
-                // Divide o texto para caber em 170mm de largura
                 const splitText = doc.splitTextToSize(clause, 170);
-                
-                // Verifica se vai estourar a página (altura A4 é 297mm)
-                if (y + (splitText.length * 4) > 270) {
-                    doc.addPage();
-                    y = 20; // Reinicia Y na nova página
-                }
-                
+                if (y + (splitText.length * 4) > 270) { doc.addPage(); y = 20; }
                 doc.text(splitText, 20, y);
-                y += (splitText.length * 4) + 2; // Espaço entre cláusulas
+                y += (splitText.length * 4) + 2;
             });
 
             // 7. ASSINATURAS
-            // Se precisar de nova página para as assinaturas
-            if (y > 240) {
-                doc.addPage();
-                y = 40;
-            } else {
-                y += 20;
-            }
+            if (y > 240) { doc.addPage(); y = 40; } else { y += 20; }
 
-            // Assinatura da Empresa
-            if (company.signature) {
-                doc.addImage(company.signature, 'PNG', 30, y - 15, 50, 20);
-            }
+            // Empresa
+            if (company.signature) { doc.addImage(company.signature, 'PNG', 30, y - 15, 50, 20); }
             doc.line(30, y, 90, y);
             doc.text("CONTRATADA", 60, y + 5, {align: "center"});
 
-            // Assinatura do Cliente
-            if (app.clientSignature) {
-                doc.addImage(app.clientSignature, 'PNG', 120, y - 15, 50, 20);
-            }
+            // Cliente
+            if (app.clientSignature) { doc.addImage(app.clientSignature, 'PNG', 120, y - 15, 50, 20); }
             doc.line(120, y, 180, y);
             doc.text("CONTRATANTE", 150, y + 5, {align: "center"});
 
