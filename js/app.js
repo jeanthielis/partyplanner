@@ -10,8 +10,13 @@ import {
 createApp({
     setup() {
         // ============================================================
-        // 1. ESTADO GLOBAL
+        // 1. ESTADO GLOBAL & DETECÇÃO INICIAL DE URL (Correção do Bug)
         // ============================================================
+        
+        // Verifica a URL imediatamente para definir o modo correto antes de renderizar
+        const urlParams = new URLSearchParams(window.location.search);
+        const isClientUrl = urlParams.get('acesso') === 'cliente';
+        
         const user = ref(null);
         const view = ref('dashboard');
         const isDark = ref(false);
@@ -71,14 +76,16 @@ createApp({
         const tempApp = reactive({ clientId: '', date: '', time: '', location: { bairro: '' }, details: { entryFee: 0, balloonColors: '' }, notes: '', selectedServices: [], checklist: [] });
 
         // --- VARIÁVEIS DO PORTAL E ASSINATURA ---
-        const loginMode = ref('provider'); 
+        // Aqui usamos a detecção feita no início para definir o valor inicial
+        const loginMode = ref(isClientUrl ? 'client' : 'provider'); 
+        
         const clientAccessInput = ref('');
         const clientData = ref(null);
         const clientAppointments = ref([]);
         const showSignatureModal = ref(false);
         const signatureApp = ref(null);
-        const signatureMode = ref('appointment'); // 'appointment' ou 'company'
-        const targetProviderId = ref(null); 
+        const signatureMode = ref('appointment'); 
+        const targetProviderId = ref(urlParams.get('uid')); // Já pega o UID da URL se existir
 
         const expenseCategories = [
             { id: 'combustivel', label: 'Combustível', icon: 'fa-gas-pump' },
@@ -94,21 +101,14 @@ createApp({
         // 2. INICIALIZAÇÃO
         // ============================================================
         onMounted(async () => {
-            const params = new URLSearchParams(window.location.search);
-            // Detecta link de cliente
-            if (params.get('acesso') === 'cliente') {
-                loginMode.value = 'client';
-                const providerUid = params.get('uid');
-                if (providerUid) {
-                    targetProviderId.value = providerUid;
-                    try {
-                        // Tenta pré-carregar logo da empresa para a tela de login
-                        const providerDoc = await getDoc(doc(db, "users", providerUid));
-                        if (providerDoc.exists() && providerDoc.data().companyConfig) {
-                            Object.assign(company, providerDoc.data().companyConfig);
-                        }
-                    } catch (e) { console.error(e); }
-                }
+            // Se for acesso de cliente e tiver UID, tenta carregar a marca da empresa
+            if (isClientUrl && targetProviderId.value) {
+                try {
+                    const providerDoc = await getDoc(doc(db, "users", targetProviderId.value));
+                    if (providerDoc.exists() && providerDoc.data().companyConfig) {
+                        Object.assign(company, providerDoc.data().companyConfig);
+                    }
+                } catch (e) { console.error(e); }
             }
 
             onAuthStateChanged(auth, async (u) => {
