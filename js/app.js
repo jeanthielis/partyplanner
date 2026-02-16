@@ -8,7 +8,9 @@ import {
 
 createApp({
     setup() {
-        // --- ESTADO GLOBAL ---
+        // ============================================================
+        // 1. ESTADO GLOBAL
+        // ============================================================
         const user = ref(null);
         const view = ref('dashboard');
         const isDark = ref(false);
@@ -34,15 +36,15 @@ createApp({
         const clientCache = reactive({});
         const isExtractLoaded = ref(false); 
         
-        // --- NOVO: ESTADO DA ABA FINANCEIRO ---
-        const financeTab = ref('extract'); // 'extract' ou 'ranking'
+        // Estado da Aba Financeiro
+        const financeTab = ref('extract'); 
 
         // Filtros
         const dateNow = new Date();
         const firstDay = new Date(dateNow.getFullYear(), dateNow.getMonth(), 1).toISOString().split('T')[0];
         const today = dateNow.toISOString().split('T')[0];
         
-        const expensesFilter = reactive({ start: firstDay, end: today }); // Inicia com datas preenchidas
+        const expensesFilter = reactive({ start: firstDay, end: today });
         const agendaFilter = reactive({ start: firstDay, end: today });
         
         const clientSearchTerm = ref('');
@@ -92,7 +94,6 @@ createApp({
                 if (u) {
                     if (u.isAnonymous) { isGlobalLoading.value = false; return; }
                     await loadDashboardData();
-                    // Carrega extrato inicial (mês atual) automaticamente
                     searchExpenses(); 
                     syncData();
                     const uDoc = await getDoc(doc(db, "users", u.uid));
@@ -114,62 +115,43 @@ createApp({
         const maskPhone = (v) => { if(!v) return ""; v=v.replace(/\D/g,"").replace(/^(\d{2})(\d)/g,"($1) $2").replace(/(\d)(\d{4})$/,"$1-$2"); return v; };
         const maskCPF = (v) => { if(!v) return ""; v=v.replace(/\D/g,"").replace(/(\d{3})(\d)/,"$1.$2").replace(/(\d{3})(\d)/,"$1.$2").replace(/(\d{3})(\d{1,2})$/,"$1-$2"); return v; };
 
-        // Lista do Extrato (Ordenada por Data)
         const statementList = computed(() => { 
-            // Se ainda não carregou, não retorna nada
             if (!isExtractLoaded.value) return []; 
             return expensesList.value.sort((a, b) => b.date.localeCompare(a.date)); 
         });
 
-        // --- NOVO: SUMÁRIO FILTRADO (Cards de Totais) ---
+        // SUMÁRIO FILTRADO (Substitui o antigo financeSummary)
         const filteredSummary = computed(() => {
             const list = statementList.value;
             const income = list.filter(i => i.type === 'income').reduce((acc, i) => acc + toNum(i.value), 0);
             const expense = list.filter(i => i.type === 'expense').reduce((acc, i) => acc + toNum(i.value), 0);
-            return {
-                income,
-                expense,
-                balance: income - expense
-            };
+            return { income, expense, balance: income - expense };
         });
 
-        // --- NOVO: RANKING COMPUTADO (Baseado no Extrato Filtrado) ---
+        // RANKING
         const rankingData = computed(() => {
             const expensesOnly = statementList.value.filter(i => i.type === 'expense');
             const totalExp = expensesOnly.reduce((acc, i) => acc + toNum(i.value), 0);
-            
-            // Agrupa por categoria
             const grouped = {};
-            expensesOnly.forEach(e => {
-                if(!grouped[e.category]) grouped[e.category] = 0;
-                grouped[e.category] += toNum(e.value);
-            });
-
-            // Formata para o layout
+            expensesOnly.forEach(e => { if(!grouped[e.category]) grouped[e.category] = 0; grouped[e.category] += toNum(e.value); });
             return Object.keys(grouped).map(catId => {
                 const catDef = expenseCategories.find(c => c.id === catId) || { label: 'Outros', icon: 'fa-tag', color: 'text-gray-500', bg: 'bg-gray-100' };
                 const value = grouped[catId];
                 const percent = totalExp > 0 ? (value / totalExp) * 100 : 0;
-                
-                return {
-                    id: catId,
-                    label: catDef.label,
-                    icon: catDef.icon,
-                    styleClass: catDef.color,
-                    bgClass: catDef.bg || 'bg-gray-100',
-                    value: value,
-                    percent: percent.toFixed(1)
-                };
-            }).sort((a, b) => b.value - a.value); // Ordena do maior para o menor
+                return { id: catId, label: catDef.label, icon: catDef.icon, styleClass: catDef.color, bgClass: catDef.bg || 'bg-gray-100', value: value, percent: percent.toFixed(1) };
+            }).sort((a, b) => b.value - a.value);
         });
 
-        // Computeds Antigas (Dashboard)
         const totalServices = computed(() => tempApp.selectedServices.reduce((s,i) => s + toNum(i.price), 0));
         const finalBalance = computed(() => totalServices.value - toNum(tempApp.details.entryFee));
         const kpiRevenue = computed(() => dashboardData.appointments.filter(a => a.status !== 'budget').reduce((acc, a) => acc + toNum(a.totalServices), 0));
         const kpiExpenses = computed(() => dashboardData.expenses.reduce((acc, e) => acc + toNum(e.value), 0));
         const financeData = computed(() => ({ revenue: kpiRevenue.value, expenses: kpiExpenses.value, profit: kpiRevenue.value - kpiExpenses.value }));
         const kpiPendingReceivables = computed(() => dashboardData.appointments.filter(a => a.status === 'pending').reduce((acc, a) => acc + toNum(a.finalBalance), 0));
+        const totalAppointmentsCount = computed(() => dashboardData.appointments.filter(a => a.status !== 'budget').length);
+        const expensesByCategoryStats = computed(() => { if (!dashboardData.expenses.length) return []; return expenseCategories.map(cat => { const total = dashboardData.expenses.filter(e => e.category === cat.id).reduce((sum, e) => sum + toNum(e.value), 0); return { ...cat, total }; }).filter(c => c.total > 0).sort((a, b) => b.total - a.total); });
+        const topExpenseCategory = computed(() => expensesByCategoryStats.value[0] || null);
+        
         const next7DaysApps = computed(() => { 
             const now = new Date(); now.setHours(0,0,0,0);
             const nextWeek = new Date(now); nextWeek.setDate(now.getDate() + 7);
@@ -178,7 +160,6 @@ createApp({
             return pendingAppointments.value.filter(a => a.date >= startStr && a.date <= endStr).sort((a,b) => a.date.localeCompare(b.date)).slice(0,6); 
         });
         
-        // Listas e Filtros
         const calendarGrid = computed(() => { const year = calendarCursor.value.getFullYear(); const month = calendarCursor.value.getMonth(); const firstDay = new Date(year, month, 1).getDay(); const daysInMonth = new Date(year, month + 1, 0).getDate(); const days = []; for (let i = 0; i < firstDay; i++) days.push({ day: '', date: null }); for (let i = 1; i <= daysInMonth; i++) { const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`; days.push({ day: i, date: dateStr, hasEvent: pendingAppointments.value.some(a => a.date === dateStr) }); } return days; });
         const appointmentsOnSelectedDate = computed(() => pendingAppointments.value.filter(a => a.date === selectedCalendarDate.value));
         const calendarTitle = computed(() => `${['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'][calendarCursor.value.getMonth()]} ${calendarCursor.value.getFullYear()}`);
@@ -200,22 +181,17 @@ createApp({
         const syncData = () => { const myId = user.value.uid; onSnapshot(query(collection(db, "services"), where("userId", "==", myId)), (snap) => services.value = snap.docs.map(d => ({ id: d.id, ...d.data() }))); onSnapshot(query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "pending")), (snap) => { pendingAppointments.value = snap.docs.map(sanitizeApp); pendingAppointments.value.forEach(a => fetchClientToCache(a.clientId)); }); onSnapshot(query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "budget")), (snap) => { budgetList.value = snap.docs.map(sanitizeApp); budgetList.value.forEach(a => fetchClientToCache(a.clientId)); }); };
         const searchHistory = async () => { if(!agendaFilter.start || !agendaFilter.end) return Swal.fire('Atenção', 'Selecione datas', 'warning'); const q = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("status", "==", agendaTab.value), where("date", ">=", agendaFilter.start), where("date", "<=", agendaFilter.end)); const snap = await getDocs(q); historyList.value = snap.docs.map(sanitizeApp); historyList.value.forEach(a => fetchClientToCache(a.clientId)); };
         
-        // --- BUSCA EXTRATO E RANKING ---
         const searchExpenses = async () => { 
             if(!expensesFilter.start || !expensesFilter.end) return Swal.fire('Data', 'Selecione o período', 'info'); 
-            
             const qExp = query(collection(db, "expenses"), where("userId", "==", user.value.uid), where("date", ">=", expensesFilter.start), where("date", "<=", expensesFilter.end)); 
             const snapExp = await getDocs(qExp); 
             const loadedExpenses = snapExp.docs.map(d => ({ ...sanitizeExpense(d), type: 'expense', icon: 'fa-arrow-down', color: 'text-red-500' })); 
-            
             const qApp = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("date", ">=", expensesFilter.start), where("date", "<=", expensesFilter.end)); 
             const snapApp = await getDocs(qApp); 
             const loadedIncome = snapApp.docs.map(d => sanitizeApp(d)).filter(a => a.status !== 'budget').map(app => { return { id: app.id, date: app.date, value: app.totalServices, description: `Receita: ${getClientName(app.clientId)}`, type: 'income', icon: 'fa-arrow-up', color: 'text-green-500' }; }); 
-            
             expensesList.value = [...loadedExpenses, ...loadedIncome]; 
             isExtractLoaded.value = true; 
         };
-        
         const searchCatalogClients = async () => { const q = query(collection(db, "clients"), where("userId", "==", user.value.uid)); const snap = await getDocs(q); catalogClientsList.value = snap.docs.map(d => ({id: d.id, ...d.data()})).filter(c => c.name.toLowerCase().includes(catalogClientSearch.value.toLowerCase())); };
 
         // --- ACTIONS ---
