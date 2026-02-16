@@ -4,41 +4,29 @@ import {
     db, auth, 
     collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDocs, query, where, setDoc, getDoc, 
     signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged,
-    updateProfile, signInAnonymously 
+    updateProfile
 } from './firebase.js';
 
 createApp({
     setup() {
         // ============================================================
-        // 1. ESTADO GLOBAL & LOGICA DE LOADING
+        // 1. ESTADO GLOBAL
         // ============================================================
-        
-        // Começa CARREGANDO para evitar mostrar tela errada
-        const isGlobalLoading = ref(true);
-
-        // Detecção Inteligente de Modo (URL + Memória do Navegador)
-        const urlParams = new URLSearchParams(window.location.search);
-        const hasClientParam = urlParams.get('acesso') === 'cliente';
-        const storedMode = localStorage.getItem('partyPlannerMode'); // Lê memória do navegador
-
-        // Se tem link ou se já estava como cliente antes, força modo cliente
-        const initialMode = (hasClientParam || storedMode === 'client') ? 'client' : 'provider';
-        
-        const loginMode = ref(initialMode);
         const user = ref(null);
         const view = ref('dashboard');
         const isDark = ref(false);
         const authLoading = ref(false);
         const isRegistering = ref(false);
+        const isGlobalLoading = ref(true);
         const authForm = reactive({ email: '', password: '', name: '' });
         
-        // Configurações
+        // Configurações da Empresa
         const company = reactive({ 
             fantasia: '', logo: '', signature: '', 
             cnpj: '', email: '', phone: '', rua: '', bairro: '', cidade: '', estado: '' 
         });
 
-        // Variáveis do sistema
+        // Dashboard e Listas
         const dashboardMonth = ref(new Date().toISOString().slice(0, 7));
         const isLoadingDashboard = ref(false);
         const services = ref([]);
@@ -49,6 +37,8 @@ createApp({
         const dashboardData = reactive({ appointments: [], expenses: [] });
         const catalogClientsList = ref([]);
         const scheduleClientsList = ref([]);
+        
+        // Cache e Filtros
         const clientCache = reactive({});
         const isExtractLoaded = ref(false); 
         const expensesFilter = reactive({ start: '', end: '' });
@@ -62,7 +52,7 @@ createApp({
         const registrationTab = ref('clients');
         const agendaTab = ref('pending');
 
-        // Modais e Forms
+        // Modais
         const showAppointmentModal = ref(false);
         const showClientModal = ref(false);
         const showServiceModal = ref(false);
@@ -72,20 +62,18 @@ createApp({
         const editingId = ref(null);
         const editingExpenseId = ref(null);
         const currentReceipt = ref(null);
+
+        // Forms
         const newClient = reactive({ name: '', phone: '', cpf: '', email: '' });
         const newService = reactive({ description: '', price: '' });
         const newExpense = reactive({ description: '', value: '', date: new Date().toISOString().split('T')[0], category: 'outros' });
         const tempServiceSelect = ref('');
         const tempApp = reactive({ clientId: '', date: '', time: '', location: { bairro: '' }, details: { entryFee: 0, balloonColors: '' }, notes: '', selectedServices: [], checklist: [] });
 
-        // Variáveis do Portal
-        const clientAccessInput = ref('');
-        const clientData = ref(null);
-        const clientAppointments = ref([]);
+        // Assinatura (Somente Organizador)
         const showSignatureModal = ref(false);
         const signatureApp = ref(null);
-        const signatureMode = ref('appointment');
-        const targetProviderId = ref(urlParams.get('uid'));
+        const signatureMode = ref('company'); 
 
         const expenseCategories = [
             { id: 'combustivel', label: 'Combustível', icon: 'fa-gas-pump' },
@@ -101,53 +89,27 @@ createApp({
         // 2. INICIALIZAÇÃO
         // ============================================================
         onMounted(async () => {
-            // Se cair aqui como cliente, salva na memória para garantir no refresh
-            if (loginMode.value === 'client') {
-                localStorage.setItem('partyPlannerMode', 'client');
-            }
-
-            // Tenta carregar dados do Decorador se tiver UID na URL
-            if (targetProviderId.value) {
-                try {
-                    const providerDoc = await getDoc(doc(db, "users", targetProviderId.value));
-                    if (providerDoc.exists() && providerDoc.data().companyConfig) {
-                        Object.assign(company, providerDoc.data().companyConfig);
-                    }
-                } catch (e) { console.error(e); }
-            }
-
             onAuthStateChanged(auth, async (u) => {
                 user.value = u;
-                
                 if (u) {
-                    // SE O USUÁRIO É ANÔNIMO (CLIENTE)
                     if (u.isAnonymous) {
-                        loginMode.value = 'client'; // Garante modo cliente
-                        localStorage.setItem('partyPlannerMode', 'client'); // Reforça persistência
-                        
-                        // Tenta restaurar a sessão do cliente se tivermos dados no localStorage ou recarrega a busca
-                        // Aqui apenas liberamos o loading, o cliente precisará digitar CPF de novo ou o sistema pode tentar buscar se salvarmos o CPF no storage (opcional, por segurança melhor pedir CPF)
-                        
+                        // Se por acaso um cliente cair aqui, desloga ou redireciona
+                        // Mas idealmente o cliente usa client.html
                         isGlobalLoading.value = false;
-                        return; // Para aqui, não carrega dashboard de admin
+                        return;
                     }
 
-                    // SE É USUÁRIO LOGADO (DECORADOR)
-                    loginMode.value = 'provider';
-                    localStorage.setItem('partyPlannerMode', 'provider');
                     await loadDashboardData();
                     syncData();
                     const uDoc = await getDoc(doc(db, "users", u.uid));
                     if (uDoc.exists() && uDoc.data().companyConfig) Object.assign(company, uDoc.data().companyConfig);
                 }
-                
-                // Só libera a tela depois de tudo verificado
-                setTimeout(() => { isGlobalLoading.value = false; }, 500);
+                setTimeout(() => { isGlobalLoading.value = false; }, 800);
             });
         });
 
         // ============================================================
-        // 3. HELPERS & COMPUTED
+        // 3. COMPUTED & HELPERS
         // ============================================================
         const toNum = (v) => { if(!v) return 0; if(typeof v==='number') return v; const c=String(v).replace(',','.').replace(/[^0-9.-]/g,''); return parseFloat(c)||0; };
         const formatCurrency = (v) => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(toNum(v));
@@ -159,18 +121,6 @@ createApp({
         const getCategoryIcon = (id) => expenseCategories.find(c=>c.id===id)?.icon || 'fa-tag';
         const maskPhone = (v) => { if(!v) return ""; v=v.replace(/\D/g,"").replace(/^(\d{2})(\d)/g,"($1) $2").replace(/(\d)(\d{4})$/,"$1-$2"); return v; };
         const maskCPF = (v) => { if(!v) return ""; v=v.replace(/\D/g,"").replace(/(\d{3})(\d)/,"$1.$2").replace(/(\d{3})(\d)/,"$1.$2").replace(/(\d{3})(\d{1,2})$/,"$1-$2"); return v; };
-
-        const handleAccessInput = (e) => {
-            let val = e.target.value;
-            if (/^\d/.test(val)) { 
-                val = val.replace(/\D/g, "");
-                if (val.length > 11) val = val.slice(0, 11);
-                val = val.replace(/(\d{3})(\d)/, "$1.$2");
-                val = val.replace(/(\d{3})(\d)/, "$1.$2");
-                val = val.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
-            }
-            clientAccessInput.value = val;
-        };
 
         const statementList = computed(() => { if (!isExtractLoaded.value) return []; return expensesList.value.sort((a, b) => b.date.localeCompare(a.date)); });
         const financeSummary = computed(() => statementList.value.reduce((acc, item) => item.type === 'income' ? acc + item.value : acc - item.value, 0));
@@ -191,7 +141,7 @@ createApp({
         const filteredClientsSearch = computed(() => scheduleClientsList.value);
 
         // ============================================================
-        // 4. FIREBASE READ/WRITE
+        // 4. FIREBASE DATA
         // ============================================================
         const fetchClientToCache = async (id) => { if (!id || clientCache[id]) return; try { const s = await getDoc(doc(db, "clients", id)); if (s.exists()) clientCache[id] = s.data(); else clientCache[id] = { name: 'Excluído', phone: '-' }; } catch (e) {} };
         const sanitizeApp = (d) => { const data = d.data ? d.data() : d; return { id: d.id || data.id, ...data, selectedServices: Array.isArray(data.selectedServices) ? data.selectedServices : [], details: { ...(data.details || {}), balloonColors: data.details?.balloonColors || '' }, checklist: data.checklist || [], clientSignature: data.clientSignature || '' }; };
@@ -207,84 +157,27 @@ createApp({
         // ============================================================
         const handleAuth = async () => { authLoading.value = true; try { if (isRegistering.value) { const res = await createUserWithEmailAndPassword(auth, authForm.email, authForm.password); await setDoc(doc(db, "users", res.user.uid), { email: authForm.email, role: 'user', createdAt: new Date().toISOString(), companyConfig: { fantasia: authForm.name || 'Minha Empresa', email: authForm.email } }); } else { await signInWithEmailAndPassword(auth, authForm.email, authForm.password); } } catch (e) { Swal.fire('Ops', 'Erro no login.', 'error'); } finally { authLoading.value = false; } };
 
-        const handleClientAccess = async () => {
-            if (!clientAccessInput.value) return Swal.fire('Erro', 'Digite CPF ou E-mail', 'warning');
-            authLoading.value = true;
-            try {
-                // PERSISTÊNCIA: Garante que o modo client fique salvo
-                localStorage.setItem('partyPlannerMode', 'client');
-
-                if (!auth.currentUser) await signInAnonymously(auth);
-
-                const term = clientAccessInput.value.trim();
-                const numericTerm = term.replace(/\D/g, '');
-                let formattedCPF = term;
-                if (numericTerm.length === 11 && term.indexOf('.') === -1) {
-                    formattedCPF = numericTerm.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
-                }
-                
-                let qConstraints = [];
-                if (targetProviderId.value) qConstraints.push(where("userId", "==", targetProviderId.value));
-                
-                let q = query(collection(db, "clients"), where("cpf", "==", term), ...qConstraints);
-                let snap = await getDocs(q);
-                if (snap.empty && numericTerm.length === 11) { q = query(collection(db, "clients"), where("cpf", "==", formattedCPF), ...qConstraints); snap = await getDocs(q); }
-                if (snap.empty) { q = query(collection(db, "clients"), where("email", "==", term), ...qConstraints); snap = await getDocs(q); }
-
-                if (snap.empty) throw new Error("Cadastro não encontrado.");
-
-                const clientDoc = snap.docs[0];
-                clientData.value = { id: clientDoc.id, ...clientDoc.data() };
-                
-                let appQ = query(collection(db, "appointments"), where("clientId", "==", clientDoc.id));
-                if (targetProviderId.value) appQ = query(collection(db, "appointments"), where("clientId", "==", clientDoc.id), where("userId", "==", targetProviderId.value));
-                
-                const snapApps = await getDocs(appQ);
-                clientAppointments.value = snapApps.docs.map(sanitizeApp).filter(a => a.status !== 'cancelled').sort((a,b) => b.date.localeCompare(a.date));
-                view.value = 'client-portal';
-                
-                if (clientAppointments.value.length > 0 && !targetProviderId.value) {
-                    const uDoc = await getDoc(doc(db, "users", clientAppointments.value[0].userId));
-                    if (uDoc.exists() && uDoc.data().companyConfig) Object.assign(company, uDoc.data().companyConfig);
-                }
-            } catch (e) { Swal.fire('Acesso Negado', 'Dados não encontrados.', 'error'); }
-            finally { authLoading.value = false; }
+        const copyClientLink = () => { 
+            // AGORA APONTA PARA client.html
+            const path = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+            const url = `${window.location.origin}${path}client.html?uid=${user.value.uid}`;
+            navigator.clipboard.writeText(url).then(() => Swal.fire('Copiado!', 'Link da Área do Cliente copiado.', 'success')); 
         };
 
-        // Função para voltar para área de decorador (caso precise)
-        const switchToProvider = () => {
-            loginMode.value = 'provider';
-            localStorage.setItem('partyPlannerMode', 'provider');
-        };
-
-        const copyClientLink = () => { const url = `${window.location.origin}${window.location.pathname}?acesso=cliente&uid=${user.value.uid}`; navigator.clipboard.writeText(url).then(() => Swal.fire('Copiado!', 'Link copiado.', 'success')); };
         const saveAppointment = async () => { const data = { ...tempApp, totalServices: totalServices.value, finalBalance: finalBalance.value, userId: user.value.uid, status: 'pending' }; if (isEditing.value) await updateDoc(doc(db, "appointments", editingId.value), data); else await addDoc(collection(db, "appointments"), data); showAppointmentModal.value = false; loadDashboardData(); };
         const showReceipt = (app) => { currentReceipt.value = sanitizeApp(app); showReceiptModal.value = true; };
+        const logout = () => { signOut(auth); window.location.href="index.html"; };
+
+        // --- ASSINATURAS (Organizador) ---
+        let canvasContext = null; let isDrawing = false;
         
-        const logout = () => { 
-            localStorage.removeItem('partyPlannerMode'); // Limpa preferência
-            signOut(auth); 
-            window.location.href="index.html"; 
-        };
-        
-        const logoutClient = () => { 
-            clientData.value = null; 
-            clientAppointments.value = []; 
-            clientAccessInput.value = ''; 
-            
-            // Aqui decidimos: ao sair da área do cliente, volta para a tela de login DE CLIENTE ou DECORADOR?
-            // Se veio pelo link, volta para login cliente. Se não, reseta.
-            // Para segurança, vamos limpar o storage e dar signOut.
-            localStorage.removeItem('partyPlannerMode');
-            signOut(auth);
-            
-            // Recarrega para limpar estado
-            window.location.reload();
+        const openSignatureModal = (target, mode = 'company') => { 
+            signatureApp.value = target; 
+            signatureMode.value = mode; 
+            showSignatureModal.value = true; 
+            setTimeout(() => initCanvas(), 100); 
         };
 
-        // Assinaturas e PDF
-        let canvasContext = null; let isDrawing = false;
-        const openSignatureModal = (target, mode = 'appointment') => { signatureApp.value = target; signatureMode.value = mode; showSignatureModal.value = true; setTimeout(() => initCanvas(), 100); };
         const initCanvas = () => { const canvas = document.getElementById('signature-pad'); if(!canvas) return; const ratio = Math.max(window.devicePixelRatio || 1, 1); canvas.width = canvas.offsetWidth * ratio; canvas.height = canvas.offsetHeight * ratio; canvas.getContext("2d").scale(ratio, ratio); canvasContext = canvas.getContext('2d'); canvasContext.strokeStyle = "#000"; canvasContext.lineWidth = 2; canvas.addEventListener('mousedown', startDrawing); canvas.addEventListener('mousemove', draw); canvas.addEventListener('mouseup', stopDrawing); canvas.addEventListener('mouseout', stopDrawing); canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDrawing(e.touches[0]); }); canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e.touches[0]); }); canvas.addEventListener('touchend', (e) => { e.preventDefault(); stopDrawing(); }); };
         const startDrawing = (e) => { isDrawing = true; const pos = getPos(e); canvasContext.beginPath(); canvasContext.moveTo(pos.x, pos.y); };
         const draw = (e) => { if(!isDrawing) return; const pos = getPos(e); canvasContext.lineTo(pos.x, pos.y); canvasContext.stroke(); };
@@ -299,37 +192,47 @@ createApp({
             if (isCanvasBlank(canvas)) return Swal.fire('Atenção', 'Faça sua assinatura.', 'warning');
             authLoading.value = true; 
             try { 
-                if (signatureMode.value === 'company') {
-                    company.signature = dataUrl;
-                    await updateDoc(doc(db, "users", user.value.uid), { companyConfig: company });
-                    Swal.fire('Sucesso', 'Assinatura salva!', 'success');
-                } else {
-                    await updateDoc(doc(db, "appointments", signatureApp.value.id), { clientSignature: dataUrl, status: 'pending' }); 
-                    const idx = clientAppointments.value.findIndex(a => a.id === signatureApp.value.id); 
-                    if(idx !== -1) {
-                        clientAppointments.value[idx].clientSignature = dataUrl; 
-                        clientAppointments.value[idx].status = 'pending';
-                    }
-                    showSignatureModal.value = false;
-                    await Swal.fire({ title: 'Contrato Assinado!', text: 'Baixando seu contrato...', icon: 'success', timer: 2000, showConfirmButton: false });
-                    const appForPdf = { ...signatureApp.value, clientSignature: dataUrl, status: 'pending' };
-                    currentReceipt.value = appForPdf;
-                    if(!clientCache[appForPdf.clientId] && clientData.value) clientCache[appForPdf.clientId] = clientData.value; 
-                    generateContractPDF();
-                }
+                // Apenas salva a assinatura da empresa
+                company.signature = dataUrl;
+                await updateDoc(doc(db, "users", user.value.uid), { companyConfig: company });
+                Swal.fire('Sucesso', 'Assinatura salva!', 'success');
                 showSignatureModal.value = false; 
             } catch (e) { Swal.fire('Erro', 'Erro ao salvar.', 'error'); } 
             finally { authLoading.value = false; } 
         };
 
         const downloadClientReceipt = async (app) => { 
-            if (!app.clientSignature) return Swal.fire('Atenção', 'Assine o contrato antes de baixar.', 'warning');
+            // O organizador sempre pode baixar, mas avisa se não tiver assinatura do cliente
+            if (!app.clientSignature) Swal.fire('Aviso', 'Este contrato ainda não foi assinado pelo cliente.', 'info');
             currentReceipt.value = app; 
             if(!clientCache[app.clientId] && clientData.value) clientCache[app.clientId] = clientData.value; 
             generateContractPDF(); 
         };
 
-        const generateContractPDF = () => { const { jsPDF } = window.jspdf; const doc = new jsPDF(); const app = currentReceipt.value; const cli = clientCache[app.clientId] || {name:'...',cpf:'...', phone: '', email: ''}; let docTitle = "CONTRATO DE PRESTAÇÃO DE SERVIÇOS"; if(app.status === 'budget') docTitle = "ORÇAMENTO"; doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text(company.fantasia.toUpperCase(), 105, 20, {align: "center"}); doc.setFontSize(10); doc.setFont("helvetica", "normal"); let headerY = 26; if (company.cnpj) { doc.text(`CNPJ: ${company.cnpj}`, 105, headerY, {align: "center"}); headerY += 5; } doc.text(`${company.rua} - ${company.bairro}`, 105, headerY, {align: "center"}); headerY += 5; doc.text(`${company.cidade}/${company.estado} - Tel: ${company.phone}`, 105, headerY, {align: "center"}); doc.line(20, headerY + 5, 190, headerY + 5); doc.setFontSize(14); doc.setFont("helvetica", "bold"); doc.text(docTitle, 105, headerY + 15, {align:"center"}); let y = headerY + 25; doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.text("CONTRATANTE:", 20, y); y += 5; doc.setFont("helvetica", "normal"); doc.text(`Nome: ${cli.name} | CPF: ${cli.cpf || '-'}`, 20, y); y += 5; doc.text(`Tel: ${cli.phone} | E-mail: ${cli.email || '-'}`, 20, y); y += 10; doc.setFont("helvetica", "bold"); doc.text("EVENTO:", 20, y); y += 5; doc.setFont("helvetica", "normal"); doc.text(`Data: ${formatDate(app.date)} | Hora: ${app.time}`, 20, y); y += 5; doc.text(`Local: ${app.location.bairro}`, 20, y); if(app.details.balloonColors) { y += 5; doc.text(`Cores: ${app.details.balloonColors}`, 20, y); } y += 10; const body = app.selectedServices.map(s => [s.description, formatCurrency(s.price)]); doc.autoTable({ startY: y, head: [['Descrição', 'Valor']], body: body, theme: 'grid', headStyles: { fillColor: [60, 60, 60] }, margin: { left: 20, right: 20 } }); y = doc.lastAutoTable.finalY + 10; doc.setFont("helvetica", "bold"); doc.text(`TOTAL: ${formatCurrency(app.totalServices)}`, 140, y, {align: "right"}); y += 5; doc.text(`SINAL: ${formatCurrency(app.entryFee)}`, 140, y, {align: "right"}); y += 5; doc.text(`RESTANTE: ${formatCurrency(app.finalBalance)}`, 140, y, {align: "right"}); if (app.status !== 'budget') { y += 15; doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.text("CLÁUSULAS E CONDIÇÕES:", 20, y); y += 5; doc.setFont("helvetica", "normal"); const clauses = [ "1. RESERVA: O pagamento do sinal garante a reserva da data.", "2. DESISTÊNCIA: Em caso de cancelamento com menos de 15 dias, o sinal não será devolvido.", "3. DANOS: O CONTRATANTE responsabiliza-se pela conservação dos materiais.", "4. PAGAMENTO: O restante deve ser pago até a data do evento.", "5. MONTAGEM: O local deve estar liberado no horário combinado." ]; clauses.forEach(clause => { const lines = doc.splitTextToSize(clause, 170); doc.text(lines, 20, y); y += (lines.length * 4) + 2; if (y > 230) { doc.addPage(); y = 20; } }); if (y > 230) { doc.addPage(); y = 40; } else { y += 20; } if (app.clientSignature) { doc.addImage(app.clientSignature, 'PNG', 115, y - 15, 60, 20); } if (company.signature) { doc.addImage(company.signature, 'PNG', 25, y - 15, 60, 20); } doc.line(20, y, 90, y); doc.line(110, y, 180, y); doc.text("CONTRATADA", 55, y + 5, {align: "center"}); doc.text("CONTRATANTE", 145, y + 5, {align: "center"}); } else { y += 20; doc.setFontSize(8); doc.text("* Este documento é apenas um orçamento.", 105, y, {align: "center"}); } doc.save(`Doc_${cli.name.replace(/ /g, '_')}.pdf`); };
+        const generateContractPDF = () => { 
+            const { jsPDF } = window.jspdf; const doc = new jsPDF(); const app = currentReceipt.value; const cli = clientCache[app.clientId] || {name:'...',cpf:'...', phone: '', email: ''};
+            let docTitle = "CONTRATO DE PRESTAÇÃO DE SERVIÇOS"; if(app.status === 'budget') docTitle = "ORÇAMENTO";
+            doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text(company.fantasia.toUpperCase(), 105, 20, {align: "center"});
+            doc.setFontSize(10); doc.setFont("helvetica", "normal"); let headerY = 26;
+            if (company.cnpj) { doc.text(`CNPJ: ${company.cnpj}`, 105, headerY, {align: "center"}); headerY += 5; }
+            doc.text(`${company.rua} - ${company.bairro}`, 105, headerY, {align: "center"}); headerY += 5; doc.text(`${company.cidade}/${company.estado} - Tel: ${company.phone}`, 105, headerY, {align: "center"});
+            doc.line(20, headerY + 5, 190, headerY + 5); doc.setFontSize(14); doc.setFont("helvetica", "bold"); doc.text(docTitle, 105, headerY + 15, {align:"center"});
+            let y = headerY + 25; doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.text("CONTRATANTE:", 20, y); y += 5; doc.setFont("helvetica", "normal"); doc.text(`Nome: ${cli.name} | CPF: ${cli.cpf || '-'}`, 20, y); y += 5; doc.text(`Tel: ${cli.phone} | E-mail: ${cli.email || '-'}`, 20, y);
+            y += 10; doc.setFont("helvetica", "bold"); doc.text("EVENTO:", 20, y); y += 5; doc.setFont("helvetica", "normal"); doc.text(`Data: ${formatDate(app.date)} | Hora: ${app.time}`, 20, y); y += 5; doc.text(`Local: ${app.location.bairro}`, 20, y); if(app.details.balloonColors) { y += 5; doc.text(`Cores: ${app.details.balloonColors}`, 20, y); }
+            y += 10; const body = app.selectedServices.map(s => [s.description, formatCurrency(s.price)]); doc.autoTable({ startY: y, head: [['Descrição', 'Valor']], body: body, theme: 'grid', headStyles: { fillColor: [60, 60, 60] }, margin: { left: 20, right: 20 } });
+            y = doc.lastAutoTable.finalY + 10; doc.setFont("helvetica", "bold"); doc.text(`TOTAL: ${formatCurrency(app.totalServices)}`, 140, y, {align: "right"}); y += 5; doc.text(`SINAL: ${formatCurrency(app.entryFee)}`, 140, y, {align: "right"}); y += 5; doc.text(`RESTANTE: ${formatCurrency(app.finalBalance)}`, 140, y, {align: "right"});
+            
+            if (app.status !== 'budget') {
+                y += 15; doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.text("CLÁUSULAS E CONDIÇÕES:", 20, y); y += 5; doc.setFont("helvetica", "normal");
+                const clauses = [ "1. RESERVA: O pagamento do sinal garante a reserva da data.", "2. DESISTÊNCIA: Em caso de cancelamento com menos de 15 dias, o sinal não será devolvido.", "3. DANOS: O CONTRATANTE responsabiliza-se pela conservação dos materiais.", "4. PAGAMENTO: O restante deve ser pago até a data do evento.", "5. MONTAGEM: O local deve estar liberado no horário combinado." ];
+                clauses.forEach(clause => { const lines = doc.splitTextToSize(clause, 170); doc.text(lines, 20, y); y += (lines.length * 4) + 2; if (y > 230) { doc.addPage(); y = 20; } });
+                if (y > 230) { doc.addPage(); y = 40; } else { y += 20; }
+                if (app.clientSignature) { doc.addImage(app.clientSignature, 'PNG', 115, y - 15, 60, 20); }
+                if (company.signature) { doc.addImage(company.signature, 'PNG', 25, y - 15, 60, 20); }
+                doc.line(20, y, 90, y); doc.line(110, y, 180, y); doc.text("CONTRATADA", 55, y + 5, {align: "center"}); doc.text("CONTRATANTE", 145, y + 5, {align: "center"}); 
+            } else { y += 20; doc.setFontSize(8); doc.text("* Este documento é apenas um orçamento.", 105, y, {align: "center"}); }
+            doc.save(`Doc_${cli.name.replace(/ /g, '_')}.pdf`);
+        };
 
         const saveAsBudget = async () => { const appData = { ...JSON.parse(JSON.stringify(tempApp)), totalServices: totalServices.value, finalBalance: finalBalance.value, userId: user.value.uid, status: 'budget' }; if(!appData.checklist.length) appData.checklist = [{text:'Materiais', done:false}]; if (isEditing.value && editingId.value) await updateDoc(doc(db, "appointments", editingId.value), appData); else await addDoc(collection(db, "appointments"), appData); showAppointmentModal.value = false; Swal.fire('Orçamento Criado!', 'Ver na aba Orçamentos.', 'success'); };
         const approveBudget = async (app) => { const { isConfirmed } = await Swal.fire({ title: 'Aprovar Orçamento?', text: 'Mover para Agenda?', icon: 'question', showCancelButton: true, confirmButtonColor: '#4F46E5' }); if (isConfirmed) { await updateDoc(doc(db, "appointments", app.id), { status: 'pending' }); Swal.fire('Aprovado!', '', 'success'); view.value = 'schedule'; } };
@@ -370,9 +273,11 @@ createApp({
             catalogClientsList, catalogClientSearch, searchCatalogClients, openClientModal, deleteClient, currentReceipt, showReceipt, showReceiptModal,
             company, handleLogoUpload, saveCompany, downloadReceiptImage, generateContractPDF, openWhatsApp, formatCurrency, formatDate, getDay, getMonth, statusText, getClientName, 
             toggleDarkMode, expenseCategories, expensesByCategoryStats, agendaTab, agendaFilter, searchHistory, changeStatus, registrationTab, kpiPendingReceivables, totalAppointmentsCount, topExpenseCategory, getCategoryIcon, maskPhone, maskCPF,
-            loginMode, clientAccessInput, handleClientAccess, clientData, clientAppointments, logoutClient, openWhatsAppSupport, downloadClientReceipt, showSignatureModal, openSignatureModal, clearSignature, saveSignature, 
+            
+            // FUNÇÕES EXPORTADAS
             copyClientLink, budgetList, saveAsBudget, approveBudget, pendingAppointments,
-            handleAccessInput, switchToProvider
+            openSignatureModal, clearSignature, saveSignature, showSignatureModal, // Para assinatura do admin
+            downloadClientReceipt // Admin também pode baixar
         };
     }
 }).mount('#app');
