@@ -22,7 +22,7 @@ createApp({
         // Empresa
         const company = reactive({ fantasia: '', logo: '', signature: '', cnpj: '', email: '', phone: '', rua: '', bairro: '', cidade: '', estado: '' });
 
-        // Dados e Listas
+        // Dados
         const dashboardMonth = ref(new Date().toISOString().slice(0, 7));
         const isLoadingDashboard = ref(false);
         const services = ref([]);
@@ -36,8 +36,8 @@ createApp({
         const clientCache = reactive({});
         const isExtractLoaded = ref(false); 
         
-        // Estado da Aba Financeiro
-        const financeTab = ref('extract'); 
+        // Estado Financeiro (Abas)
+        const financeTab = ref('extract');
 
         // Filtros
         const dateNow = new Date();
@@ -94,7 +94,7 @@ createApp({
                 if (u) {
                     if (u.isAnonymous) { isGlobalLoading.value = false; return; }
                     await loadDashboardData();
-                    searchExpenses(); 
+                    searchExpenses(); // Carrega financeiro inicial
                     syncData();
                     const uDoc = await getDoc(doc(db, "users", u.uid));
                     if (uDoc.exists() && uDoc.data().companyConfig) Object.assign(company, uDoc.data().companyConfig);
@@ -103,7 +103,7 @@ createApp({
             });
         });
 
-        // --- COMPUTEDS ---
+        // --- COMPUTEDS & HELPERS ---
         const toNum = (v) => { if(!v) return 0; if(typeof v==='number') return v; const c=String(v).replace(',','.').replace(/[^0-9.-]/g,''); return parseFloat(c)||0; };
         const formatCurrency = (v) => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(toNum(v));
         const formatDate = (d) => { if(!d) return ''; try{return d.split('-').reverse().join('/');}catch(e){return d;} };
@@ -120,7 +120,7 @@ createApp({
             return expensesList.value.sort((a, b) => b.date.localeCompare(a.date)); 
         });
 
-        // SUMÁRIO FILTRADO (Substitui o antigo financeSummary)
+        // SUMÁRIO FILTRADO (Substitui financeSummary)
         const filteredSummary = computed(() => {
             const list = statementList.value;
             const income = list.filter(i => i.type === 'income').reduce((acc, i) => acc + toNum(i.value), 0);
@@ -166,10 +166,15 @@ createApp({
         
         const filteredListAppointments = computed(() => { 
             let list = [];
-            if (agendaTab.value === 'pending') { list = pendingAppointments.value; if(clientSearchTerm.value) list = list.filter(a => getClientName(a.clientId).toLowerCase().includes(clientSearchTerm.value.toLowerCase())); } 
-            else { list = historyList.value; }
+            if (agendaTab.value === 'pending') { 
+                list = pendingAppointments.value; 
+                if(clientSearchTerm.value) list = list.filter(a => getClientName(a.clientId).toLowerCase().includes(clientSearchTerm.value.toLowerCase())); 
+            } else { 
+                list = historyList.value; 
+            }
             return list.sort((a,b) => a.date.localeCompare(b.date)); 
         });
+        
         const filteredClientsSearch = computed(() => scheduleClientsList.value);
 
         // --- FIREBASE OPS ---
@@ -179,6 +184,7 @@ createApp({
         
         const loadDashboardData = async () => { if (!user.value) return; isLoadingDashboard.value = true; try { const [y, m] = dashboardMonth.value.split('-'); const startStr = `${year}-${month}-01`; const endStr = `${year}-${month}-31`; const qApps = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("date", ">=", startStr), where("date", "<=", endStr)); const qExp = query(collection(db, "expenses"), where("userId", "==", user.value.uid), where("date", ">=", startStr), where("date", "<=", endStr)); const [sA, sE] = await Promise.all([getDocs(qApps), getDocs(qExp)]); dashboardData.appointments = sA.docs.map(sanitizeApp).filter(a => a.status !== 'cancelled' && a.status !== 'budget'); dashboardData.expenses = sE.docs.map(sanitizeExpense); dashboardData.appointments.forEach(a => fetchClientToCache(a.clientId)); } catch(e){} finally { isLoadingDashboard.value = false; } };
         const syncData = () => { const myId = user.value.uid; onSnapshot(query(collection(db, "services"), where("userId", "==", myId)), (snap) => services.value = snap.docs.map(d => ({ id: d.id, ...d.data() }))); onSnapshot(query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "pending")), (snap) => { pendingAppointments.value = snap.docs.map(sanitizeApp); pendingAppointments.value.forEach(a => fetchClientToCache(a.clientId)); }); onSnapshot(query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "budget")), (snap) => { budgetList.value = snap.docs.map(sanitizeApp); budgetList.value.forEach(a => fetchClientToCache(a.clientId)); }); };
+        
         const searchHistory = async () => { if(!agendaFilter.start || !agendaFilter.end) return Swal.fire('Atenção', 'Selecione datas', 'warning'); const q = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("status", "==", agendaTab.value), where("date", ">=", agendaFilter.start), where("date", "<=", agendaFilter.end)); const snap = await getDocs(q); historyList.value = snap.docs.map(sanitizeApp); historyList.value.forEach(a => fetchClientToCache(a.clientId)); };
         
         const searchExpenses = async () => { 
@@ -241,7 +247,9 @@ createApp({
 
         return {
             user, view, isDark, authForm, authLoading, isRegistering, handleAuth, logout, isGlobalLoading,
-            dashboardMonth, financeData, next7DaysApps, statementList, isExtractLoaded, financeSummary, expensesFilter, searchExpenses,
+            dashboardMonth, financeData, next7DaysApps, statementList, isExtractLoaded, 
+            filteredSummary, // USAR ESTE AGORA NO LUGAR DO ANTIGO FINANCE SUMMARY
+            expensesFilter, searchExpenses,
             showExpenseModal, newExpense, addExpense: saveExpenseLogic, saveExpenseLogic, openNewExpense, openEditExpense, deleteExpense, editingExpenseId,
             startNewSchedule, editAppointment, saveAppointment, showAppointmentModal, showClientModal, showServiceModal, newService, saveService, deleteService,
             newClient, saveClient, tempApp, tempServiceSelect, services, totalServices, finalBalance, isEditing, clientSearchTerm, filteredClientsSearch, selectClient,
@@ -254,7 +262,7 @@ createApp({
             copyClientLink, budgetList, saveAsBudget, approveBudget, pendingAppointments,
             openSignatureModal, clearSignature, saveSignature, showSignatureModal, 
             downloadClientReceipt,
-            financeTab, rankingData, filteredSummary // Exports para o Financeiro
+            financeTab, rankingData
         };
     }
 }).mount('#app');
