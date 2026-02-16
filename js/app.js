@@ -4,14 +4,14 @@ import {
     db, auth, 
     collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDocs, query, where, setDoc, getDoc, 
     signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged,
-    updateProfile, signInAnonymously // <--- 1. IMPORTAR AQUI
+    updateProfile, signInAnonymously // Importante: Login Anônimo
 } from './firebase.js';
 
 createApp({
     setup() {
-        // ... (Mantenha todas as variáveis de estado igual ao anterior) ...
-        // Vou replicar a estrutura para facilitar a cópia
-        
+        // ============================================================
+        // 1. ESTADO GLOBAL
+        // ============================================================
         const user = ref(null);
         const view = ref('dashboard');
         const isDark = ref(false);
@@ -20,20 +20,27 @@ createApp({
         const isGlobalLoading = ref(true);
         const authForm = reactive({ email: '', password: '', name: '' });
         
-        const company = reactive({ fantasia: '', logo: '', signature: '', cnpj: '', email: '', phone: '', rua: '', bairro: '', cidade: '', estado: '' });
+        // Configurações da Empresa
+        const company = reactive({ 
+            fantasia: '', logo: '', signature: '', 
+            cnpj: '', email: '', phone: '', rua: '', bairro: '', cidade: '', estado: '' 
+        });
+
+        // Dashboard e Listas
         const dashboardMonth = ref(new Date().toISOString().slice(0, 7));
         const isLoadingDashboard = ref(false);
-        
         const services = ref([]);
         const pendingAppointments = ref([]);
         const budgetList = ref([]); 
         const historyList = ref([]);
-        const expensesList = ref([]);
+        const expensesList = ref([]); 
         const dashboardData = reactive({ appointments: [], expenses: [] });
         const catalogClientsList = ref([]);
         const scheduleClientsList = ref([]);
+        
+        // Cache e Filtros
         const clientCache = reactive({});
-        const isExtractLoaded = ref(false);
+        const isExtractLoaded = ref(false); 
         const expensesFilter = reactive({ start: '', end: '' });
         const agendaFilter = reactive({ start: '', end: '' });
         const clientSearchTerm = ref('');
@@ -44,6 +51,8 @@ createApp({
         const selectedCalendarDate = ref(null);
         const registrationTab = ref('clients');
         const agendaTab = ref('pending');
+
+        // Modais
         const showAppointmentModal = ref(false);
         const showClientModal = ref(false);
         const showServiceModal = ref(false);
@@ -53,11 +62,15 @@ createApp({
         const editingId = ref(null);
         const editingExpenseId = ref(null);
         const currentReceipt = ref(null);
+
+        // Forms e Objetos Temporários
         const newClient = reactive({ name: '', phone: '', cpf: '', email: '' });
         const newService = reactive({ description: '', price: '' });
         const newExpense = reactive({ description: '', value: '', date: new Date().toISOString().split('T')[0], category: 'outros' });
         const tempServiceSelect = ref('');
         const tempApp = reactive({ clientId: '', date: '', time: '', location: { bairro: '' }, details: { entryFee: 0, balloonColors: '' }, notes: '', selectedServices: [], checklist: [] });
+
+        // --- PORTAL DO CLIENTE ---
         const loginMode = ref('provider'); 
         const clientAccessInput = ref('');
         const clientData = ref(null);
@@ -77,6 +90,9 @@ createApp({
             { id: 'outros', label: 'Outras', icon: 'fa-money-bill' }
         ];
 
+        // ============================================================
+        // 2. INICIALIZAÇÃO
+        // ============================================================
         onMounted(async () => {
             const params = new URLSearchParams(window.location.search);
             if (params.get('acesso') === 'cliente') {
@@ -96,12 +112,12 @@ createApp({
             onAuthStateChanged(auth, async (u) => {
                 user.value = u;
                 if (u) {
-                    // <--- 3. CORREÇÃO AQUI: Se for anônimo (cliente), não carrega dashboard de decorador
+                    // Se for cliente (login anônimo), não carrega o painel administrativo
                     if (u.isAnonymous) {
                         isGlobalLoading.value = false;
-                        return; 
+                        return;
                     }
-                    
+
                     await loadDashboardData();
                     syncData();
                     const uDoc = await getDoc(doc(db, "users", u.uid));
@@ -111,7 +127,9 @@ createApp({
             });
         });
 
-        // Helpers e Computed (Mantidos)
+        // ============================================================
+        // 3. COMPUTED & HELPERS
+        // ============================================================
         const toNum = (v) => { if(!v) return 0; if(typeof v==='number') return v; const c=String(v).replace(',','.').replace(/[^0-9.-]/g,''); return parseFloat(c)||0; };
         const formatCurrency = (v) => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(toNum(v));
         const formatDate = (d) => { if(!d) return ''; try{return d.split('-').reverse().join('/');}catch(e){return d;} };
@@ -120,60 +138,219 @@ createApp({
         const statusText = (s) => s === 'budget' ? 'Orçamento' : (s==='concluded'?'Concluído':(s==='cancelled'?'Cancelado':'Pendente'));
         const getClientName = (id) => clientCache[id]?.name || 'Cliente';
         const getCategoryIcon = (id) => expenseCategories.find(c=>c.id===id)?.icon || 'fa-tag';
+        
+        // Máscaras Gerais
         const maskPhone = (v) => { if(!v) return ""; v=v.replace(/\D/g,"").replace(/^(\d{2})(\d)/g,"($1) $2").replace(/(\d)(\d{4})$/,"$1-$2"); return v; };
         const maskCPF = (v) => { if(!v) return ""; v=v.replace(/\D/g,"").replace(/(\d{3})(\d)/,"$1.$2").replace(/(\d{3})(\d)/,"$1.$2").replace(/(\d{3})(\d{1,2})$/,"$1-$2"); return v; };
 
-        const statementList = computed(() => { if (!isExtractLoaded.value) return []; return expensesList.value.sort((a, b) => b.date.localeCompare(a.date)); });
+        // --- MÁSCARA INTELIGENTE DO LOGIN (NOVO) ---
+        const handleAccessInput = (e) => {
+            let val = e.target.value;
+            // Se o primeiro caractere for número, aplica máscara de CPF
+            if (/^\d/.test(val)) {
+                val = val.replace(/\D/g, ""); // Remove tudo que não é dígito
+                if (val.length > 11) val = val.slice(0, 11); // Limita a 11 dígitos
+                
+                val = val.replace(/(\d{3})(\d)/, "$1.$2");
+                val = val.replace(/(\d{3})(\d)/, "$1.$2");
+                val = val.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+            }
+            // Se não for número (ex: e-mail), deixa como está
+            clientAccessInput.value = val;
+        };
+
+        // Computeds
+        const statementList = computed(() => { 
+            if (!isExtractLoaded.value) return []; 
+            return expensesList.value.sort((a, b) => b.date.localeCompare(a.date)); 
+        });
+        
         const financeSummary = computed(() => statementList.value.reduce((acc, item) => item.type === 'income' ? acc + item.value : acc - item.value, 0));
         const totalServices = computed(() => tempApp.selectedServices.reduce((s,i) => s + toNum(i.price), 0));
         const finalBalance = computed(() => totalServices.value - toNum(tempApp.details.entryFee));
+        
         const kpiRevenue = computed(() => dashboardData.appointments.filter(a => a.status !== 'budget').reduce((acc, a) => acc + toNum(a.totalServices), 0));
         const kpiExpenses = computed(() => dashboardData.expenses.reduce((acc, e) => acc + toNum(e.value), 0));
         const financeData = computed(() => ({ revenue: kpiRevenue.value, expenses: kpiExpenses.value, profit: kpiRevenue.value - kpiExpenses.value }));
         const kpiPendingReceivables = computed(() => dashboardData.appointments.filter(a => a.status === 'pending').reduce((acc, a) => acc + toNum(a.finalBalance), 0));
         const totalAppointmentsCount = computed(() => dashboardData.appointments.filter(a => a.status !== 'budget').length);
-        const expensesByCategoryStats = computed(() => { if (!dashboardData.expenses.length) return []; return expenseCategories.map(cat => { const total = dashboardData.expenses.filter(e => e.category === cat.id).reduce((sum, e) => sum + toNum(e.value), 0); return { ...cat, total }; }).filter(c => c.total > 0).sort((a, b) => b.total - a.total); });
+
+        const expensesByCategoryStats = computed(() => { 
+            if (!dashboardData.expenses.length) return []; 
+            return expenseCategories.map(cat => { 
+                const total = dashboardData.expenses.filter(e => e.category === cat.id).reduce((sum, e) => sum + toNum(e.value), 0); 
+                return { ...cat, total }; 
+            }).filter(c => c.total > 0).sort((a, b) => b.total - a.total); 
+        });
         const topExpenseCategory = computed(() => expensesByCategoryStats.value[0] || null);
-        const next7DaysApps = computed(() => { const today = new Date().toISOString().split('T')[0]; return pendingAppointments.value.filter(a => a.date >= today).sort((a,b) => a.date.localeCompare(b.date)).slice(0,6); });
-        const calendarGrid = computed(() => { const year = calendarCursor.value.getFullYear(); const month = calendarCursor.value.getMonth(); const firstDay = new Date(year, month, 1).getDay(); const daysInMonth = new Date(year, month + 1, 0).getDate(); const days = []; for (let i = 0; i < firstDay; i++) days.push({ day: '', date: null }); for (let i = 1; i <= daysInMonth; i++) { const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`; days.push({ day: i, date: dateStr, hasEvent: pendingAppointments.value.some(a => a.date === dateStr) }); } return days; });
+
+        const next7DaysApps = computed(() => {
+            const today = new Date().toISOString().split('T')[0];
+            return pendingAppointments.value.filter(a => a.date >= today).sort((a,b) => a.date.localeCompare(b.date)).slice(0,6);
+        });
+
+        const calendarGrid = computed(() => {
+            const year = calendarCursor.value.getFullYear(); const month = calendarCursor.value.getMonth();
+            const firstDay = new Date(year, month, 1).getDay(); const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const days = [];
+            for (let i = 0; i < firstDay; i++) days.push({ day: '', date: null });
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                days.push({ day: i, date: dateStr, hasEvent: pendingAppointments.value.some(a => a.date === dateStr) });
+            }
+            return days;
+        });
         const appointmentsOnSelectedDate = computed(() => pendingAppointments.value.filter(a => a.date === selectedCalendarDate.value));
         const calendarTitle = computed(() => `${['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'][calendarCursor.value.getMonth()]} ${calendarCursor.value.getFullYear()}`);
-        const filteredListAppointments = computed(() => { let list = agendaTab.value === 'pending' ? pendingAppointments.value : historyList.value; if(clientSearchTerm.value) list = list.filter(a => getClientName(a.clientId).toLowerCase().includes(clientSearchTerm.value.toLowerCase())); return list.sort((a,b) => a.date.localeCompare(b.date)); });
+        
+        const filteredListAppointments = computed(() => { 
+            let list = agendaTab.value === 'pending' ? pendingAppointments.value : historyList.value;
+            if(clientSearchTerm.value) list = list.filter(a => getClientName(a.clientId).toLowerCase().includes(clientSearchTerm.value.toLowerCase())); 
+            return list.sort((a,b) => a.date.localeCompare(b.date)); 
+        });
         const filteredClientsSearch = computed(() => scheduleClientsList.value);
 
-        // Firebase Data
-        const fetchClientToCache = async (id) => { if (!id || clientCache[id]) return; try { const s = await getDoc(doc(db, "clients", id)); if (s.exists()) clientCache[id] = s.data(); } catch (e) {} };
-        const sanitizeApp = (d) => { const data = d.data ? d.data() : d; return { id: d.id || data.id, ...data, selectedServices: Array.isArray(data.selectedServices) ? data.selectedServices : [], details: { ...(data.details || {}), balloonColors: data.details?.balloonColors || '' }, checklist: data.checklist || [], clientSignature: data.clientSignature || '' }; };
-        const sanitizeExpense = (d) => { const data=d.data?d.data():d; return {id:d.id||data.id,...data,value:toNum(data.value)}; };
-        const loadDashboardData = async () => { if (!user.value) return; isLoadingDashboard.value = true; const [y, m] = dashboardMonth.value.split('-'); const qApps = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("date", ">=", `${y}-${m}-01`), where("date", "<=", `${y}-${m}-31`)); const qExp = query(collection(db, "expenses"), where("userId", "==", user.value.uid), where("date", ">=", `${y}-${m}-01`), where("date", "<=", `${y}-${m}-31`)); const [sA, sE] = await Promise.all([getDocs(qApps), getDocs(qExp)]); dashboardData.appointments = sA.docs.map(sanitizeApp).filter(a => a.status !== 'cancelled' && a.status !== 'budget'); dashboardData.expenses = sE.docs.map(sanitizeExpense); dashboardData.appointments.forEach(a => fetchClientToCache(a.clientId)); isLoadingDashboard.value = false; };
-        const syncData = () => { const myId = user.value.uid; onSnapshot(query(collection(db, "services"), where("userId", "==", myId)), (snap) => services.value = snap.docs.map(d => ({ id: d.id, ...d.data() }))); onSnapshot(query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "pending")), (snap) => { pendingAppointments.value = snap.docs.map(sanitizeApp); pendingAppointments.value.forEach(a => fetchClientToCache(a.clientId)); }); onSnapshot(query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "budget")), (snap) => { budgetList.value = snap.docs.map(sanitizeApp); budgetList.value.forEach(a => fetchClientToCache(a.clientId)); }); };
-        const searchExpenses = async () => { if(!expensesFilter.start || !expensesFilter.end) return Swal.fire('Data', 'Selecione o período', 'info'); const qExp = query(collection(db, "expenses"), where("userId", "==", user.value.uid), where("date", ">=", expensesFilter.start), where("date", "<=", expensesFilter.end)); const snapExp = await getDocs(qExp); const loadedExpenses = snapExp.docs.map(d => ({ ...sanitizeExpense(d), type: 'expense', icon: 'fa-arrow-down', color: 'text-red-500' })); const qApp = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("date", ">=", expensesFilter.start), where("date", "<=", expensesFilter.end)); const snapApp = await getDocs(qApp); const loadedIncome = snapApp.docs.map(d => sanitizeApp(d)).filter(a => a.status !== 'budget').map(app => { return { id: app.id, date: app.date, value: app.totalServices, description: `Receita: ${getClientName(app.clientId)}`, type: 'income', icon: 'fa-arrow-up', color: 'text-green-500' }; }); expensesList.value = [...loadedExpenses, ...loadedIncome]; isExtractLoaded.value = true; };
-        const searchHistory = async () => { if(!agendaFilter.start || !agendaFilter.end) return Swal.fire('Atenção', 'Selecione datas', 'warning'); const q = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("status", "==", agendaTab.value), where("date", ">=", agendaFilter.start), where("date", "<=", agendaFilter.end)); const snap = await getDocs(q); historyList.value = snap.docs.map(sanitizeApp); historyList.value.forEach(a => fetchClientToCache(a.clientId)); };
-        const searchCatalogClients = async () => { const q = query(collection(db, "clients"), where("userId", "==", user.value.uid)); const snap = await getDocs(q); catalogClientsList.value = snap.docs.map(d => ({id: d.id, ...d.data()})).filter(c => c.name.toLowerCase().includes(catalogClientSearch.value.toLowerCase())); };
+        // ============================================================
+        // 4. FIREBASE DATA
+        // ============================================================
+        const fetchClientToCache = async (id) => {
+            if (!id || clientCache[id]) return;
+            try { const s = await getDoc(doc(db, "clients", id)); if (s.exists()) clientCache[id] = s.data(); else clientCache[id] = { name: 'Excluído', phone: '-' }; } catch (e) {}
+        };
 
-        // ACTIONS
-        const handleAuth = async () => { authLoading.value = true; try { if (isRegistering.value) { const res = await createUserWithEmailAndPassword(auth, authForm.email, authForm.password); await setDoc(doc(db, "users", res.user.uid), { email: authForm.email, role: 'user', createdAt: new Date().toISOString(), companyConfig: { fantasia: authForm.name || 'Minha Empresa', email: authForm.email } }); } else { await signInWithEmailAndPassword(auth, authForm.email, authForm.password); } } catch (e) { Swal.fire('Ops', 'Erro no login.', 'error'); } finally { authLoading.value = false; } };
-        
-        // --- 2. CORREÇÃO AQUI: Login Anônimo para o Cliente ---
+        const sanitizeApp = (d) => {
+            const data = d.data ? d.data() : d;
+            return { 
+                id: d.id || data.id, ...data, 
+                selectedServices: Array.isArray(data.selectedServices) ? data.selectedServices : [], 
+                details: { ...(data.details || {}), balloonColors: data.details?.balloonColors || '' }, 
+                checklist: data.checklist || [],
+                clientSignature: data.clientSignature || ''
+            };
+        };
+        const sanitizeExpense = (d) => { const data=d.data?d.data():d; return {id:d.id||data.id,...data,value:toNum(data.value)}; };
+
+        const loadDashboardData = async () => {
+            if (!user.value) return;
+            isLoadingDashboard.value = true;
+            try {
+                const [year, month] = dashboardMonth.value.split('-');
+                const startStr = `${year}-${month}-01`;
+                const lastDay = new Date(year, month, 0).getDate();
+                const endStr = `${year}-${month}-${lastDay}`;
+                const qApps = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("date", ">=", startStr), where("date", "<=", endStr));
+                const qExp = query(collection(db, "expenses"), where("userId", "==", user.value.uid), where("date", ">=", startStr), where("date", "<=", endStr));
+                const [snapApps, snapExp] = await Promise.all([getDocs(qApps), getDocs(qExp)]);
+                dashboardData.appointments = snapApps.docs.map(sanitizeApp).filter(a => a.status !== 'cancelled' && a.status !== 'budget');
+                dashboardData.expenses = snapExp.docs.map(sanitizeExpense);
+                dashboardData.appointments.forEach(a => fetchClientToCache(a.clientId));
+            } catch (e) { console.error(e); } finally { isLoadingDashboard.value = false; }
+        };
+
+        const syncData = () => {
+            const myId = user.value.uid;
+            onSnapshot(query(collection(db, "services"), where("userId", "==", myId)), (snap) => services.value = snap.docs.map(d => ({ id: d.id, ...d.data() })));
+            onSnapshot(query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "pending")), (snap) => {
+                pendingAppointments.value = snap.docs.map(sanitizeApp);
+                pendingAppointments.value.forEach(a => fetchClientToCache(a.clientId));
+            });
+            onSnapshot(query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "budget")), (snap) => {
+                budgetList.value = snap.docs.map(sanitizeApp);
+                budgetList.value.forEach(a => fetchClientToCache(a.clientId));
+            });
+        };
+
+        const searchExpenses = async () => {
+            if(!expensesFilter.start || !expensesFilter.end) return Swal.fire('Data', 'Selecione o período', 'info');
+            const qExp = query(collection(db, "expenses"), where("userId", "==", user.value.uid), where("date", ">=", expensesFilter.start), where("date", "<=", expensesFilter.end));
+            const snapExp = await getDocs(qExp);
+            const loadedExpenses = snapExp.docs.map(d => ({ ...sanitizeExpense(d), type: 'expense', icon: 'fa-arrow-down', color: 'text-red-500' }));
+            const qApp = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("date", ">=", expensesFilter.start), where("date", "<=", expensesFilter.end));
+            const snapApp = await getDocs(qApp);
+            const loadedIncome = snapApp.docs.map(d => sanitizeApp(d)).filter(a => a.status !== 'budget').map(app => { return { id: app.id, date: app.date, value: app.totalServices, description: `Receita: ${getClientName(app.clientId)}`, type: 'income', icon: 'fa-arrow-up', color: 'text-green-500' }; });
+            expensesList.value = [...loadedExpenses, ...loadedIncome]; isExtractLoaded.value = true;
+        };
+
+        const searchHistory = async () => {
+            if(!agendaFilter.start || !agendaFilter.end) return Swal.fire('Atenção', 'Selecione datas', 'warning');
+            const q = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("status", "==", agendaTab.value), where("date", ">=", agendaFilter.start), where("date", "<=", agendaFilter.end));
+            const snap = await getDocs(q);
+            historyList.value = snap.docs.map(sanitizeApp);
+            historyList.value.forEach(a => fetchClientToCache(a.clientId));
+        };
+
+        const searchCatalogClients = async () => { 
+            const q = query(collection(db, "clients"), where("userId", "==", user.value.uid)); 
+            const snap = await getDocs(q); 
+            catalogClientsList.value = snap.docs.map(d => ({id: d.id, ...d.data()})).filter(c => c.name.toLowerCase().includes(catalogClientSearch.value.toLowerCase())); 
+        };
+
+        // ============================================================
+        // 5. ACTIONS
+        // ============================================================
+        const handleAuth = async () => {
+            if (!authForm.email || !authForm.password) return Swal.fire('Atenção', 'Preencha todos os campos.', 'warning');
+            authLoading.value = true;
+            try {
+                if (isRegistering.value) {
+                    const res = await createUserWithEmailAndPassword(auth, authForm.email, authForm.password);
+                    await setDoc(doc(db, "users", res.user.uid), { 
+                        email: authForm.email, role: 'user', createdAt: new Date().toISOString(), 
+                        companyConfig: { fantasia: authForm.name || 'Minha Empresa', email: authForm.email } 
+                    });
+                    await Swal.fire({ title: 'Sucesso!', text: 'Conta criada!', icon: 'success', timer: 2000, showConfirmButton: false });
+                } else {
+                    await signInWithEmailAndPassword(auth, authForm.email, authForm.password);
+                    Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, timerProgressBar: true }).fire({ icon: 'success', title: 'Login realizado' });
+                }
+            } catch (error) { Swal.fire('Ops!', 'Erro ao entrar.', 'error'); } finally { authLoading.value = false; }
+        };
+
+        // --- ACESSO CLIENTE COM LOGIN ANÔNIMO ---
         const handleClientAccess = async () => {
             if (!clientAccessInput.value) return Swal.fire('Erro', 'Digite CPF ou E-mail', 'warning');
             authLoading.value = true;
             try {
+                // 1. Garante que o cliente tenha um "Login Anônimo" para ter permissão de leitura/escrita
+                if (!auth.currentUser) {
+                    await signInAnonymously(auth);
+                }
+
                 const term = clientAccessInput.value.trim();
+                const numericTerm = term.replace(/\D/g, ''); // Apenas números
+                let formattedCPF = term;
+                
+                // Formata CPF se tiver 11 números e o user digitou sem pontuação
+                if (numericTerm.length === 11 && term.indexOf('.') === -1) {
+                    formattedCPF = numericTerm.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+                }
+                
                 let qConstraints = [];
+                // Se tiver UID no link, filtra por aquele decorador
                 if (targetProviderId.value) qConstraints.push(where("userId", "==", targetProviderId.value));
                 
+                // 1. Tenta buscar pelo termo digitado exato
                 let q = query(collection(db, "clients"), where("cpf", "==", term), ...qConstraints);
                 let snap = await getDocs(q);
-                if (snap.empty) { q = query(collection(db, "clients"), where("email", "==", term), ...qConstraints); snap = await getDocs(q); }
-                if (snap.empty) throw new Error();
+                
+                // 2. Se falhar e parecer um CPF, tenta o formato com pontos
+                if (snap.empty && numericTerm.length === 11) { 
+                    q = query(collection(db, "clients"), where("cpf", "==", formattedCPF), ...qConstraints); 
+                    snap = await getDocs(q); 
+                }
+                
+                // 3. Se falhar, tenta buscar por e-mail
+                if (snap.empty) { 
+                    q = query(collection(db, "clients"), where("email", "==", term), ...qConstraints); 
+                    snap = await getDocs(q); 
+                }
 
-                // LOGIN ANÔNIMO PARA PERMITIR WRITE (ASSINATURA)
-                await signInAnonymously(auth); 
+                if (snap.empty) throw new Error("Cadastro não encontrado.");
 
                 const clientDoc = snap.docs[0];
                 clientData.value = { id: clientDoc.id, ...clientDoc.data() };
                 
+                // Busca Agendamentos
                 let appQ = query(collection(db, "appointments"), where("clientId", "==", clientDoc.id));
                 if (targetProviderId.value) appQ = query(collection(db, "appointments"), where("clientId", "==", clientDoc.id), where("userId", "==", targetProviderId.value));
                 
@@ -181,14 +358,52 @@ createApp({
                 clientAppointments.value = snapApps.docs.map(sanitizeApp).filter(a => a.status !== 'cancelled').sort((a,b) => b.date.localeCompare(a.date));
                 view.value = 'client-portal';
                 
+                // Se não veio pelo link mas achou eventos, carrega a empresa do primeiro evento
                 if (clientAppointments.value.length > 0 && !targetProviderId.value) {
                     const uDoc = await getDoc(doc(db, "users", clientAppointments.value[0].userId));
                     if (uDoc.exists() && uDoc.data().companyConfig) Object.assign(company, uDoc.data().companyConfig);
                 }
-            } catch (e) { Swal.fire('Acesso Negado', 'Dados não encontrados.', 'error'); }
+            } catch (e) { 
+                console.error(e);
+                Swal.fire('Acesso Negado', 'Dados não encontrados.', 'error'); 
+            }
             finally { authLoading.value = false; }
         };
 
+        const copyClientLink = () => {
+            const url = `${window.location.origin}${window.location.pathname}?acesso=cliente&uid=${user.value.uid}`;
+            navigator.clipboard.writeText(url).then(() => Swal.fire('Copiado!', 'Link da sua área de cliente copiado.', 'success'));
+        };
+
+        const saveAppointment = async () => {
+            const data = { ...tempApp, totalServices: totalServices.value, finalBalance: finalBalance.value, userId: user.value.uid, status: 'pending' };
+            if (isEditing.value) await updateDoc(doc(db, "appointments", editingId.value), data);
+            else await addDoc(collection(db, "appointments"), data);
+            showAppointmentModal.value = false; loadDashboardData();
+        };
+
+        const showReceipt = (app) => { 
+            currentReceipt.value = sanitizeApp(app); 
+            showReceiptModal.value = true; 
+        };
+
+        // --- ASSINATURAS ---
+        let canvasContext = null; let isDrawing = false;
+        
+        const openSignatureModal = (target, mode = 'appointment') => { 
+            signatureApp.value = target; 
+            signatureMode.value = mode; 
+            showSignatureModal.value = true; 
+            setTimeout(() => initCanvas(), 100); 
+        };
+
+        const initCanvas = () => { const canvas = document.getElementById('signature-pad'); if(!canvas) return; const ratio = Math.max(window.devicePixelRatio || 1, 1); canvas.width = canvas.offsetWidth * ratio; canvas.height = canvas.offsetHeight * ratio; canvas.getContext("2d").scale(ratio, ratio); canvasContext = canvas.getContext('2d'); canvasContext.strokeStyle = "#000"; canvasContext.lineWidth = 2; canvas.addEventListener('mousedown', startDrawing); canvas.addEventListener('mousemove', draw); canvas.addEventListener('mouseup', stopDrawing); canvas.addEventListener('mouseout', stopDrawing); canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDrawing(e.touches[0]); }); canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e.touches[0]); }); canvas.addEventListener('touchend', (e) => { e.preventDefault(); stopDrawing(); }); };
+        const getPos = (e) => { const canvas = document.getElementById('signature-pad'); const rect = canvas.getBoundingClientRect(); return { x: e.clientX - rect.left, y: e.clientY - rect.top }; };
+        const startDrawing = (e) => { isDrawing = true; const pos = getPos(e); canvasContext.beginPath(); canvasContext.moveTo(pos.x, pos.y); };
+        const draw = (e) => { if(!isDrawing) return; const pos = getPos(e); canvasContext.lineTo(pos.x, pos.y); canvasContext.stroke(); };
+        const stopDrawing = () => { isDrawing = false; };
+        const clearSignature = () => { const canvas = document.getElementById('signature-pad'); canvasContext.clearRect(0, 0, canvas.width, canvas.height); };
+        
         const saveSignature = async () => { 
             const canvas = document.getElementById('signature-pad'); 
             const dataUrl = canvas.toDataURL(); 
@@ -199,45 +414,27 @@ createApp({
                     await updateDoc(doc(db, "users", user.value.uid), { companyConfig: company });
                     Swal.fire('Sucesso', 'Assinatura da empresa salva!', 'success');
                 } else {
-                    // O cliente agora está "logado" como anônimo, então tem permissão de escrita
                     await updateDoc(doc(db, "appointments", signatureApp.value.id), { 
                         clientSignature: dataUrl,
-                        status: 'pending' 
+                        status: 'pending' // Confirma ao assinar
                     }); 
                     const idx = clientAppointments.value.findIndex(a => a.id === signatureApp.value.id); 
                     if(idx !== -1) {
                         clientAppointments.value[idx].clientSignature = dataUrl; 
                         clientAppointments.value[idx].status = 'pending';
                     }
-                    Swal.fire('Sucesso', 'Assinado com sucesso!', 'success'); 
+                    Swal.fire('Sucesso', 'Contrato Assinado e Confirmado!', 'success'); 
                 }
                 showSignatureModal.value = false; 
-            } catch (e) { 
-                console.error(e);
-                Swal.fire('Erro', 'Erro ao salvar. Verifique se o Login Anônimo está ativado no Firebase.', 'error'); 
-            } 
+            } catch (e) { Swal.fire('Erro', 'Não salvou. Verifique conexão.', 'error'); } 
             finally { authLoading.value = false; } 
         };
 
-        // ... (Restante das funções mantidas iguais) ...
-        const copyClientLink = () => { const url = `${window.location.origin}${window.location.pathname}?acesso=cliente&uid=${user.value.uid}`; navigator.clipboard.writeText(url).then(() => Swal.fire('Copiado!', 'Link copiado.', 'success')); };
-        const saveAppointment = async () => { const data = { ...tempApp, totalServices: totalServices.value, finalBalance: finalBalance.value, userId: user.value.uid, status: 'pending' }; if (isEditing.value) await updateDoc(doc(db, "appointments", editingId.value), data); else await addDoc(collection(db, "appointments"), data); showAppointmentModal.value = false; loadDashboardData(); };
-        const showReceipt = (app) => { currentReceipt.value = sanitizeApp(app); showReceiptModal.value = true; };
-        const logout = () => { signOut(auth); window.location.href="index.html"; };
-        const logoutClient = () => { clientData.value = null; clientAppointments.value = []; clientAccessInput.value = ''; view.value = 'dashboard'; loginMode.value = 'provider'; signOut(auth); }; // Logout ao sair do portal
-        
-        // Assinatura Canvas e PDF
-        let canvasContext = null; let isDrawing = false;
-        const openSignatureModal = (target, mode = 'appointment') => { signatureApp.value = target; signatureMode.value = mode; showSignatureModal.value = true; setTimeout(() => initCanvas(), 100); };
-        const initCanvas = () => { const canvas = document.getElementById('signature-pad'); if(!canvas) return; const ratio = Math.max(window.devicePixelRatio || 1, 1); canvas.width = canvas.offsetWidth * ratio; canvas.height = canvas.offsetHeight * ratio; canvas.getContext("2d").scale(ratio, ratio); canvasContext = canvas.getContext('2d'); canvasContext.strokeStyle = "#000"; canvasContext.lineWidth = 2; canvas.addEventListener('mousedown', startDrawing); canvas.addEventListener('mousemove', draw); canvas.addEventListener('mouseup', stopDrawing); canvas.addEventListener('mouseout', stopDrawing); canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDrawing(e.touches[0]); }); canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e.touches[0]); }); canvas.addEventListener('touchend', (e) => { e.preventDefault(); stopDrawing(); }); };
-        const getPos = (e) => { const canvas = document.getElementById('signature-pad'); const rect = canvas.getBoundingClientRect(); return { x: e.clientX - rect.left, y: e.clientY - rect.top }; };
-        const startDrawing = (e) => { isDrawing = true; const pos = getPos(e); canvasContext.beginPath(); canvasContext.moveTo(pos.x, pos.y); };
-        const draw = (e) => { if(!isDrawing) return; const pos = getPos(e); canvasContext.lineTo(pos.x, pos.y); canvasContext.stroke(); };
-        const stopDrawing = () => { isDrawing = false; };
-        const clearSignature = () => { const canvas = document.getElementById('signature-pad'); canvasContext.clearRect(0, 0, canvas.width, canvas.height); };
-        
         const downloadClientReceipt = async (app) => { currentReceipt.value = app; if(!clientCache[app.clientId] && clientData.value) { clientCache[app.clientId] = clientData.value; } generateContractPDF(); };
         const generateContractPDF = () => { const { jsPDF } = window.jspdf; const doc = new jsPDF(); const app = currentReceipt.value; const cli = clientCache[app.clientId] || {name:'...',cpf:'...', phone: '', email: ''}; let docTitle = "CONTRATO DE PRESTAÇÃO DE SERVIÇOS"; if(app.status === 'budget') docTitle = "ORÇAMENTO"; doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text(company.fantasia.toUpperCase(), 105, 20, {align: "center"}); doc.setFontSize(10); doc.setFont("helvetica", "normal"); let headerY = 26; if (company.cnpj) { doc.text(`CNPJ: ${company.cnpj}`, 105, headerY, {align: "center"}); headerY += 5; } doc.text(`${company.rua} - ${company.bairro}`, 105, headerY, {align: "center"}); headerY += 5; doc.text(`${company.cidade}/${company.estado} - Tel: ${company.phone}`, 105, headerY, {align: "center"}); doc.line(20, headerY + 5, 190, headerY + 5); doc.setFontSize(14); doc.setFont("helvetica", "bold"); doc.text(docTitle, 105, headerY + 15, {align:"center"}); let y = headerY + 25; doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.text("CONTRATANTE:", 20, y); y += 5; doc.setFont("helvetica", "normal"); doc.text(`Nome: ${cli.name} | CPF: ${cli.cpf || '-'}`, 20, y); y += 5; doc.text(`Tel: ${cli.phone} | E-mail: ${cli.email || '-'}`, 20, y); y += 10; doc.setFont("helvetica", "bold"); doc.text("EVENTO:", 20, y); y += 5; doc.setFont("helvetica", "normal"); doc.text(`Data: ${formatDate(app.date)} | Hora: ${app.time}`, 20, y); y += 5; doc.text(`Local: ${app.location.bairro}`, 20, y); if(app.details.balloonColors) { y += 5; doc.text(`Cores: ${app.details.balloonColors}`, 20, y); } y += 10; const body = app.selectedServices.map(s => [s.description, formatCurrency(s.price)]); doc.autoTable({ startY: y, head: [['Descrição', 'Valor']], body: body, theme: 'grid', headStyles: { fillColor: [60, 60, 60] }, margin: { left: 20, right: 20 } }); y = doc.lastAutoTable.finalY + 10; doc.setFont("helvetica", "bold"); doc.text(`TOTAL: ${formatCurrency(app.totalServices)}`, 140, y, {align: "right"}); y += 5; doc.text(`SINAL: ${formatCurrency(app.entryFee)}`, 140, y, {align: "right"}); y += 5; doc.text(`RESTANTE: ${formatCurrency(app.finalBalance)}`, 140, y, {align: "right"}); if (app.status !== 'budget') { y += 15; doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.text("CLÁUSULAS E CONDIÇÕES:", 20, y); y += 5; doc.setFont("helvetica", "normal"); const clauses = [ "1. RESERVA: O pagamento do sinal garante a reserva da data.", "2. DESISTÊNCIA: Em caso de cancelamento com menos de 15 dias, o sinal não será devolvido.", "3. DANOS: O CONTRATANTE responsabiliza-se pela conservação dos materiais.", "4. PAGAMENTO: O restante deve ser pago até a data do evento.", "5. MONTAGEM: O local deve estar liberado no horário combinado." ]; clauses.forEach(clause => { const lines = doc.splitTextToSize(clause, 170); doc.text(lines, 20, y); y += (lines.length * 4) + 2; if (y > 230) { doc.addPage(); y = 20; } }); if (y > 230) { doc.addPage(); y = 40; } else { y += 20; } if (app.clientSignature) { doc.addImage(app.clientSignature, 'PNG', 115, y - 15, 60, 20); } if (company.signature) { doc.addImage(company.signature, 'PNG', 25, y - 15, 60, 20); } doc.line(20, y, 90, y); doc.line(110, y, 180, y); doc.text("CONTRATADA", 55, y + 5, {align: "center"}); doc.text("CONTRATANTE", 145, y + 5, {align: "center"}); } else { y += 20; doc.setFontSize(8); doc.text("* Este documento é apenas um orçamento.", 105, y, {align: "center"}); } doc.save(`Doc_${cli.name.replace(/ /g, '_')}.pdf`); };
+
+        const logout = () => { signOut(auth); window.location.href="index.html"; };
+        const logoutClient = () => { clientData.value = null; clientAppointments.value = []; clientAccessInput.value = ''; view.value = 'dashboard'; loginMode.value = 'provider'; signOut(auth); };
 
         const saveAsBudget = async () => { const appData = { ...JSON.parse(JSON.stringify(tempApp)), totalServices: totalServices.value, finalBalance: finalBalance.value, userId: user.value.uid, status: 'budget' }; if(!appData.checklist.length) appData.checklist = [{text:'Materiais', done:false}]; if (isEditing.value && editingId.value) await updateDoc(doc(db, "appointments", editingId.value), appData); else await addDoc(collection(db, "appointments"), appData); showAppointmentModal.value = false; Swal.fire('Orçamento Criado!', 'Ver na aba Orçamentos.', 'success'); };
         const approveBudget = async (app) => { const { isConfirmed } = await Swal.fire({ title: 'Aprovar Orçamento?', text: 'Mover para Agenda?', icon: 'question', showCancelButton: true, confirmButtonColor: '#4F46E5' }); if (isConfirmed) { await updateDoc(doc(db, "appointments", app.id), { status: 'pending' }); Swal.fire('Aprovado!', '', 'success'); view.value = 'schedule'; } };
@@ -279,7 +476,8 @@ createApp({
             company, handleLogoUpload, saveCompany, downloadReceiptImage, generateContractPDF, openWhatsApp, formatCurrency, formatDate, getDay, getMonth, statusText, getClientName, 
             toggleDarkMode, expenseCategories, expensesByCategoryStats, agendaTab, agendaFilter, searchHistory, changeStatus, registrationTab, kpiPendingReceivables, totalAppointmentsCount, topExpenseCategory, getCategoryIcon, maskPhone, maskCPF,
             loginMode, clientAccessInput, handleClientAccess, clientData, clientAppointments, logoutClient, openWhatsAppSupport, downloadClientReceipt, showSignatureModal, openSignatureModal, clearSignature, saveSignature, 
-            copyClientLink, budgetList, saveAsBudget, approveBudget, pendingAppointments
+            copyClientLink, budgetList, saveAsBudget, approveBudget, pendingAppointments,
+            handleAccessInput // <--- NOVA FUNÇÃO EXPORTADA PARA O HTML
         };
     }
 }).mount('#app');
