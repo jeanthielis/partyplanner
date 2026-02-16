@@ -67,6 +67,9 @@
                     <button type="submit" :disabled="authLoading" class="h-12 w-full bg-brand-600 hover:bg-brand-500 text-white font-bold rounded-xl shadow-lg transition active:scale-95 flex items-center justify-center gap-2 mt-6">
                         <i v-if="authLoading" class="fa-solid fa-circle-notch fa-spin"></i> {{ isRegistering ? 'Criar Conta' : 'Entrar' }}
                     </button>
+                    
+                    <button type="button" @click="loginMode='client'" class="w-full text-center text-xs text-slate-500 mt-4 hover:text-white transition">Sou Cliente / Tenho um Código</button>
+
                     <div class="mt-4 text-center border-t border-slate-700 pt-4">
                         <button type="button" @click="isRegistering = !isRegistering" class="text-xs font-bold text-brand-500 hover:text-brand-400 transition">{{ isRegistering ? 'Já tenho conta? Fazer Login' : 'Não tem conta? Criar agora' }}</button>
                     </div>
@@ -114,7 +117,14 @@
                                 <div class="font-bold text-slate-800 dark:text-white">{{ app.time }}</div>
                             </div>
                         </div>
-                        <div class="px-3 py-1 rounded-full text-xs font-bold uppercase" :class="app.status==='concluded'?'bg-green-100 text-green-700':'bg-orange-100 text-orange-700'">{{ statusText(app.status) }}</div>
+                        <div class="px-3 py-1 rounded-full text-xs font-bold uppercase border" 
+                            :class="{
+                                'bg-green-100 text-green-700 border-green-200': app.status === 'concluded',
+                                'bg-yellow-100 text-yellow-700 border-yellow-200': app.status === 'budget',
+                                'bg-orange-100 text-orange-700 border-orange-200': app.status === 'pending'
+                            }">
+                            {{ statusText(app.status) }}
+                        </div>
                     </div>
                     
                     <div class="p-6 space-y-4">
@@ -134,11 +144,21 @@
                             <div class="border-t border-slate-200 dark:border-slate-700 pt-2 flex justify-between text-lg"><span class="font-bold text-brand-600">Restante</span><span class="font-black text-brand-600">{{ formatCurrency(app.finalBalance) }}</span></div>
                         </div>
 
-                        <div v-if="app.clientSignature" class="bg-green-50 dark:bg-green-900/20 p-4 rounded-xl border border-green-100 dark:border-green-800 text-center">
+                        <div v-if="app.status === 'budget'" class="bg-blue-50 dark:bg-blue-900/20 p-5 rounded-xl border border-blue-100 dark:border-blue-800 text-center mb-4 shadow-sm animate-pulse">
+                            <div class="w-10 h-10 bg-blue-100 dark:bg-blue-800 rounded-full flex items-center justify-center mx-auto mb-2 text-blue-600 dark:text-blue-300"><i class="fa-solid fa-file-invoice"></i></div>
+                            <p class="text-sm font-bold text-blue-800 dark:text-blue-300 mb-1">Este evento é um Orçamento</p>
+                            <p class="text-xs text-blue-600/80 dark:text-blue-400 mb-4">Aprove agora para garantir a reserva da data.</p>
+                            <button @click="clientApproveBudget(app)" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-bold text-sm shadow-lg transition transform active:scale-95 flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-thumbs-up"></i> Aprovar Orçamento
+                            </button>
+                        </div>
+
+                        <div v-else-if="app.clientSignature" class="bg-green-50 dark:bg-green-900/20 p-4 rounded-xl border border-green-100 dark:border-green-800 text-center">
                             <p class="text-xs font-bold text-green-600 mb-2 uppercase"><i class="fa-solid fa-check-circle"></i> Contrato Assinado</p>
                             <img :src="app.clientSignature" class="h-12 mx-auto mix-blend-multiply dark:mix-blend-normal">
                          </div>
-                         <div v-else class="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-xl border border-yellow-100 dark:border-yellow-800 text-center">
+
+                        <div v-else class="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-xl border border-yellow-100 dark:border-yellow-800 text-center">
                             <p class="text-xs font-bold text-yellow-600 mb-2 uppercase">Aguardando Assinatura</p>
                             <button @click="openSignatureModal(app)" class="bg-brand-600 text-white px-6 py-2 rounded-lg font-bold text-sm shadow-lg hover:bg-brand-500 transition">Assinar Agora</button>
                          </div>
