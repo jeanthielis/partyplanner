@@ -75,16 +75,93 @@
                 </a>
             </div>
             
-            <div class="mt-16 relative mx-auto max-w-5xl">
-                <div class="absolute -inset-1 bg-gradient-to-r from-brand-600 to-purple-600 rounded-3xl blur opacity-30"></div>
-                <div class="relative bg-slate-900 rounded-2xl border border-slate-800 shadow-2xl p-2 md:p-4 overflow-hidden">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 opacity-80">
-                        <div class="bg-slate-800 h-40 rounded-xl animate-pulse"></div>
-                        <div class="bg-slate-800 h-40 rounded-xl animate-pulse hidden md:block"></div>
-                        <div class="bg-slate-800 h-40 rounded-xl animate-pulse hidden md:block"></div>
+            <div class="mt-20 relative mx-auto max-w-6xl perspective-1000">
+                <div class="absolute -inset-1 bg-gradient-to-r from-brand-600 to-purple-600 rounded-3xl blur opacity-30 animate-pulse"></div>
+                
+                <div class="relative bg-[#0F172A] rounded-2xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col md:flex-row h-auto md:h-[500px]">
+                    
+                    <div class="w-full md:w-64 bg-slate-900 border-r border-slate-800 p-6 hidden md:flex flex-col gap-6">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center text-white text-xs"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+                            <div class="font-bold text-white">PartyPlanner</div>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="flex items-center gap-3 p-3 bg-slate-800/50 text-brand-500 rounded-xl text-sm font-bold border-l-4 border-brand-500"><i class="fa-solid fa-chart-pie w-5"></i> Dashboard</div>
+                            <div class="flex items-center gap-3 p-3 text-slate-400 hover:bg-slate-800/50 rounded-xl text-sm font-medium"><i class="fa-solid fa-calendar w-5"></i> Agenda</div>
+                            <div class="flex items-center gap-3 p-3 text-slate-400 hover:bg-slate-800/50 rounded-xl text-sm font-medium"><i class="fa-solid fa-file-invoice-dollar w-5"></i> Orçamentos</div>
+                            <div class="flex items-center gap-3 p-3 text-slate-400 hover:bg-slate-800/50 rounded-xl text-sm font-medium"><i class="fa-solid fa-wallet w-5"></i> Financeiro</div>
+                        </div>
+                        <div class="mt-auto p-4 bg-slate-800 rounded-xl border border-slate-700">
+                            <div class="text-xs text-slate-400 mb-2">Próxima Festa</div>
+                            <div class="font-bold text-white text-sm">Maria Clara 15 anos</div>
+                            <div class="text-[10px] text-brand-400 mt-1">Hoje às 19:00</div>
+                        </div>
                     </div>
-                    <div class="absolute inset-0 flex items-center justify-center">
-                        <p class="text-slate-500 font-bold text-sm uppercase tracking-widest">Painel Administrativo Completo</p>
+
+                    <div class="flex-1 p-6 md:p-8 bg-[#0F172A] relative">
+                        <div class="flex justify-between items-center mb-8">
+                            <div>
+                                <h3 class="text-2xl font-bold text-white">Visão Geral</h3>
+                                <p class="text-slate-500 text-sm">Bem-vindo de volta, Decorador.</p>
+                            </div>
+                            <div class="flex gap-3">
+                                <div class="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400"><i class="fa-solid fa-bell"></i></div>
+                                <div class="w-10 h-10 rounded-full bg-brand-600 flex items-center justify-center text-white font-bold">D</div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                            <div class="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50">
+                                <div class="text-[10px] text-green-500 font-bold uppercase mb-1">Receita Mensal</div>
+                                <div class="text-lg md:text-xl font-bold text-white">R$ 12.450</div>
+                            </div>
+                            <div class="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50">
+                                <div class="text-[10px] text-brand-500 font-bold uppercase mb-1">Lucro Líquido</div>
+                                <div class="text-lg md:text-xl font-bold text-white">R$ 8.200</div>
+                            </div>
+                            <div class="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50 hidden md:block">
+                                <div class="text-[10px] text-orange-500 font-bold uppercase mb-1">A Receber</div>
+                                <div class="text-lg md:text-xl font-bold text-white">R$ 3.100</div>
+                            </div>
+                            <div class="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50 hidden md:block">
+                                <div class="text-[10px] text-blue-500 font-bold uppercase mb-1">Eventos</div>
+                                <div class="text-lg md:text-xl font-bold text-white">14</div>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-800/30 rounded-2xl border border-slate-700/50 p-6">
+                            <div class="flex justify-between items-center mb-6">
+                                <h4 class="font-bold text-white">Agenda Recente</h4>
+                                <span class="text-xs text-brand-500 font-bold cursor-pointer">Ver tudo</span>
+                            </div>
+                            <div class="space-y-4">
+                                <div class="flex items-center justify-between p-3 bg-slate-800 rounded-xl border border-slate-700 border-l-4 border-l-green-500">
+                                    <div class="flex items-center gap-4">
+                                        <div class="w-10 h-10 rounded-lg bg-slate-700 flex flex-col items-center justify-center text-xs font-bold text-slate-300">
+                                            <span>16</span><span class="text-[8px] uppercase">FEV</span>
+                                        </div>
+                                        <div>
+                                            <div class="font-bold text-white text-sm">Casamento Julia & Marcos</div>
+                                            <div class="text-[10px] text-slate-400">Salão Cristal • 18:00</div>
+                                        </div>
+                                    </div>
+                                    <div class="px-2 py-1 rounded-md bg-green-500/20 text-green-400 text-[10px] font-bold uppercase border border-green-500/30">Assinado</div>
+                                </div>
+                                <div class="flex items-center justify-between p-3 bg-slate-800 rounded-xl border border-slate-700 border-l-4 border-l-yellow-500">
+                                    <div class="flex items-center gap-4">
+                                        <div class="w-10 h-10 rounded-lg bg-slate-700 flex flex-col items-center justify-center text-xs font-bold text-slate-300">
+                                            <span>22</span><span class="text-[8px] uppercase">FEV</span>
+                                        </div>
+                                        <div>
+                                            <div class="font-bold text-white text-sm">Aniversário Pedro 1 Ano</div>
+                                            <div class="text-[10px] text-slate-400">Chácara Flores • 16:00</div>
+                                        </div>
+                                    </div>
+                                    <div class="px-2 py-1 rounded-md bg-yellow-500/20 text-yellow-400 text-[10px] font-bold uppercase border border-yellow-500/30">Orçamento</div>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             </div>
