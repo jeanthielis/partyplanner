@@ -74,6 +74,9 @@ createApp({
         const clientAppointments = ref([]);
         const showSignatureModal = ref(false);
         const signatureApp = ref(null);
+        
+        // NOVO: Armazena o ID do decorador vindo do link
+        const targetProviderId = ref(null); // <--- NOVO
 
         const expenseCategories = [
             { id: 'combustivel', label: 'Combustível', icon: 'fa-gas-pump' },
@@ -88,11 +91,24 @@ createApp({
         // ============================================================
         // 2. INICIALIZAÇÃO
         // ============================================================
-        onMounted(() => {
-            // Verifica link do cliente (?acesso=cliente)
+        onMounted(async () => {
+            // Verifica link do cliente (?acesso=cliente&uid=XYZ)
             const params = new URLSearchParams(window.location.search);
+            
             if (params.get('acesso') === 'cliente') {
                 loginMode.value = 'client';
+                
+                // NOVO: Captura o ID do decorador e carrega a marca dele imediatamente
+                const providerUid = params.get('uid');
+                if (providerUid) {
+                    targetProviderId.value = providerUid;
+                    try {
+                        const providerDoc = await getDoc(doc(db, "users", providerUid));
+                        if (providerDoc.exists() && providerDoc.data().companyConfig) {
+                            Object.assign(company, providerDoc.data().companyConfig);
+                        }
+                    } catch (e) { console.error("Erro ao carregar decorador", e); }
+                }
             }
 
             onAuthStateChanged(auth, async (u) => {
@@ -136,7 +152,6 @@ createApp({
         const totalServices = computed(() => tempApp.selectedServices.reduce((s,i) => s + toNum(i.price), 0));
         const finalBalance = computed(() => totalServices.value - toNum(tempApp.details.entryFee));
         
-        // Financeiro (Ignora Orçamentos)
         const kpiRevenue = computed(() => dashboardData.appointments.filter(a => a.status !== 'budget').reduce((acc, a) => acc + toNum(a.totalServices), 0));
         const kpiExpenses = computed(() => dashboardData.expenses.reduce((acc, e) => acc + toNum(e.value), 0));
         const financeData = computed(() => ({ revenue: kpiRevenue.value, expenses: kpiExpenses.value, profit: kpiRevenue.value - kpiExpenses.value }));
@@ -152,7 +167,6 @@ createApp({
         });
         const topExpenseCategory = computed(() => expensesByCategoryStats.value[0] || null);
 
-        // Próximos 7 Dias
         const next7DaysApps = computed(() => {
             const today = new Date(); today.setHours(0,0,0,0);
             const nextWeek = new Date(today); nextWeek.setDate(today.getDate() + 7);
@@ -227,7 +241,6 @@ createApp({
                 pendingAppointments.value = snap.docs.map(sanitizeApp);
                 pendingAppointments.value.forEach(a => fetchClientToCache(a.clientId));
             });
-            // ORÇAMENTOS
             onSnapshot(query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "budget")), (snap) => {
                 budgetList.value = snap.docs.map(sanitizeApp);
                 budgetList.value.forEach(a => fetchClientToCache(a.clientId));
@@ -286,24 +299,71 @@ createApp({
                 const numericTerm = rawTerm.replace(/\D/g, '');
                 let formattedCPF = rawTerm;
                 if (numericTerm.length === 11) formattedCPF = numericTerm.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
-                let q = query(collection(db, "clients"), where("cpf", "==", rawTerm));
+                
+                // NOVO: Se tivermos um Provider ID do link, usamos ele para filtrar
+                // Se não, mantemos a busca genérica (sem where userId)
+                
+                let qryConstraints = [];
+                if (targetProviderId.value) {
+                    // Busca SOMENTE clientes deste decorador
+                    qryConstraints.push(where("userId", "==", targetProviderId.value));
+                }
+
+                // 1. Tenta achar o cliente pelo CPF
+                let q = query(collection(db, "clients"), where("cpf", "==", rawTerm), ...qryConstraints);
                 let snap = await getDocs(q);
-                if (snap.empty && numericTerm.length === 11) { q = query(collection(db, "clients"), where("cpf", "==", formattedCPF)); snap = await getDocs(q); }
-                if (snap.empty) { q = query(collection(db, "clients"), where("email", "==", rawTerm)); snap = await getDocs(q); }
+
+                // 2. Tenta CPF formatado
+                if (snap.empty && numericTerm.length === 11) { 
+                    q = query(collection(db, "clients"), where("cpf", "==", formattedCPF), ...qryConstraints); 
+                    snap = await getDocs(q); 
+                }
+
+                // 3. Tenta Email
+                if (snap.empty) { 
+                    q = query(collection(db, "clients"), where("email", "==", rawTerm), ...qryConstraints); 
+                    snap = await getDocs(q); 
+                }
+
                 if (snap.empty) throw new Error("Cadastro não encontrado.");
+
                 const clientDoc = snap.docs[0];
                 clientData.value = { id: clientDoc.id, ...clientDoc.data() };
-                const qApps = query(collection(db, "appointments"), where("clientId", "==", clientDoc.id));
-                const snapApps = await getDocs(qApps);
-                // MELHORIA: Agora inclui 'budget'
-                const apps = snapApps.docs.map(sanitizeApp).filter(a => a.status !== 'cancelled').sort((a,b) => b.date.localeCompare(a.date));
-                clientAppointments.value = apps;
-                if (apps.length > 0) {
-                    const uDoc = await getDoc(doc(db, "users", apps[0].userId));
-                    if (uDoc.exists() && uDoc.data().companyConfig) { Object.assign(company, uDoc.data().companyConfig); clientCache[clientDoc.id] = clientDoc.data(); }
+
+                // Busca Agendamentos (Também filtrando pelo Decorador se tivermos o ID)
+                let appConstraints = [where("clientId", "==", clientDoc.id)];
+                if (targetProviderId.value) {
+                    appConstraints.push(where("userId", "==", targetProviderId.value));
                 }
+
+                const qApps = query(collection(db, "appointments"), ...appConstraints);
+                const snapApps = await getDocs(qApps);
+                
+                // Filtra e ordena
+                const apps = snapApps.docs.map(sanitizeApp)
+                    .filter(a => a.status !== 'cancelled')
+                    .sort((a,b) => b.date.localeCompare(a.date));
+                
+                clientAppointments.value = apps;
+
+                // Carrega dados da empresa (se já não foram carregados no onMounted)
+                // Se não tiver appointments, e tivermos targetProviderId, a empresa já foi carregada no onMounted
+                if (apps.length > 0 && !targetProviderId.value) {
+                    const uDoc = await getDoc(doc(db, "users", apps[0].userId));
+                    if (uDoc.exists() && uDoc.data().companyConfig) { 
+                        Object.assign(company, uDoc.data().companyConfig); 
+                        clientCache[clientDoc.id] = clientDoc.data(); 
+                    }
+                }
+
                 view.value = 'client-portal';
-            } catch (e) { Swal.fire('Acesso Negado', 'Dados não encontrados.', 'error'); } finally { authLoading.value = false; }
+
+            } catch (e) { 
+                console.error(e);
+                Swal.fire('Acesso Negado', 'Dados não encontrados neste decorador.', 'error'); 
+            } finally { 
+                authLoading.value = false; 
+            }
         };
 
         const clientApproveBudget = async (app) => {
@@ -344,7 +404,6 @@ createApp({
             loadDashboardData(); showAppointmentModal.value = false; Swal.fire('Agendado!', '', 'success'); 
         };
 
-        // Orçamento
         const saveAsBudget = async () => {
             const appData = { ...JSON.parse(JSON.stringify(tempApp)), totalServices: totalServices.value, finalBalance: finalBalance.value, userId: user.value.uid, status: 'budget' }; 
             if(!appData.checklist.length) appData.checklist = [{text:'Materiais', done:false}];
@@ -366,7 +425,6 @@ createApp({
         const deleteExpense = async (id) => { const { isConfirmed } = await Swal.fire({ title: 'Excluir?', text: 'Não pode desfazer.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33' }); if (isConfirmed) { await deleteDoc(doc(db, "expenses", id)); if (expensesFilter.start && expensesFilter.end) searchExpenses(); loadDashboardData(); Swal.fire('Excluído!', '', 'success'); } };
         const changeStatus = async (app, status) => { const {isConfirmed} = await Swal.fire({title: 'Alterar Status?', icon:'question', showCancelButton:true}); if(isConfirmed) { await updateDoc(doc(db,"appointments",app.id), {status:status}); Swal.fire('Feito','','success'); loadDashboardData(); } };
 
-        // Assinatura & PDF
         let canvasContext = null; let isDrawing = false;
         const openSignatureModal = (app) => { signatureApp.value = app; showSignatureModal.value = true; setTimeout(() => initCanvas(), 100); };
         const initCanvas = () => { const canvas = document.getElementById('signature-pad'); if(!canvas) return; const ratio = Math.max(window.devicePixelRatio || 1, 1); canvas.width = canvas.offsetWidth * ratio; canvas.height = canvas.offsetHeight * ratio; canvas.getContext("2d").scale(ratio, ratio); canvasContext = canvas.getContext('2d'); canvasContext.strokeStyle = "#000"; canvasContext.lineWidth = 2; canvas.addEventListener('mousedown', startDrawing); canvas.addEventListener('mousemove', draw); canvas.addEventListener('mouseup', stopDrawing); canvas.addEventListener('mouseout', stopDrawing); canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDrawing(e.touches[0]); }); canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e.touches[0]); }); canvas.addEventListener('touchend', (e) => { e.preventDefault(); stopDrawing(); }); };
@@ -415,7 +473,10 @@ createApp({
         const openWhatsAppSupport = () => { window.open('https://wa.me/?text=Preciso%20de%20ajuda%20com%20meu%20evento', '_blank'); };
         const handleLogoUpload = (e) => { const f = e.target.files[0]; if(f){ const r=new FileReader(); r.onload=x=>{company.logo=x.target.result; updateDoc(doc(db,"users",user.value.uid),{companyConfig:company});}; r.readAsDataURL(f); }};
         const toggleDarkMode = () => { isDark.value=!isDark.value; document.documentElement.classList.toggle('dark'); };
-        const copyClientLink = () => { const url = `${window.location.origin}${window.location.pathname}?acesso=cliente`; navigator.clipboard.writeText(url).then(() => Swal.fire('Copiado!', 'Link copiado.', 'success')); };
+        
+        // <--- ATUALIZADO: Inclui o UID do decorador no link
+        const copyClientLink = () => { const url = `${window.location.origin}${window.location.pathname}?acesso=cliente&uid=${user.value.uid}`; navigator.clipboard.writeText(url).then(() => Swal.fire('Copiado!', 'Link copiado.', 'success')); };
+        
         const changeCalendarMonth = (off) => { const d = new Date(calendarCursor.value); d.setMonth(d.getMonth() + off); calendarCursor.value = d; };
         const selectCalendarDay = (d) => { if(d.day) selectedCalendarDate.value = d.date; };
         const addServiceToApp = () => { if(tempServiceSelect.value) tempApp.selectedServices.push(tempServiceSelect.value); tempServiceSelect.value=''; };
@@ -437,7 +498,7 @@ createApp({
             toggleDarkMode, expenseCategories, expensesByCategoryStats, agendaTab, agendaFilter, searchHistory, changeStatus, registrationTab, kpiPendingReceivables, totalAppointmentsCount, topExpenseCategory, getCategoryIcon, maskPhone, maskCPF,
             loginMode, clientAccessInput, handleClientAccess, clientData, clientAppointments, logoutClient, openWhatsAppSupport, downloadClientReceipt, showSignatureModal, openSignatureModal, clearSignature, saveSignature, copyClientLink,
             budgetList, saveAsBudget, approveBudget, pendingAppointments,
-            clientApproveBudget // EXPORTADO AQUI
+            clientApproveBudget 
         };
     }
 }).mount('#app');
