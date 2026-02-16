@@ -30,6 +30,9 @@
         [v-cloak] { display: none; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         canvas { touch-action: none; }
+        /* Animação para o FAB */
+        .fab-enter-active, .fab-leave-active { transition: opacity 0.3s, transform 0.3s; }
+        .fab-enter-from, .fab-leave-to { opacity: 0; transform: translateY(20px) scale(0.8); }
     </style>
 </head>
 <body class="bg-slate-50 dark:bg-[#0F172A] text-slate-800 dark:text-slate-200 font-sans h-screen overflow-hidden">
@@ -148,33 +151,54 @@
 
                     <div v-if="view === 'schedule'" class="space-y-6">
                         <div class="flex justify-between items-center"><h2 class="text-3xl font-bold text-slate-900 dark:text-white">Agenda</h2><div class="flex gap-2 bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm"><button @click="appointmentViewMode='list'" :class="appointmentViewMode==='list'?'bg-brand-600 text-white':'text-slate-400 hover:text-slate-600 dark:hover:text-white'" class="w-10 h-10 rounded-lg flex items-center justify-center transition"><i class="fa-solid fa-list text-lg"></i></button><button @click="appointmentViewMode='calendar'" :class="appointmentViewMode==='calendar'?'bg-brand-600 text-white':'text-slate-400 hover:text-slate-600 dark:hover:text-white'" class="w-10 h-10 rounded-lg flex items-center justify-center transition"><i class="fa-solid fa-calendar text-lg"></i></button></div></div>
+                        
                         <div v-if="appointmentViewMode === 'list'" class="space-y-6">
                             <div class="flex p-1 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 w-full overflow-hidden shadow-sm"><button v-for="st in [{k:'pending',l:'Pendentes',c:'bg-brand-600'},{k:'concluded',l:'Concluídos',c:'bg-green-600'},{k:'cancelled',l:'Cancelados',c:'bg-red-500'}]" @click="agendaTab=st.k" :class="agendaTab===st.k ? st.c + ' text-white shadow' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'" class="flex-1 py-2.5 text-xs font-bold transition rounded-lg mx-0.5">{{ st.l }}</button></div>
-                            <div v-for="app in filteredListAppointments" :key="app.id" class="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 relative overflow-hidden group border-l-4" :class="app.status==='concluded'?'border-l-green-500':(app.status==='cancelled'?'border-l-red-500':'border-l-brand-600')">
-                                <div class="flex justify-between items-start mb-4 pl-2">
-                                    <div>
-                                        <h3 class="font-bold text-lg text-slate-900 dark:text-white">{{ getClientName(app.clientId) }}</h3>
-                                        <p class="text-sm text-slate-500 mt-1">{{ formatDate(app.date) }} às {{ app.time }}</p>
-                                        
-                                        <div v-if="app.clientSignature" class="mt-1 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 text-[10px] font-bold uppercase tracking-wide">
-                                            <i class="fa-solid fa-file-signature"></i> Assinado
-                                        </div>
+                            
+                            <div v-if="agendaTab === 'pending'" class="relative w-full"><i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="clientSearchTerm" placeholder="Buscar cliente..." class="w-full h-14 pl-12 pr-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-900 dark:text-white placeholder-slate-400"></div>
+                            
+                            <div v-else class="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm flex flex-wrap gap-3 items-end border border-slate-200 dark:border-slate-800">
+                                <div class="flex-1 min-w-[130px]"><label class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block ml-1">De</label><input type="date" v-model="agendaFilter.start" class="w-full h-12 px-4 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 transition-all"></div>
+                                <div class="flex-1 min-w-[130px]"><label class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block ml-1">Até</label><input type="date" v-model="agendaFilter.end" class="w-full h-12 px-4 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 transition-all"></div>
+                                <button @click="searchHistory" class="h-12 bg-slate-800 text-white px-6 rounded-xl font-bold hover:bg-slate-700 shadow-lg"><i class="fa-solid fa-search"></i></button>
+                            </div>
 
-                                        <p v-if="app.details?.balloonColors" class="text-xs text-brand-600 dark:text-brand-400 mt-1 font-bold">🎈 {{ app.details.balloonColors }}</p>
+                            <div v-if="filteredListAppointments.length === 0" class="text-center py-16 text-slate-400">Nenhum registro encontrado.</div>
+                            
+                            <div v-for="app in filteredListAppointments" :key="app.id" class="bg-white dark:bg-slate-900 p-3 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 relative overflow-hidden group border-l-4" :class="app.status==='concluded'?'border-l-green-500':(app.status==='cancelled'?'border-l-red-500':'border-l-brand-600')">
+                                <div class="flex justify-between items-start pl-2">
+                                    <div class="flex-1">
+                                        <h3 class="font-bold text-base text-slate-900 dark:text-white leading-tight mb-1">{{ getClientName(app.clientId) }}</h3>
+                                        <div class="flex items-center gap-2 text-xs text-slate-500">
+                                            <span>{{ formatDate(app.date) }}</span>
+                                            <span class="w-1 h-1 rounded-full bg-slate-300"></span>
+                                            <span>{{ app.time }}</span>
+                                        </div>
+                                        <div v-if="app.clientSignature" class="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[9px] font-bold uppercase border border-green-100 dark:border-green-800">
+                                            <i class="fa-solid fa-signature"></i> Assinado
+                                        </div>
                                     </div>
-                                    <div class="text-right"><p class="text-[10px] font-bold text-slate-400 uppercase">Total</p><p class="text-xl font-bold text-slate-800 dark:text-white">{{ formatCurrency(app.totalServices) }}</p><p class="text-[11px] font-bold text-red-500 mt-0.5">Restante: {{ formatCurrency(app.finalBalance) }}</p></div>
+                                    <div class="text-right">
+                                        <p class="text-sm font-bold text-slate-900 dark:text-white">{{ formatCurrency(app.totalServices) }}</p>
+                                        <p class="text-[9px] font-bold text-red-500" v-if="app.finalBalance > 0">Falta: {{ formatCurrency(app.finalBalance) }}</p>
+                                    </div>
                                 </div>
-                                <div class="pl-2 pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                                
+                                <div class="pl-2 pt-3 mt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center">
                                     <div class="flex gap-2">
-                                        <button @click="showReceipt(app)" class="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 bg-slate-100 dark:bg-slate-800 dark:text-slate-300 hover:bg-slate-200 transition flex items-center gap-2"><i class="fa-solid fa-circle-info"></i> Detalhes</button>
-                                        <button @click="showReceipt(app)" class="px-3 py-1.5 rounded-lg text-xs font-bold text-brand-600 bg-brand-50 dark:bg-brand-900/30 hover:bg-brand-100 transition flex items-center gap-2"><i class="fa-solid fa-file-invoice-dollar"></i> Recibo</button>
-                                        <button v-if="app.status === 'pending'" @click="editAppointment(app)" class="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 transition flex items-center gap-2"><i class="fa-solid fa-pen-to-square"></i> Editar</button>
+                                        <button @click="showReceipt(app)" class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-blue-500 flex items-center justify-center hover:bg-blue-100 transition" title="Detalhes"><i class="fa-solid fa-circle-info"></i></button>
+                                        <button @click="showReceipt(app)" class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-purple-500 flex items-center justify-center hover:bg-purple-100 transition" title="Recibo"><i class="fa-solid fa-file-invoice-dollar"></i></button>
+                                        <button v-if="app.status === 'pending'" @click="editAppointment(app)" class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center hover:bg-slate-200 transition" title="Editar"><i class="fa-solid fa-pen"></i></button>
                                     </div>
-                                    <div v-if="app.status === 'pending'" class="flex gap-2"><button @click="changeStatus(app, 'cancelled')" class="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-500 flex items-center justify-center transition hover:bg-red-200"><i class="fa-solid fa-xmark"></i></button><button @click="changeStatus(app, 'concluded')" class="w-8 h-8 rounded-lg bg-green-100 dark:bg-green-900/30 text-green-600 flex items-center justify-center transition hover:bg-green-200"><i class="fa-solid fa-check"></i></button></div>
+                                    <div v-if="app.status === 'pending'" class="flex gap-2">
+                                        <button @click="changeStatus(app, 'cancelled')" class="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/20 text-red-500 flex items-center justify-center hover:bg-red-200 transition" title="Cancelar"><i class="fa-solid fa-xmark"></i></button>
+                                        <button @click="changeStatus(app, 'concluded')" class="w-8 h-8 rounded-lg bg-green-100 dark:bg-green-900/20 text-green-600 flex items-center justify-center hover:bg-green-200 transition" title="Concluir"><i class="fa-solid fa-check"></i></button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                         <div v-if="appointmentViewMode === 'calendar'" class="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800"><div class="flex justify-between items-center mb-6"><button @click="changeCalendarMonth(-1)"><i class="fa-solid fa-chevron-left text-slate-400"></i></button><h3 class="font-bold text-lg capitalize text-slate-800 dark:text-white">{{ calendarTitle }}</h3><button @click="changeCalendarMonth(1)"><i class="fa-solid fa-chevron-right text-slate-400"></i></button></div><div class="grid grid-cols-7 gap-1 text-center text-xs font-bold text-slate-400 mb-2 uppercase"><div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div></div><div class="grid grid-cols-7 gap-2"><div v-for="d in calendarGrid" @click="selectCalendarDay(d)" class="h-10 md:h-14 border rounded-xl flex flex-col items-center justify-center cursor-pointer transition" :class="d.date===selectedCalendarDate?'bg-brand-600 border-brand-600 text-white shadow-lg':(d.day?'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-brand-300':'border-transparent')"><span v-if="d.day" class="text-sm font-bold">{{ d.day }}</span><div v-if="d.hasEvent" class="w-1.5 h-1.5 rounded-full mt-1" :class="d.date===selectedCalendarDate?'bg-white':'bg-brand-500'"></div></div></div><div v-if="selectedCalendarDate" class="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800"><h4 class="text-xs font-bold text-slate-400 uppercase mb-3">{{ formatDate(selectedCalendarDate) }}</h4><div v-if="appointmentsOnSelectedDate.length===0" class="text-sm text-slate-400">Vazio.</div><div v-for="app in appointmentsOnSelectedDate" @click="showReceipt(app)" class="flex justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-xl mb-2 cursor-pointer border border-slate-200 dark:border-slate-700 hover:border-brand-500 transition"><div class="text-sm font-bold text-slate-800 dark:text-white">{{ getClientName(app.clientId) }}</div><div class="text-sm font-bold text-brand-600">{{ formatCurrency(app.totalServices) }}</div></div></div></div>
+                        
+                        <div v-if="appointmentViewMode === 'calendar'" class="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800"><div class="flex justify-between items-center mb-6"><button @click="changeCalendarMonth(-1)"><i class="fa-solid fa-chevron-left text-slate-400"></i></button><h3 class="font-bold text-lg capitalize text-slate-800 dark:text-white">{{ calendarTitle }}</h3><button @click="changeCalendarMonth(1)"><i class="fa-solid fa-chevron-right text-slate-400"></i></button></div><div class="grid grid-cols-7 gap-1 text-center text-xs font-bold text-slate-400 mb-2 uppercase"><div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div></div><div class="grid grid-cols-7 gap-2"><div v-for="d in calendarGrid" @click="selectCalendarDay(d)" class="h-10 md:h-14 border rounded-xl flex flex-col items-center justify-center cursor-pointer transition" :class="d.date===selectedCalendarDate?'bg-brand-600 border-brand-600 text-white shadow-lg':(d.day?'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-brand-300':'border-transparent')"><span v-if="d.day" class="text-sm font-bold">{{ d.day }}</span><div v-if="d.hasEvent" class="w-1.5 h-1.5 rounded-full mt-1" :class="d.date===selectedCalendarDate?'bg-white':'bg-brand-500'"></div></div></div><div v-if="selectedCalendarDate" class="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800"><h4 class="text-xs font-bold text-slate-400 uppercase mb-3">{{ formatDate(selectedCalendarDate) }}</h4><div v-if="appointmentsOnSelectedDate.length===0" class="text-sm text-slate-400">Vazio.</div><div v-for="app in appointmentsOnSelectedDate" @click="showReceipt(app)" class="flex justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-xl mb-2 cursor-pointer border border-slate-200 dark:border-slate-700 hover:border-brand-500 transition"><div class="text-sm font-bold text-slate-800 dark:text-white">{{ getClientName(app.clientId) }}</div><div class="text-sm font-bold text-brand-600">{{ formatCurrency(app.totalServices) }}</div></div></div></div>
                     </div>
 
                     <div v-if="view === 'budgets'" class="space-y-6 animate-fade-in">
@@ -260,12 +284,21 @@
                 </div>
             </main>
             
-            <div class="md:hidden fixed bottom-6 left-6 right-6 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl p-2 flex justify-around items-center">
+            <button @click="startNewSchedule" class="md:hidden fixed bottom-24 right-5 w-14 h-14 bg-brand-600 text-white rounded-full shadow-xl shadow-brand-500/40 flex items-center justify-center z-40 transition transform active:scale-95 hover:scale-105 border-4 border-slate-50 dark:border-slate-900">
+                <i class="fa-solid fa-plus text-2xl"></i>
+            </button>
+
+            <div class="md:hidden fixed bottom-6 left-6 right-6 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl p-2 flex justify-between items-center px-4">
                 <button @click="view='dashboard'" :class="view==='dashboard'?'text-brand-600 bg-brand-50 dark:bg-brand-900/30':'text-slate-400'" class="p-3 rounded-2xl transition"><i class="fa-solid fa-chart-pie text-xl"></i></button>
-                <button @click="view='schedule'" class="relative p-3 rounded-2xl transition" :class="view==='schedule'?'text-brand-600 bg-brand-50 dark:bg-brand-900/30':'text-slate-400'"><i class="fa-solid fa-calendar text-xl"></i><span v-if="pendingAppointments.length > 0" class="absolute top-0 right-1 w-4 h-4 bg-red-500 text-white text-[9px] flex items-center justify-center rounded-full border-2 border-white dark:border-slate-900 font-bold">{{ pendingAppointments.length }}</span></button>
-                <button @click="startNewSchedule" class="w-14 h-14 bg-brand-600 text-white rounded-2xl shadow-lg shadow-brand-500/40 flex items-center justify-center -mt-10 border-4 border-slate-50 dark:border-[#0F172A] transform active:scale-95 transition"><i class="fa-solid fa-plus text-2xl"></i></button>
+                
+                <button @click="view='schedule'" class="relative p-3 rounded-2xl transition" :class="view==='schedule'?'text-brand-600 bg-brand-50 dark:bg-brand-900/30':'text-slate-400'">
+                    <i class="fa-solid fa-calendar text-xl"></i>
+                    <span v-if="pendingAppointments.length > 0" class="absolute top-1 right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-slate-900"></span>
+                </button>
+                
                 <button @click="view='finance'" :class="view==='finance'?'text-brand-600 bg-brand-50 dark:bg-brand-900/30':'text-slate-400'" class="p-3 rounded-2xl transition"><i class="fa-solid fa-wallet text-xl"></i></button>
-                <button @click="view='budgets'" class="relative p-3 rounded-2xl transition" :class="view==='budgets'?'text-brand-600 bg-brand-50 dark:bg-brand-900/30':'text-slate-400'"><i class="fa-solid fa-file-invoice-dollar text-xl"></i><span v-if="budgetList.length > 0" class="absolute top-0 right-1 w-4 h-4 bg-yellow-500 text-white text-[9px] flex items-center justify-center rounded-full border-2 border-white dark:border-slate-900 font-bold">{{ budgetList.length }}</span></button>
+                
+                <button @click="view='registrations'" :class="view==='registrations'?'text-brand-600 bg-brand-50 dark:bg-brand-900/30':'text-slate-400'" class="p-3 rounded-2xl transition"><i class="fa-solid fa-folder text-xl"></i></button>
             </div>
         </div>
 
