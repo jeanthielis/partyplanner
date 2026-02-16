@@ -7,7 +7,9 @@ const localAssets = [
   './css/style.css',
   './js/app.js',
   './js/firebase.js',
-  './manifest.json'
+  './manifest.json',
+  'icon-192.png',
+  'icon-512.png'
 ];
 
 // Lista de arquivos EXTERNOS (CDNs)
