@@ -120,7 +120,7 @@ createApp({
         };
 
         // ============================================================
-        // 3. ASSINATURA (CORREÇÃO MOBILE)
+        // 3. ASSINATURA (CORREÇÃO POINTER EVENTS)
         // ============================================================
         let canvasContext = null;
         let isDrawing = false;
@@ -128,80 +128,86 @@ createApp({
         const openSignature = (app) => {
             currentApp.value = app;
             showSignModal.value = true;
-            setTimeout(initCanvas, 100);
+            // Delay para garantir que o modal renderizou
+            setTimeout(initCanvas, 150);
         };
 
         const initCanvas = () => {
             const canvas = document.getElementById('signature-pad');
             if(!canvas) return;
             
-            // Ajuste de Resolução (Retina/Mobile)
+            // 1. Configuração de Alta Resolução (Retina/Mobile)
             const ratio = Math.max(window.devicePixelRatio || 1, 1);
             canvas.width = canvas.offsetWidth * ratio;
             canvas.height = canvas.offsetHeight * ratio;
             canvas.getContext("2d").scale(ratio, ratio);
             
             canvasContext = canvas.getContext('2d');
-            canvasContext.strokeStyle = "#000";
-            canvasContext.lineWidth = 2;
-            canvasContext.lineCap = "round"; // Traço mais suave
+            canvasContext.strokeStyle = "#000000";
+            canvasContext.lineWidth = 2.5; 
+            canvasContext.lineCap = "round";
+            canvasContext.lineJoin = "round";
             
-            // Funções de Desenho
-            const start = (e) => { 
-                if(e.type === 'touchstart') e.preventDefault(); // Previne conflito inicial
-                isDrawing = true; 
-                canvasContext.beginPath(); 
-                const pos = getPos(e);
-                canvasContext.moveTo(pos.x, pos.y); 
-            };
-            
-            const move = (e) => { 
-                if(!isDrawing) return; 
-                e.preventDefault(); // BLOQUEIA SCROLL DA PÁGINA AO DESENHAR
-                const pos = getPos(e);
-                canvasContext.lineTo(pos.x, pos.y); 
-                canvasContext.stroke(); 
-            };
-            
-            const end = (e) => { 
-                if(e.type === 'touchend') e.preventDefault();
-                isDrawing = false; 
+            // 2. Função Unificada para pegar posição (Mouse ou Toque)
+            const getPointerPos = (e) => {
+                const rect = canvas.getBoundingClientRect();
+                return {
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top
+                };
             };
 
-            // Event Listeners (Desktop)
-            canvas.onmousedown = start; 
-            canvas.onmousemove = move; 
-            canvas.onmouseup = end; 
-            canvas.onmouseout = end;
-
-            // Event Listeners (Mobile - com passive: false para permitir preventDefault)
-            canvas.addEventListener('touchstart', (e) => start(e.touches[0] || e), { passive: false });
-            canvas.addEventListener('touchmove', (e) => move(e.touches[0] || e), { passive: false });
-            canvas.addEventListener('touchend', end, { passive: false });
-        };
-
-        const getPos = (e) => {
-            const canvas = document.getElementById('signature-pad');
-            const rect = canvas.getBoundingClientRect();
-            
-            // Suporte híbrido (Touch ou Mouse)
-            const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
-            const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
-
-            return { 
-                x: clientX - rect.left, 
-                y: clientY - rect.top 
+            // 3. Funções de Desenho
+            const startDrawing = (e) => {
+                e.preventDefault(); // Impede rolagem no início
+                isDrawing = true;
+                canvasContext.beginPath();
+                const { x, y } = getPointerPos(e);
+                canvasContext.moveTo(x, y);
             };
+
+            const draw = (e) => {
+                if (!isDrawing) return;
+                e.preventDefault(); // IMPEDE ROLAGEM DURANTE O DESENHO
+                const { x, y } = getPointerPos(e);
+                canvasContext.lineTo(x, y);
+                canvasContext.stroke();
+            };
+
+            const stopDrawing = (e) => {
+                if (isDrawing) {
+                    isDrawing = false;
+                    canvasContext.closePath();
+                }
+            };
+
+            // 4. Listeners (Pointer Events) - Funciona em Desktop e Mobile igual
+            // Remove antigos para não duplicar
+            canvas.removeEventListener("pointerdown", startDrawing);
+            canvas.removeEventListener("pointermove", draw);
+            canvas.removeEventListener("pointerup", stopDrawing);
+            canvas.removeEventListener("pointerleave", stopDrawing);
+
+            // Adiciona novos com passive: false (Crucial para iOS)
+            canvas.addEventListener("pointerdown", startDrawing, { passive: false });
+            canvas.addEventListener("pointermove", draw, { passive: false });
+            canvas.addEventListener("pointerup", stopDrawing);
+            canvas.addEventListener("pointerleave", stopDrawing);
         };
 
         const clearCanvas = () => {
-            const c = document.getElementById('signature-pad');
-            canvasContext.clearRect(0, 0, c.width, c.height);
+            const canvas = document.getElementById('signature-pad');
+            if (canvas && canvasContext) {
+                canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+            }
         };
 
         const isCanvasBlank = () => {
-            const c = document.getElementById('signature-pad');
-            const pixelBuffer = new Uint32Array(canvasContext.getImageData(0,0,c.width,c.height).data.buffer);
+            const canvas = document.getElementById('signature-pad');
+            if (!canvas || !canvasContext) return true;
+            const pixelBuffer = new Uint32Array(
+                canvasContext.getImageData(0, 0, canvas.width, canvas.height).data.buffer
+            );
             return !pixelBuffer.some(color => color !== 0);
         };
 
