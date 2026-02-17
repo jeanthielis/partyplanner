@@ -1,12 +1,13 @@
 const { createApp, ref, computed, reactive, onMounted, watch } = Vue;
 
+// Importando do nosso arquivo local atualizado
 import { 
     db, auth, firebaseConfig, 
     collection, onSnapshot, doc, updateDoc, deleteDoc, getDoc, setDoc, signOut, onAuthStateChanged, addDoc,
     query, orderBy, limit 
 } from './firebase.js';
 
-// Usando a mesma versão 9.22.0 para evitar conflitos de instância
+// Imports diretos para criação de usuário secundário (mantendo versão 9.22.0)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
 
@@ -36,7 +37,8 @@ createApp({
                 if (u) {
                     currentUser.value = u;
                     loadUsers();
-                    loadLogs();
+                    // Pequeno delay para garantir que imports carregaram
+                    setTimeout(loadLogs, 500);
                 } else {
                     window.location.href = "index.html";
                 }
@@ -68,22 +70,30 @@ createApp({
         };
 
         const loadLogs = () => {
-            // Verifica se orderBy foi importado corretamente antes de usar
-            if (typeof orderBy !== 'function' || typeof limit !== 'function') {
-                console.warn("Funções do Firestore (orderBy/limit) não carregaram. Verifique js/firebase.js");
+            // PROTEÇÃO: Verifica se orderBy existe antes de chamar
+            if (!orderBy || !limit || typeof orderBy !== 'function') {
+                console.warn("Funções 'orderBy' ou 'limit' indefinidas. Verifique o cache do js/firebase.js");
                 return;
             }
+
             try {
-                const q = query(collection(db, "system_logs"), orderBy("timestamp", "desc"), limit(50));
+                const logsRef = collection(db, "system_logs");
+                const q = query(logsRef, orderBy("timestamp", "desc"), limit(50));
+                
                 onSnapshot(q, (snap) => {
                     systemLogs.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                }, (error) => {
+                    console.error("Erro ao ler logs:", error);
                 });
-            } catch (e) { console.error("Erro ao carregar logs:", e); }
+            } catch (e) {
+                console.error("Erro fatal ao iniciar query de logs:", e);
+            }
         };
 
         const logAction = async (action, details) => {
             try {
-                await addDoc(collection(db, "system_logs"), {
+                const logsRef = collection(db, "system_logs");
+                await addDoc(logsRef, {
                     timestamp: new Date().toISOString(),
                     adminEmail: currentUser.value.email,
                     action: action,
@@ -112,7 +122,6 @@ createApp({
         };
 
         const renderCharts = () => {
-            // Verifica se Chart.js carregou
             if (typeof Chart === 'undefined') return;
 
             const ctxGrowth = document.getElementById('growthChart');
@@ -214,7 +223,7 @@ createApp({
             return l.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
         });
 
-        // RENOMEADO 'new' PARA 'recent' PARA EVITAR ERRO
+        // Computed do CRM (Usando 'recent' em vez de 'new')
         const crmColumns = computed(() => {
             return {
                 recent: users.value.filter(u => u.status === 'trial' && getTrialDaysLeft(u) > 3),
