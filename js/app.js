@@ -181,8 +181,59 @@ createApp({
         const fetchClientToCache = async (id) => { if (!id || clientCache[id]) return; try { const s = await getDoc(doc(db, "clients", id)); if (s.exists()) clientCache[id] = s.data(); else clientCache[id] = { name: 'Excluído', phone: '-' }; } catch (e) {} };
         const sanitizeApp = (d) => { const data = d.data ? d.data() : d; return { id: d.id || data.id, ...data, selectedServices: Array.isArray(data.selectedServices) ? data.selectedServices : [], details: { ...(data.details || {}), balloonColors: data.details?.balloonColors || '' }, checklist: data.checklist || [], clientSignature: data.clientSignature || '' }; };
         const sanitizeExpense = (d) => { const data=d.data?d.data():d; return {id:d.id||data.id,...data,value:toNum(data.value)}; };
+        // 1. Corrigir a função de carregamento
+const loadDashboardData = async () => {
+    if (!user.value) return;
+    
+    isLoadingDashboard.value = true;
+    
+    try {
+        // CORREÇÃO AQUI: Usar as variáveis corretas [y, m]
+        const [y, m] = dashboardMonth.value.split('-'); 
         
-        const loadDashboardData = async () => { if (!user.value) return; isLoadingDashboard.value = true; try { const [y, m] = dashboardMonth.value.split('-'); const startStr = `${year}-${month}-01`; const endStr = `${year}-${month}-31`; const qApps = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("date", ">=", startStr), where("date", "<=", endStr)); const qExp = query(collection(db, "expenses"), where("userId", "==", user.value.uid), where("date", ">=", startStr), where("date", "<=", endStr)); const [sA, sE] = await Promise.all([getDocs(qApps), getDocs(qExp)]); dashboardData.appointments = sA.docs.map(sanitizeApp).filter(a => a.status !== 'cancelled' && a.status !== 'budget'); dashboardData.expenses = sE.docs.map(sanitizeExpense); dashboardData.appointments.forEach(a => fetchClientToCache(a.clientId)); } catch(e){} finally { isLoadingDashboard.value = false; } };
+        // Ajuste para pegar o último dia do mês corretamente
+        const lastDay = new Date(y, m, 0).getDate();
+        
+        const startStr = `${y}-${m}-01`; 
+        const endStr = `${y}-${m}-${lastDay}`; // Usar o último dia real do mês
+        
+        // Queries
+        const qApps = query(
+            collection(db, "appointments"), 
+            where("userId", "==", user.value.uid), 
+            where("date", ">=", startStr), 
+            where("date", "<=", endStr)
+        );
+        
+        const qExp = query(
+            collection(db, "expenses"), 
+            where("userId", "==", user.value.uid), 
+            where("date", ">=", startStr), 
+            where("date", "<=", endStr)
+        );
+        
+        const [sA, sE] = await Promise.all([getDocs(qApps), getDocs(qExp)]);
+        
+        // Atualiza os dados reativos
+        dashboardData.appointments = sA.docs.map(sanitizeApp).filter(a => a.status !== 'cancelled');
+        dashboardData.expenses = sE.docs.map(sanitizeExpense);
+        
+        // Carrega nomes dos clientes para o cache
+        dashboardData.appointments.forEach(a => fetchClientToCache(a.clientId));
+        
+    } catch(e) {
+        console.error("Erro ao carregar dashboard:", e);
+        Swal.fire('Erro', 'Falha ao carregar dados do painel.', 'error');
+    } finally {
+        isLoadingDashboard.value = false;
+    }
+};
+
+// 2. Adicionar o Watch para atualizar quando mudar o mês (Adicione logo abaixo da função acima)
+watch(dashboardMonth, () => {
+    loadDashboardData();
+});
+        
         const syncData = () => { const myId = user.value.uid; onSnapshot(query(collection(db, "services"), where("userId", "==", myId)), (snap) => services.value = snap.docs.map(d => ({ id: d.id, ...d.data() }))); onSnapshot(query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "pending")), (snap) => { pendingAppointments.value = snap.docs.map(sanitizeApp); pendingAppointments.value.forEach(a => fetchClientToCache(a.clientId)); }); onSnapshot(query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "budget")), (snap) => { budgetList.value = snap.docs.map(sanitizeApp); budgetList.value.forEach(a => fetchClientToCache(a.clientId)); }); };
         
         const searchHistory = async () => { if(!agendaFilter.start || !agendaFilter.end) return Swal.fire('Atenção', 'Selecione datas', 'warning'); const q = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("status", "==", agendaTab.value), where("date", ">=", agendaFilter.start), where("date", "<=", agendaFilter.end)); const snap = await getDocs(q); historyList.value = snap.docs.map(sanitizeApp); historyList.value.forEach(a => fetchClientToCache(a.clientId)); };
