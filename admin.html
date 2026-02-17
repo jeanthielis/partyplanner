@@ -8,7 +8,10 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <script src="https://js.stripe.com/v3/"></script> <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://js.stripe.com/v3/"></script>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
     <script>
@@ -42,26 +45,12 @@
                 
                 <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
                     <p class="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 mt-2">Gestão</p>
-                    
-                    <button @click="currentView='dashboard'; showMobileMenu=false" :class="currentView==='dashboard' ? 'bg-primary/10 text-primary font-bold' : 'text-slate-500 hover:bg-slate-50'" class="w-full text-left px-4 py-3 rounded-xl text-sm transition flex gap-3 items-center">
-                        <i class="fa-solid fa-chart-line w-5"></i> Dashboard BI
-                    </button>
-                    
-                    <button @click="currentView='users'; showMobileMenu=false" :class="currentView==='users' ? 'bg-primary/10 text-primary font-bold' : 'text-slate-500 hover:bg-slate-50'" class="w-full text-left px-4 py-3 rounded-xl text-sm transition flex gap-3 items-center">
-                        <i class="fa-solid fa-users w-5"></i> Usuários
-                    </button>
-
-                    <button @click="currentView='crm'; showMobileMenu=false" :class="currentView==='crm' ? 'bg-primary/10 text-primary font-bold' : 'text-slate-500 hover:bg-slate-50'" class="w-full text-left px-4 py-3 rounded-xl text-sm transition flex gap-3 items-center">
-                        <i class="fa-solid fa-filter-circle-dollar w-5"></i> Funil CRM
-                    </button>
-
+                    <button @click="currentView='dashboard'; showMobileMenu=false" :class="currentView==='dashboard' ? 'bg-primary/10 text-primary font-bold' : 'text-slate-500 hover:bg-slate-50'" class="w-full text-left px-4 py-3 rounded-xl text-sm transition flex gap-3 items-center"><i class="fa-solid fa-chart-line w-5"></i> Dashboard BI</button>
+                    <button @click="currentView='users'; showMobileMenu=false" :class="currentView==='users' ? 'bg-primary/10 text-primary font-bold' : 'text-slate-500 hover:bg-slate-50'" class="w-full text-left px-4 py-3 rounded-xl text-sm transition flex gap-3 items-center"><i class="fa-solid fa-users w-5"></i> Usuários</button>
+                    <button @click="currentView='crm'; showMobileMenu=false" :class="currentView==='crm' ? 'bg-primary/10 text-primary font-bold' : 'text-slate-500 hover:bg-slate-50'" class="w-full text-left px-4 py-3 rounded-xl text-sm transition flex gap-3 items-center"><i class="fa-solid fa-filter-circle-dollar w-5"></i> Funil CRM</button>
                     <p class="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 mt-6">Segurança</p>
-                    
-                    <button @click="currentView='logs'; showMobileMenu=false" :class="currentView==='logs' ? 'bg-primary/10 text-primary font-bold' : 'text-slate-500 hover:bg-slate-50'" class="w-full text-left px-4 py-3 rounded-xl text-sm transition flex gap-3 items-center">
-                        <i class="fa-solid fa-shield-halved w-5"></i> Audit Logs
-                    </button>
+                    <button @click="currentView='logs'; showMobileMenu=false" :class="currentView==='logs' ? 'bg-primary/10 text-primary font-bold' : 'text-slate-500 hover:bg-slate-50'" class="w-full text-left px-4 py-3 rounded-xl text-sm transition flex gap-3 items-center"><i class="fa-solid fa-shield-halved w-5"></i> Audit Logs</button>
                 </nav>
-
                 <div class="p-4 border-t border-slate-100">
                     <button @click="logout" class="w-full py-2 text-red-500 text-xs font-bold hover:bg-red-50 rounded-lg transition flex items-center justify-center gap-2"><i class="fa-solid fa-right-from-bracket"></i> Sair</button>
                 </div>
@@ -73,7 +62,6 @@
                 
                 <div v-show="currentView === 'dashboard'" class="max-w-6xl mx-auto space-y-6 animate-fade-in">
                     <h2 class="text-2xl font-bold text-slate-800">Business Intelligence</h2>
-                    
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
                             <p class="text-xs text-slate-400 font-bold uppercase">MRR (Mensal)</p>
@@ -86,7 +74,7 @@
                             <span class="text-[10px] text-slate-400">{{ newUsersToday }} novos hoje</span>
                         </div>
                         <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
-                            <p class="text-xs text-slate-400 font-bold uppercase">Taxa Conversão</p>
+                            <p class="text-xs text-slate-400 font-bold uppercase">Conversão</p>
                             <p class="text-2xl font-black text-primary">{{ conversionRate }}%</p>
                             <span class="text-[10px] text-slate-400">Trial para Pro</span>
                         </div>
@@ -96,27 +84,24 @@
                             <span class="text-[10px] text-red-400">Inativos > 3 dias</span>
                         </div>
                     </div>
-
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                            <h3 class="font-bold text-slate-700 mb-4">Crescimento de Usuários</h3>
-                            <canvas id="growthChart" height="200"></canvas>
+                            <h3 class="font-bold text-slate-700 mb-4">Crescimento</h3>
+                            <div class="h-48 w-full"><canvas id="growthChart"></canvas></div>
                         </div>
                         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                            <h3 class="font-bold text-slate-700 mb-4">Distribuição de Status</h3>
-                            <div class="h-48 flex justify-center">
-                                <canvas id="statusChart"></canvas>
-                            </div>
+                            <h3 class="font-bold text-slate-700 mb-4">Status</h3>
+                            <div class="h-48 w-full flex justify-center"><canvas id="statusChart"></canvas></div>
                         </div>
                     </div>
                 </div>
 
                 <div v-show="currentView === 'users'" class="max-w-[1600px] mx-auto animate-fade-in">
                     <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
-                        <h2 class="text-2xl font-bold text-slate-800">Base de Usuários</h2>
+                        <h2 class="text-2xl font-bold text-slate-800">Usuários</h2>
                         <div class="relative w-full md:w-96">
                             <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                            <input v-model="searchTerm" placeholder="Buscar por nome, email ou telefone..." class="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary outline-none shadow-sm">
+                            <input v-model="searchTerm" placeholder="Buscar..." class="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary outline-none shadow-sm">
                         </div>
                     </div>
 
@@ -139,7 +124,7 @@
                             <thead class="bg-slate-50 text-slate-400 uppercase text-[10px] tracking-wider font-bold">
                                 <tr>
                                     <th class="p-4 pl-6">Cliente</th>
-                                    <th class="p-4">Assinatura (Stripe)</th>
+                                    <th class="p-4">Pagamento</th>
                                     <th class="p-4">Status</th>
                                     <th class="p-4 text-right pr-6">Ações</th>
                                 </tr>
@@ -151,17 +136,10 @@
                                         <div class="text-xs text-slate-500">{{ u.email }}</div>
                                     </td>
                                     <td class="p-4">
-                                        <div v-if="u.stripeId" class="flex items-center gap-2 text-xs text-slate-600">
-                                            <i class="fa-brands fa-stripe text-lg text-[#635BFF]"></i> {{ u.stripeId.slice(0, 12) }}...
-                                        </div>
-                                        <button v-else @click="createStripeSession(u)" class="text-[10px] bg-[#635BFF] hover:bg-[#524ac9] text-white px-2 py-1 rounded transition flex items-center gap-1">
-                                            <i class="fa-solid fa-link"></i> Gerar Link
-                                        </button>
+                                        <button @click="createStripeSession(u)" class="text-[10px] bg-[#635BFF] hover:bg-[#524ac9] text-white px-2 py-1 rounded transition flex items-center gap-1"><i class="fa-solid fa-link"></i> Stripe</button>
                                     </td>
                                     <td class="p-4">
-                                        <button @click="toggleStatus(u)" :class="u.status==='active'?'bg-green-100 text-green-700':'bg-yellow-100 text-yellow-700'" class="px-3 py-1 rounded-full text-xs font-bold uppercase transition hover:scale-105">
-                                            {{ u.status }}
-                                        </button>
+                                        <button @click="toggleStatus(u)" :class="u.status==='active'?'bg-green-100 text-green-700':'bg-yellow-100 text-yellow-700'" class="px-3 py-1 rounded-full text-xs font-bold uppercase transition hover:scale-105">{{ u.status }}</button>
                                     </td>
                                     <td class="p-4 text-right pr-6 flex justify-end gap-2">
                                         <button @click="openEditModal(u)" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-primary hover:text-white text-slate-500 transition"><i class="fa-solid fa-pen"></i></button>
@@ -176,14 +154,15 @@
                 <div v-show="currentView === 'crm'" class="max-w-6xl mx-auto h-[calc(100vh-140px)] animate-fade-in">
                     <h2 class="text-2xl font-bold text-slate-800 mb-6">Funil de Vendas</h2>
                     <div class="flex gap-4 h-full overflow-x-auto pb-4">
+                        
                         <div class="w-80 flex-shrink-0 flex flex-col bg-white rounded-2xl border border-slate-200 h-full">
                             <div class="p-4 border-b border-slate-100 bg-slate-50 rounded-t-2xl font-bold text-slate-700 flex justify-between">
-                                <span>Novos (Trial)</span> <span class="bg-slate-200 px-2 rounded text-xs py-0.5">{{ crmColumns.new.length }}</span>
+                                <span>Novos (Trial)</span> <span class="bg-slate-200 px-2 rounded text-xs py-0.5">{{ crmColumns.latest?.length || 0 }}</span>
                             </div>
                             <div class="p-3 space-y-3 overflow-y-auto flex-1 bg-slate-50/50">
-                                <div v-for="u in crmColumns.new" :key="u.id" class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 hover:border-primary cursor-pointer transition">
+                                <div v-for="u in crmColumns.latest" :key="u.id" class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 hover:border-primary cursor-pointer transition">
                                     <div class="font-bold text-sm">{{ u.displayName }}</div>
-                                    <div class="text-[10px] text-slate-500 mb-2">Cadastrou {{ timeSince(u.createdAt) }}</div>
+                                    <div class="text-[10px] text-slate-500 mb-2">Entrou {{ timeSince(u.createdAt) }}</div>
                                     <button @click="addQuickNote(u, 'zap')" class="w-full py-1.5 bg-green-50 text-green-700 text-xs font-bold rounded-lg hover:bg-green-100 border border-green-100"><i class="fa-brands fa-whatsapp"></i> Boas vindas</button>
                                 </div>
                             </div>
@@ -191,52 +170,44 @@
                         
                         <div class="w-80 flex-shrink-0 flex flex-col bg-white rounded-2xl border border-slate-200 h-full">
                             <div class="p-4 border-b border-slate-100 bg-yellow-50 rounded-t-2xl font-bold text-yellow-800 flex justify-between">
-                                <span>Vencendo < 3 dias</span> <span class="bg-yellow-200 px-2 rounded text-xs py-0.5">{{ crmColumns.expiring.length }}</span>
+                                <span>Vencendo</span> <span class="bg-yellow-200 px-2 rounded text-xs py-0.5">{{ crmColumns.warning?.length || 0 }}</span>
                             </div>
                             <div class="p-3 space-y-3 overflow-y-auto flex-1 bg-slate-50/50">
-                                <div v-for="u in crmColumns.expiring" :key="u.id" class="bg-white p-3 rounded-xl shadow-sm border border-l-4 border-l-yellow-400 border-slate-200">
+                                <div v-for="u in crmColumns.warning" :key="u.id" class="bg-white p-3 rounded-xl shadow-sm border border-l-4 border-l-yellow-400 border-slate-200">
                                     <div class="font-bold text-sm">{{ u.displayName }}</div>
                                     <div class="text-xs text-red-500 font-bold mb-2">Restam {{ getTrialDaysLeft(u) }} dias</div>
-                                    <button @click="createStripeSession(u)" class="w-full py-1.5 bg-primary text-white text-xs font-bold rounded-lg hover:bg-primary/90 shadow-sm mb-1">Enviar Link Pagamento</button>
-                                    <button @click="addQuickNote(u, 'cobranca')" class="w-full py-1.5 bg-slate-100 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-200">Registrar Cobrança</button>
+                                    <button @click="createStripeSession(u)" class="w-full py-1.5 bg-primary text-white text-xs font-bold rounded-lg hover:bg-primary/90 shadow-sm mb-1">Enviar Link</button>
                                 </div>
                             </div>
                         </div>
 
                         <div class="w-80 flex-shrink-0 flex flex-col bg-white rounded-2xl border border-slate-200 h-full">
                             <div class="p-4 border-b border-slate-100 bg-green-50 rounded-t-2xl font-bold text-green-800 flex justify-between">
-                                <span>Clientes Ativos</span> <span class="bg-green-200 px-2 rounded text-xs py-0.5">{{ crmColumns.active.length }}</span>
+                                <span>Clientes PRO</span> <span class="bg-green-200 px-2 rounded text-xs py-0.5">{{ crmColumns.pro?.length || 0 }}</span>
                             </div>
                             <div class="p-3 space-y-3 overflow-y-auto flex-1 bg-slate-50/50">
-                                <div v-for="u in crmColumns.active" :key="u.id" class="bg-white p-3 rounded-xl shadow-sm border border-l-4 border-l-green-500 border-slate-200 opacity-80 hover:opacity-100 transition">
+                                <div v-for="u in crmColumns.pro" :key="u.id" class="bg-white p-3 rounded-xl shadow-sm border border-l-4 border-l-green-500 border-slate-200 opacity-80">
                                     <div class="font-bold text-sm">{{ u.displayName }}</div>
-                                    <div class="text-[10px] text-slate-500">Plano Pro Mensal</div>
+                                    <div class="text-[10px] text-slate-500">Plano Mensal</div>
                                 </div>
                             </div>
                         </div>
+
                     </div>
                 </div>
 
                 <div v-show="currentView === 'logs'" class="max-w-4xl mx-auto animate-fade-in">
                     <h2 class="text-2xl font-bold text-slate-800 mb-6">Logs de Auditoria</h2>
                     <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                        <div v-if="systemLogs.length === 0" class="p-8 text-center text-slate-400">Nenhum registro.</div>
-                        <table v-else class="w-full text-left text-xs md:text-sm">
+                        <table class="w-full text-left text-xs md:text-sm">
                             <thead class="bg-slate-50 text-slate-500 font-bold">
-                                <tr>
-                                    <th class="p-4">Data</th>
-                                    <th class="p-4">Admin</th>
-                                    <th class="p-4">Ação</th>
-                                    <th class="p-4">Detalhes</th>
-                                </tr>
+                                <tr><th class="p-4">Data</th><th class="p-4">Admin</th><th class="p-4">Ação</th><th class="p-4">Detalhes</th></tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
                                 <tr v-for="log in systemLogs" :key="log.id" class="hover:bg-slate-50">
-                                    <td class="p-4 text-slate-500 font-mono text-[10px] md:text-xs whitespace-nowrap">{{ new Date(log.timestamp).toLocaleString() }}</td>
+                                    <td class="p-4 text-slate-500 font-mono text-[10px]">{{ new Date(log.timestamp).toLocaleString() }}</td>
                                     <td class="p-4 font-bold text-slate-700">{{ log.adminEmail }}</td>
-                                    <td class="p-4">
-                                        <span :class="getActionColor(log.action)" class="px-2 py-0.5 rounded text-[10px] font-bold uppercase">{{ log.action }}</span>
-                                    </td>
+                                    <td class="p-4"><span :class="getActionColor(log.action)" class="px-2 py-0.5 rounded text-[10px] font-bold uppercase">{{ log.action }}</span></td>
                                     <td class="p-4 text-slate-600 truncate max-w-xs">{{ log.details }}</td>
                                 </tr>
                             </tbody>
@@ -269,7 +240,6 @@
         </div>
 
     </div>
-
     <script type="module" src="js/admin.js"></script>
 </body>
 </html>
