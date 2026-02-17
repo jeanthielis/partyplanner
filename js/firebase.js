@@ -5,6 +5,8 @@ import {
 import { 
     getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, signInAnonymously 
 } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+// NOVO IMPORT: Functions
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-functions.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAhHRcZwrzD36oEFaeQzD1Fd-685YRAxBA",
@@ -19,19 +21,21 @@ const firebaseConfig = {
 let app;
 let db;
 let auth;
+let functions; // Variável para as funções
 
 try {
     app = initializeApp(firebaseConfig);
     db = getFirestore(app);
     auth = getAuth(app);
+    functions = getFunctions(app); // Inicializa Functions
 } catch (e) {
     console.warn("Firebase já inicializado.");
 }
 
-// EXPORTAÇÃO CORRIGIDA - Verifique se orderBy e limit estão aqui
 export { 
-    db, auth, firebaseConfig,
+    db, auth, functions, firebaseConfig, // Exporta functions
     collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDocs, query, where, setDoc, getDoc, orderBy, limit,
     signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged,
-    updateProfile, signInAnonymously 
+    updateProfile, signInAnonymously,
+    httpsCallable // Exporta o chamador
 };
