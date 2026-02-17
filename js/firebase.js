@@ -1,12 +1,11 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
 import { 
-    getFirestore, collection, addDoc, getDocs, onSnapshot, doc, updateDoc, deleteDoc, query, where, setDoc, getDoc 
+    getFirestore, collection, addDoc, getDocs, onSnapshot, doc, updateDoc, deleteDoc, query, where, setDoc, getDoc, orderBy, limit 
 } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 import { 
     getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, signInAnonymously 
 } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
 
-// SUAS CONFIGURAÇÕES DO FIREBASE (Mantenha as suas aqui)
 const firebaseConfig = {
   apiKey: "AIzaSyAhHRcZwrzD36oEFaeQzD1Fd-685YRAxBA",
   authDomain: "partyplanner-3f352.firebaseapp.com",
@@ -17,24 +16,21 @@ const firebaseConfig = {
   measurementId: "G-YVYD6MEXC1"
 };
 
-// Inicializa (se não tiver config, vai dar erro, certifique-se de manter sua config)
 let app;
 let db;
 let auth;
 
-// Tenta reutilizar a instância se já existir
 try {
     app = initializeApp(firebaseConfig);
     db = getFirestore(app);
     auth = getAuth(app);
 } catch (e) {
-    // Caso use variáveis globais ou carregamento diferente
-    console.warn("Firebase já inicializado ou config pendente.");
+    console.warn("Firebase já inicializado.");
 }
 
 export { 
-    db, auth,firebaseConfig,
-    collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDocs, query, where, setDoc, getDoc, 
+    db, auth, firebaseConfig,
+    collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDocs, query, where, setDoc, getDoc, orderBy, limit,
     signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged,
-    updateProfile, signInAnonymously // <--- ADICIONADO AQUI
+    updateProfile, signInAnonymously 
 };
