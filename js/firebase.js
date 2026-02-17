@@ -33,7 +33,7 @@ try {
 }
 
 export { 
-    db, auth, 
+    db, auth,firebaseConfig,
     collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDocs, query, where, setDoc, getDoc, 
     signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged,
     updateProfile, signInAnonymously // <--- ADICIONADO AQUI
