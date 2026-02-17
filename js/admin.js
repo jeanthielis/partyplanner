@@ -3,11 +3,12 @@ const { createApp, ref, computed, reactive, onMounted, watch } = Vue;
 import { 
     db, auth, firebaseConfig, 
     collection, onSnapshot, doc, updateDoc, deleteDoc, getDoc, setDoc, signOut, onAuthStateChanged, addDoc,
-    query, orderBy, limit // Adicionei estes imports
+    query, orderBy, limit 
 } from './firebase.js';
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+// Usando a mesma versão 9.22.0 para evitar conflitos de instância
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
 
 createApp({
     setup() {
@@ -25,16 +26,11 @@ createApp({
         const currentUser = ref(null);
         const pricing = 49.90;
 
-        // Forms
         const userForm = reactive({ id: null, name: '', email: '', password: '', status: 'trial', phone: '', planExpiresAt: '' });
 
-        // Chart Instances
         let growthChartInstance = null;
         let statusChartInstance = null;
 
-        // ============================================================
-        // 1. INICIALIZAÇÃO
-        // ============================================================
         onMounted(() => {
             onAuthStateChanged(auth, async (u) => {
                 if (u) {
@@ -47,9 +43,8 @@ createApp({
             });
         });
 
-        // Watcher para renderizar gráficos quando mudar para dashboard
         watch(currentView, (newVal) => {
-            if (newVal === 'dashboard') setTimeout(renderCharts, 200);
+            if (newVal === 'dashboard') setTimeout(renderCharts, 300);
         });
 
         const loadUsers = () => {
@@ -65,7 +60,7 @@ createApp({
                         lastLogin: data.lastLogin || null,
                         adminNotes: data.adminNotes || '',
                         planExpiresAt: data.planExpiresAt || null,
-                        stripeId: data.stripeCustomerId || null // Novo campo
+                        stripeId: data.stripeCustomerId || null
                     };
                 });
                 if(currentView.value === 'dashboard') renderCharts();
@@ -73,17 +68,19 @@ createApp({
         };
 
         const loadLogs = () => {
-            const q = query(collection(db, "system_logs"), orderBy("timestamp", "desc"), limit(50));
-            onSnapshot(q, (snap) => {
-                systemLogs.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-            });
+            // Verifica se orderBy foi importado corretamente antes de usar
+            if (typeof orderBy !== 'function' || typeof limit !== 'function') {
+                console.warn("Funções do Firestore (orderBy/limit) não carregaram. Verifique js/firebase.js");
+                return;
+            }
+            try {
+                const q = query(collection(db, "system_logs"), orderBy("timestamp", "desc"), limit(50));
+                onSnapshot(q, (snap) => {
+                    systemLogs.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                });
+            } catch (e) { console.error("Erro ao carregar logs:", e); }
         };
 
-        // ============================================================
-        // 2. FUNÇÕES DE ADMINISTRAÇÃO AVANÇADA
-        // ============================================================
-        
-        // LOG AUDITORIA (Feature 4)
         const logAction = async (action, details) => {
             try {
                 await addDoc(collection(db, "system_logs"), {
@@ -95,78 +92,52 @@ createApp({
             } catch (e) { console.error("Falha no log", e); }
         };
 
-        // STRIPE (Feature 1) - Frontend Logic
         const createStripeSession = async (user) => {
-            // Nota: Em produção, isso chamaria uma Cloud Function. 
-            // Aqui, simulamos a criação do link e atualização do status.
-            
             const { isConfirmed } = await Swal.fire({
                 title: 'Gerar Cobrança',
-                text: `Criar link de pagamento para ${user.displayName}?`,
+                text: `Criar link para ${user.displayName}?`,
                 icon: 'question',
                 showCancelButton: true,
-                confirmButtonText: 'Sim, Gerar Link',
                 confirmButtonColor: '#635BFF'
             });
 
             if (isConfirmed) {
                 Swal.fire({ title: 'Gerando...', didOpen: () => Swal.showLoading() });
-                
-                // Simulação de Backend
                 setTimeout(async () => {
-                    // 1. Loga a ação
                     await logAction('PAYMENT_LINK', `Gerou link para ${user.email}`);
-                    
-                    // 2. Atualiza o usuário com um "ID de cliente Stripe" falso para demo
-                    await updateDoc(doc(db, "users", user.id), {
-                        stripeCustomerId: 'cus_' + Math.random().toString(36).substr(2, 9)
-                    });
-                    
-                    Swal.fire({
-                        title: 'Link Criado!',
-                        html: `Envie para o cliente: <br><b>https://buy.stripe.com/test_${user.id}</b>`,
-                        icon: 'success'
-                    });
-                }, 1500);
+                    await updateDoc(doc(db, "users", user.id), { stripeCustomerId: 'cus_' + Math.random().toString(36).substr(2, 9) });
+                    Swal.fire({ title: 'Link Criado!', html: `Envie: <br><b>https://buy.stripe.com/test_${user.id}</b>`, icon: 'success' });
+                }, 1000);
             }
         };
 
-        // GRÁFICOS BI (Feature 2)
         const renderCharts = () => {
+            // Verifica se Chart.js carregou
+            if (typeof Chart === 'undefined') return;
+
             const ctxGrowth = document.getElementById('growthChart');
             const ctxStatus = document.getElementById('statusChart');
 
             if (!ctxGrowth || !ctxStatus) return;
 
-            // Prepara Dados Crescimento (Últimos 6 meses fictícios ou reais)
-            // Aqui simplificado: Agrupamento por mês de criação
             const months = {};
             users.value.forEach(u => {
-                const k = u.createdAt.substring(0, 7); // YYYY-MM
-                months[k] = (months[k] || 0) + 1;
+                const k = (u.createdAt || '').substring(0, 7);
+                if(k) months[k] = (months[k] || 0) + 1;
             });
             const labels = Object.keys(months).sort();
             const dataGrowth = labels.map(k => months[k]);
 
-            // Chart Crescimento
             if (growthChartInstance) growthChartInstance.destroy();
             growthChartInstance = new Chart(ctxGrowth, {
                 type: 'line',
                 data: {
                     labels: labels,
-                    datasets: [{
-                        label: 'Novos Usuários',
-                        data: dataGrowth,
-                        borderColor: '#6366F1',
-                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                        fill: true,
-                        tension: 0.4
-                    }]
+                    datasets: [{ label: 'Novos Usuários', data: dataGrowth, borderColor: '#6366F1', backgroundColor: 'rgba(99, 102, 241, 0.1)', fill: true, tension: 0.4 }]
                 },
                 options: { responsive: true, maintainAspectRatio: false }
             });
 
-            // Chart Status (Pizza)
             const statusCount = { active: 0, trial: 0 };
             users.value.forEach(u => { statusCount[u.status] = (statusCount[u.status] || 0) + 1; });
             
@@ -175,18 +146,12 @@ createApp({
                 type: 'doughnut',
                 data: {
                     labels: ['Ativos', 'Trial'],
-                    datasets: [{
-                        data: [statusCount.active, statusCount.trial],
-                        backgroundColor: ['#22C55E', '#EAB308']
-                    }]
+                    datasets: [{ data: [statusCount.active, statusCount.trial], backgroundColor: ['#22C55E', '#EAB308'] }]
                 },
                 options: { responsive: true, maintainAspectRatio: false }
             });
         };
 
-        // ============================================================
-        // 3. AÇÕES CRUD (USER)
-        // ============================================================
         const handleUserSubmit = async () => {
             if (!userForm.name || !userForm.email) return Swal.fire('Erro', 'Dados incompletos', 'warning');
             loadingAction.value = true;
@@ -231,7 +196,6 @@ createApp({
             }
         };
 
-        // CRM: Quick Actions
         const addQuickNote = async (user, type) => {
              const date = new Date().toLocaleDateString('pt-BR');
              const msg = type === 'zap' ? 'Contato via WhatsApp' : 'Enviado Cobrança';
@@ -244,17 +208,16 @@ createApp({
         const openEditModal = (u) => { modalMode.value='edit'; Object.assign(userForm,{id:u.id, name:u.displayName, email:u.email, phone:u.phone, status:u.status, planExpiresAt:u.planExpiresAt}); showModal.value=true; };
         const logout = async () => { await signOut(auth); window.location.href="index.html"; };
 
-        // Computed & Helpers
         const filteredUsers = computed(() => {
             let l = users.value;
             if(searchTerm.value) l = l.filter(u => u.displayName.toLowerCase().includes(searchTerm.value.toLowerCase()));
             return l.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
         });
 
-        // CRM Columns (Feature 5)
+        // RENOMEADO 'new' PARA 'recent' PARA EVITAR ERRO
         const crmColumns = computed(() => {
             return {
-                new: users.value.filter(u => u.status === 'trial' && getTrialDaysLeft(u) > 3),
+                recent: users.value.filter(u => u.status === 'trial' && getTrialDaysLeft(u) > 3),
                 expiring: users.value.filter(u => u.status === 'trial' && getTrialDaysLeft(u) <= 3),
                 active: users.value.filter(u => u.status === 'active')
             };
