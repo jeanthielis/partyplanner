@@ -100,21 +100,49 @@ createApp({
 
         const createStripeSession = async (user) => {
             const { isConfirmed } = await Swal.fire({
-                title: 'Gerar Cobrança',
-                text: `Criar link para ${user.displayName}?`,
+                title: 'Gerar Cobrança Real',
+                text: `Criar Checkout Stripe para ${user.displayName}?`,
                 icon: 'question',
                 showCancelButton: true,
+                confirmButtonText: 'Sim, Gerar Link',
                 confirmButtonColor: '#635BFF'
             });
 
             if (isConfirmed) {
-                Swal.fire({ title: 'Processando...', didOpen: () => Swal.showLoading() });
-                // Simulação de chamada ao backend
-                setTimeout(async () => {
-                    await logAction('PAYMENT_LINK', `Gerou link para ${user.email}`);
-                    await updateDoc(doc(db, "users", user.id), { stripeCustomerId: 'cus_TEST_' + Date.now() });
-                    Swal.fire({ title: 'Link Gerado!', html: `Envie para o cliente:<br><b>https://buy.stripe.com/test_${user.id}</b>`, icon: 'success' });
-                }, 1000);
+                Swal.fire({ title: 'Contatando Stripe...', didOpen: () => Swal.showLoading() });
+                
+                try {
+                    // 1. Chama a Cloud Function (Backend)
+                    const createCheckoutParams = httpsCallable(functions, 'createStripeCheckout');
+                    
+                    // Envia o ID do usuário e qual plano (price_id) você quer vender
+                    const result = await createCheckoutParams({ 
+                        userId: user.id,
+                        email: user.email,
+                        priceId: 'price_SEU_ID_AQUI' // *IMPORTANTE: Substitua pelo ID do preço do seu painel Stripe (ex: price_1Op...)
+                    });
+
+                    const { url } = result.data;
+
+                    // 2. Loga a ação
+                    await logAction('PAYMENT_LINK', `Gerou checkout real para ${user.email}`);
+
+                    // 3. Mostra o link ou abre automaticamente
+                    Swal.fire({
+                        title: 'Sucesso!',
+                        html: `Link gerado com segurança:<br><br>
+                               <input value="${url}" readonly style="width:100%; padding:10px; border:1px solid #ddd; border-radius:5px;">
+                               <br><br>
+                               <a href="${url}" target="_blank" class="swal2-confirm swal2-styled" style="display:inline-block; text-decoration:none;">Abrir Link Agora</a>`,
+                        icon: 'success',
+                        showConfirmButton: false,
+                        showCloseButton: true
+                    });
+
+                } catch (error) {
+                    console.error("Erro Stripe:", error);
+                    Swal.fire('Erro no Pagamento', error.message, 'error');
+                }
             }
         };
 
