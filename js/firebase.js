@@ -28,6 +28,7 @@ try {
     console.warn("Firebase já inicializado.");
 }
 
+// EXPORTAÇÃO CORRIGIDA - Verifique se orderBy e limit estão aqui
 export { 
     db, auth, firebaseConfig,
     collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDocs, query, where, setDoc, getDoc, orderBy, limit,
