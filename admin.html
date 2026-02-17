@@ -4,11 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Super Admin - PartyPlanner</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <script src="https://js.stripe.com/v3/"></script> <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
     <script>
         tailwind.config = { theme: { extend: { fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] }, colors: { primary: '#6366F1', secondary: '#EC4899', darkbg: '#0F172A' } } } }
     </script>
@@ -18,243 +20,251 @@
 
     <div id="adminApp" class="h-full flex flex-col" v-cloak>
         
-        <header class="bg-white border-b border-slate-200 px-4 md:px-8 py-3 md:py-4 flex justify-between items-center z-30 shadow-sm shrink-0">
+        <header class="bg-white border-b border-slate-200 px-4 md:px-8 py-3 flex justify-between items-center z-30 shadow-sm shrink-0 h-16">
             <div class="flex items-center gap-3">
-                <button @click="showMobileMenu = !showMobileMenu" class="md:hidden text-slate-500 hover:text-primary text-xl">
-                    <i class="fa-solid fa-bars"></i>
-                </button>
-
-                <div class="bg-primary text-white w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center shadow-lg shadow-primary/30">
-                    <i class="fa-solid fa-rocket"></i>
-                </div>
-                <div>
-                    <h1 class="font-bold text-lg md:text-xl tracking-tight text-slate-800 leading-none">Admin<span class="text-primary">Pro</span></h1>
-                </div>
+                <button @click="showMobileMenu = !showMobileMenu" class="md:hidden text-slate-500 hover:text-primary text-xl"><i class="fa-solid fa-bars"></i></button>
+                <div class="bg-primary text-white w-8 h-8 md:w-9 md:h-9 rounded-lg flex items-center justify-center shadow-lg shadow-primary/30"><i class="fa-solid fa-rocket"></i></div>
+                <h1 class="font-bold text-lg md:text-xl tracking-tight text-slate-800 leading-none">Admin<span class="text-primary">Pro</span></h1>
             </div>
-            <div class="flex items-center gap-2 md:gap-4">
-                <button @click="sendGlobalNotification" class="hidden md:flex w-9 h-9 rounded-full bg-slate-100 hover:bg-yellow-100 text-yellow-600 items-center justify-center transition" title="Enviar Aviso Global">
-                    <i class="fa-solid fa-bullhorn"></i>
-                </button>
-                <button @click="openCreateModal" class="bg-primary hover:bg-primary/90 text-white px-3 py-2 md:px-4 rounded-lg text-xs md:text-sm font-bold transition shadow-lg shadow-primary/20 flex items-center gap-2">
-                    <i class="fa-solid fa-plus"></i> <span class="hidden md:inline">Novo Usuário</span>
-                </button>
+            <div class="flex items-center gap-3">
+                <div class="hidden md:flex flex-col items-end mr-2">
+                    <span class="text-xs font-bold text-slate-700">{{ currentUser?.email }}</span>
+                    <span class="text-[10px] text-green-500 font-bold uppercase">Super Admin</span>
+                </div>
+                <button @click="openCreateModal" class="bg-primary hover:bg-primary/90 text-white w-9 h-9 rounded-full shadow-lg flex items-center justify-center transition"><i class="fa-solid fa-plus"></i></button>
             </div>
         </header>
 
         <div class="flex flex-1 overflow-hidden relative">
             
-            <div :class="showMobileMenu ? 'translate-x-0' : '-translate-x-full md:translate-x-0'" class="absolute md:static inset-y-0 left-0 z-20 w-64 bg-white border-r border-slate-200 flex flex-col p-6 gap-2 transition-transform duration-300 shadow-2xl md:shadow-none">
-                <div class="md:hidden flex justify-end mb-4">
-                    <button @click="showMobileMenu = false" class="text-slate-400"><i class="fa-solid fa-xmark text-xl"></i></button>
-                </div>
-
-                <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Painel de Controle</p>
+            <div :class="showMobileMenu ? 'translate-x-0' : '-translate-x-full md:translate-x-0'" class="absolute md:static inset-y-0 left-0 z-20 w-64 bg-white border-r border-slate-200 flex flex-col transition-transform duration-300 shadow-2xl md:shadow-none">
+                <div class="md:hidden flex justify-end p-4"><button @click="showMobileMenu = false"><i class="fa-solid fa-xmark text-xl text-slate-400"></i></button></div>
                 
-                <button @click="filterStatus='all'; showMobileMenu=false" :class="filterStatus==='all' ? 'bg-slate-100 text-slate-900 font-bold' : 'text-slate-500 hover:bg-slate-50'" class="w-full text-left px-4 py-3 rounded-xl text-sm transition flex justify-between items-center">
-                    <span>Todos</span>
-                    <span class="bg-white px-2 py-0.5 rounded text-xs border border-slate-100">{{ users.length }}</span>
-                </button>
-
-                <button @click="filterStatus='active'; showMobileMenu=false" :class="filterStatus==='active' ? 'bg-green-50 text-green-700 font-bold border border-green-100' : 'text-slate-500 hover:bg-slate-50'" class="w-full text-left px-4 py-3 rounded-xl text-sm transition flex justify-between items-center">
-                    <span>Ativos (Pro)</span>
-                    <span class="bg-green-200/50 px-2 py-0.5 rounded text-xs">{{ activeCount }}</span>
-                </button>
-
-                <button @click="filterStatus='trial'; showMobileMenu=false" :class="filterStatus==='trial' ? 'bg-yellow-50 text-yellow-700 font-bold border border-yellow-100' : 'text-slate-500 hover:bg-slate-50'" class="w-full text-left px-4 py-3 rounded-xl text-sm transition flex justify-between items-center">
-                    <span>Em Trial</span>
-                    <div class="flex gap-1"><span v-if="expiringTrials > 0" class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span> <span class="bg-yellow-200/50 px-2 py-0.5 rounded text-xs">{{ users.filter(u=>u.status==='trial').length }}</span></div>
-                </button>
-
-                <div class="mt-auto pt-6 border-t border-slate-100 space-y-4">
-                    <button @click="exportCSV" class="w-full py-2 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-download"></i> Exportar CSV
+                <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
+                    <p class="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 mt-2">Gestão</p>
+                    
+                    <button @click="currentView='dashboard'; showMobileMenu=false" :class="currentView==='dashboard' ? 'bg-primary/10 text-primary font-bold' : 'text-slate-500 hover:bg-slate-50'" class="w-full text-left px-4 py-3 rounded-xl text-sm transition flex gap-3 items-center">
+                        <i class="fa-solid fa-chart-line w-5"></i> Dashboard BI
                     </button>
-                    <div class="bg-primary/5 p-4 rounded-xl border border-primary/10">
-                        <p class="text-xs text-primary font-bold">MRR Estimado</p>
-                        <p class="text-2xl font-black text-slate-800">R$ {{ formatCurrency(mrr) }}</p>
-                    </div>
-                    <button @click="logout" class="w-full py-2 text-red-500 text-xs font-bold hover:bg-red-50 rounded-lg transition">Sair do Sistema</button>
+                    
+                    <button @click="currentView='users'; showMobileMenu=false" :class="currentView==='users' ? 'bg-primary/10 text-primary font-bold' : 'text-slate-500 hover:bg-slate-50'" class="w-full text-left px-4 py-3 rounded-xl text-sm transition flex gap-3 items-center">
+                        <i class="fa-solid fa-users w-5"></i> Usuários
+                    </button>
+
+                    <button @click="currentView='crm'; showMobileMenu=false" :class="currentView==='crm' ? 'bg-primary/10 text-primary font-bold' : 'text-slate-500 hover:bg-slate-50'" class="w-full text-left px-4 py-3 rounded-xl text-sm transition flex gap-3 items-center">
+                        <i class="fa-solid fa-filter-circle-dollar w-5"></i> Funil CRM
+                    </button>
+
+                    <p class="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 mt-6">Segurança</p>
+                    
+                    <button @click="currentView='logs'; showMobileMenu=false" :class="currentView==='logs' ? 'bg-primary/10 text-primary font-bold' : 'text-slate-500 hover:bg-slate-50'" class="w-full text-left px-4 py-3 rounded-xl text-sm transition flex gap-3 items-center">
+                        <i class="fa-solid fa-shield-halved w-5"></i> Audit Logs
+                    </button>
+                </nav>
+
+                <div class="p-4 border-t border-slate-100">
+                    <button @click="logout" class="w-full py-2 text-red-500 text-xs font-bold hover:bg-red-50 rounded-lg transition flex items-center justify-center gap-2"><i class="fa-solid fa-right-from-bracket"></i> Sair</button>
                 </div>
             </div>
 
             <div v-if="showMobileMenu" @click="showMobileMenu = false" class="fixed inset-0 bg-black/50 z-10 md:hidden backdrop-blur-sm"></div>
 
-            <main class="flex-1 bg-slate-50 p-4 md:p-8 overflow-y-auto">
-                <div class="max-w-[1600px] mx-auto">
+            <main class="flex-1 bg-slate-50 overflow-y-auto p-4 md:p-8">
+                
+                <div v-show="currentView === 'dashboard'" class="max-w-6xl mx-auto space-y-6 animate-fade-in">
+                    <h2 class="text-2xl font-bold text-slate-800">Business Intelligence</h2>
                     
-                    <div class="bg-white rounded-xl md:rounded-2xl shadow-sm border border-slate-200 flex flex-col mb-4 md:mb-0">
-                        <div class="p-4 md:p-5 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4 bg-white sticky top-0 z-10 rounded-t-xl">
-                            <h2 class="font-bold text-slate-800 text-lg hidden md:block">Base de Usuários</h2>
-                            <div class="relative w-full md:max-w-md">
-                                <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                                <input v-model="searchTerm" placeholder="Buscar cliente..." class="bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-3 text-sm w-full outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition shadow-sm">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                            <p class="text-xs text-slate-400 font-bold uppercase">MRR (Mensal)</p>
+                            <p class="text-2xl font-black text-slate-800">R$ {{ formatCurrency(mrr) }}</p>
+                            <span class="text-[10px] text-green-500 font-bold flex items-center gap-1"><i class="fa-solid fa-arrow-trend-up"></i> +12% esse mês</span>
+                        </div>
+                        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                            <p class="text-xs text-slate-400 font-bold uppercase">Total Usuários</p>
+                            <p class="text-2xl font-black text-slate-800">{{ users.length }}</p>
+                            <span class="text-[10px] text-slate-400">{{ newUsersToday }} novos hoje</span>
+                        </div>
+                        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                            <p class="text-xs text-slate-400 font-bold uppercase">Taxa Conversão</p>
+                            <p class="text-2xl font-black text-primary">{{ conversionRate }}%</p>
+                            <span class="text-[10px] text-slate-400">Trial para Pro</span>
+                        </div>
+                        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                            <p class="text-xs text-slate-400 font-bold uppercase">Churn Risk</p>
+                            <p class="text-2xl font-black text-red-500">{{ inactiveUsers }}</p>
+                            <span class="text-[10px] text-red-400">Inativos > 3 dias</span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                            <h3 class="font-bold text-slate-700 mb-4">Crescimento de Usuários</h3>
+                            <canvas id="growthChart" height="200"></canvas>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                            <h3 class="font-bold text-slate-700 mb-4">Distribuição de Status</h3>
+                            <div class="h-48 flex justify-center">
+                                <canvas id="statusChart"></canvas>
                             </div>
-                        </div>
-
-                        <div class="hidden md:block overflow-x-auto">
-                            <table class="w-full text-left text-sm">
-                                <thead class="bg-slate-50 text-slate-400 uppercase text-[10px] tracking-wider font-bold">
-                                    <tr>
-                                        <th class="p-4 pl-6">Cliente</th>
-                                        <th class="p-4">Plano / Validade</th>
-                                        <th class="p-4">Acesso</th>
-                                        <th class="p-4 w-1/4">CRM</th>
-                                        <th class="p-4 text-right pr-6">Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-slate-100">
-                                    <tr v-for="u in filteredUsers" :key="u.id" class="hover:bg-slate-50 transition group">
-                                        <td class="p-4 pl-6">
-                                            <div class="flex flex-col">
-                                                <div class="flex items-center gap-2">
-                                                    <span class="font-bold text-slate-800 text-base cursor-pointer hover:text-primary" @click="openEditModal(u)">{{ u.displayName }}</span>
-                                                    <button @click="openEditModal(u)" class="text-xs text-slate-300 hover:text-primary"><i class="fa-solid fa-pen"></i></button>
-                                                </div>
-                                                <span class="text-xs text-slate-400 mb-1">{{ u.email }}</span>
-                                                <div v-if="u.phone" class="flex items-center gap-1">
-                                                    <a :href="getWhatsappLink(u.phone)" target="_blank" class="text-[10px] font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded border border-green-100 hover:bg-green-100 flex items-center gap-1 w-fit transition">
-                                                        <i class="fa-brands fa-whatsapp"></i> {{ u.phone }}
-                                                    </a>
-                                                </div>
-                                            </div>
-                                        </td>
-
-                                        <td class="p-4">
-                                            <div class="flex flex-col items-start gap-1">
-                                                <button @click="toggleStatus(u)" :class="u.status === 'active' ? 'bg-green-100 text-green-800 ring-1 ring-green-200' : 'bg-yellow-100 text-yellow-800 ring-1 ring-yellow-200'" class="px-3 py-1 rounded-full text-xs font-bold flex items-center gap-2 transition hover:scale-105 shadow-sm">
-                                                    <span class="w-2 h-2 rounded-full" :class="u.status === 'active' ? 'bg-green-500' : 'bg-yellow-500'"></span>
-                                                    {{ u.status === 'active' ? 'PRO' : 'Trial' }}
-                                                </button>
-                                                <span v-if="u.planExpiresAt" class="text-[10px] font-mono text-slate-500 bg-slate-100 px-1.5 rounded">Vence: {{ formatDate(u.planExpiresAt) }}</span>
-                                            </div>
-                                        </td>
-
-                                        <td class="p-4">
-                                            <div v-if="u.lastLogin">
-                                                <span class="font-bold text-slate-700" :class="{'text-red-500': parseInt(timeSince(u.lastLogin)) > 3}">{{ timeSince(u.lastLogin) }}</span>
-                                            </div>
-                                            <span v-else class="text-xs text-red-400 font-bold bg-red-50 px-2 py-1 rounded">Nunca</span>
-                                        </td>
-
-                                        <td class="p-4">
-                                            <div class="bg-slate-50 p-2 rounded-lg border border-slate-100 group-hover:border-slate-200 transition">
-                                                <textarea v-model="u.adminNotes" @change="saveNote(u)" class="w-full text-xs bg-transparent border-none focus:ring-0 p-0 resize-none h-8 placeholder-slate-400 text-slate-600" placeholder="Nota..."></textarea>
-                                                <div class="flex justify-end gap-2 mt-1 opacity-0 group-hover:opacity-100 transition">
-                                                    <button @click="addQuickNote(u, 'zap')" class="text-[10px] bg-green-100 text-green-700 px-2 rounded hover:bg-green-200"><i class="fa-brands fa-whatsapp"></i></button>
-                                                    <button @click="addQuickNote(u, 'cobranca')" class="text-[10px] bg-blue-100 text-blue-700 px-2 rounded hover:bg-blue-200"><i class="fa-solid fa-envelope"></i></button>
-                                                </div>
-                                            </div>
-                                        </td>
-
-                                        <td class="p-4 text-right pr-6">
-                                            <button @click="deleteUser(u)" class="w-8 h-8 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500 transition"><i class="fa-solid fa-trash"></i></button>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <div class="md:hidden divide-y divide-slate-100">
-                            <div v-for="u in filteredUsers" :key="u.id" class="p-4 bg-white active:bg-slate-50 transition">
-                                <div class="flex justify-between items-start mb-3">
-                                    <div>
-                                        <div class="flex items-center gap-2">
-                                            <h3 class="font-bold text-slate-900 text-lg">{{ u.displayName }}</h3>
-                                            <button @click="openEditModal(u)" class="text-slate-400"><i class="fa-solid fa-pen text-xs"></i></button>
-                                        </div>
-                                        <p class="text-xs text-slate-500">{{ u.email }}</p>
-                                    </div>
-                                    <button @click="toggleStatus(u)" :class="u.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'" class="px-2 py-1 rounded text-[10px] font-bold uppercase border border-transparent">
-                                        {{ u.status === 'active' ? 'PRO' : 'Trial' }}
-                                    </button>
-                                </div>
-
-                                <div class="grid grid-cols-2 gap-2 mb-3">
-                                    <div class="bg-slate-50 p-2 rounded-lg border border-slate-100">
-                                        <p class="text-[10px] text-slate-400 uppercase font-bold">Último Login</p>
-                                        <p class="text-xs font-bold text-slate-700">{{ timeSince(u.lastLogin) }}</p>
-                                    </div>
-                                    <div class="bg-slate-50 p-2 rounded-lg border border-slate-100">
-                                        <p class="text-[10px] text-slate-400 uppercase font-bold">Validade</p>
-                                        <p class="text-xs font-bold" :class="u.planExpiresAt ? 'text-slate-700' : 'text-orange-500'">{{ u.planExpiresAt ? formatDate(u.planExpiresAt) : 'Indefinido' }}</p>
-                                    </div>
-                                </div>
-
-                                <div class="mb-3">
-                                    <textarea v-model="u.adminNotes" @change="saveNote(u)" class="w-full text-sm bg-slate-50 border border-slate-100 rounded-lg p-2 focus:ring-1 focus:ring-primary focus:bg-white transition resize-none h-16" placeholder="Anotações do CRM..."></textarea>
-                                </div>
-
-                                <div class="flex justify-between items-center pt-2 border-t border-slate-50">
-                                    <a v-if="u.phone" :href="getWhatsappLink(u.phone)" target="_blank" class="text-green-600 font-bold text-xs flex items-center gap-1 bg-green-50 px-3 py-1.5 rounded-lg border border-green-100">
-                                        <i class="fa-brands fa-whatsapp"></i> WhatsApp
-                                    </a>
-                                    <span v-else class="text-xs text-slate-300 italic">Sem telefone</span>
-                                    
-                                    <button @click="deleteUser(u)" class="text-red-400 text-xs font-bold flex items-center gap-1 px-2 py-1">
-                                        <i class="fa-solid fa-trash"></i> Excluir
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div v-if="filteredUsers.length === 0" class="p-12 text-center text-slate-400">
-                            <i class="fa-solid fa-users-slash text-4xl mb-3 opacity-30"></i>
-                            <p>Nenhum usuário encontrado.</p>
                         </div>
                     </div>
                 </div>
+
+                <div v-show="currentView === 'users'" class="max-w-[1600px] mx-auto animate-fade-in">
+                    <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
+                        <h2 class="text-2xl font-bold text-slate-800">Base de Usuários</h2>
+                        <div class="relative w-full md:w-96">
+                            <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                            <input v-model="searchTerm" placeholder="Buscar por nome, email ou telefone..." class="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary outline-none shadow-sm">
+                        </div>
+                    </div>
+
+                    <div class="md:hidden space-y-3">
+                        <div v-for="u in filteredUsers" :key="u.id" class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                            <div class="flex justify-between items-start mb-2">
+                                <h3 class="font-bold text-slate-800">{{ u.displayName }}</h3>
+                                <span :class="u.status==='active'?'bg-green-100 text-green-700':'bg-yellow-100 text-yellow-700'" class="px-2 py-0.5 rounded text-[10px] font-bold uppercase">{{ u.status }}</span>
+                            </div>
+                            <p class="text-xs text-slate-500 mb-3">{{ u.email }}</p>
+                            <div class="flex justify-between items-center pt-3 border-t border-slate-100">
+                                <button @click="openEditModal(u)" class="text-primary text-xs font-bold"><i class="fa-solid fa-pen"></i> Editar</button>
+                                <button @click="createStripeSession(u)" class="text-slate-600 text-xs font-bold"><i class="fa-brands fa-stripe"></i> Pagar</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="hidden md:block bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-slate-50 text-slate-400 uppercase text-[10px] tracking-wider font-bold">
+                                <tr>
+                                    <th class="p-4 pl-6">Cliente</th>
+                                    <th class="p-4">Assinatura (Stripe)</th>
+                                    <th class="p-4">Status</th>
+                                    <th class="p-4 text-right pr-6">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                <tr v-for="u in filteredUsers" :key="u.id" class="hover:bg-slate-50 transition">
+                                    <td class="p-4 pl-6">
+                                        <div class="font-bold text-slate-800">{{ u.displayName }}</div>
+                                        <div class="text-xs text-slate-500">{{ u.email }}</div>
+                                    </td>
+                                    <td class="p-4">
+                                        <div v-if="u.stripeId" class="flex items-center gap-2 text-xs text-slate-600">
+                                            <i class="fa-brands fa-stripe text-lg text-[#635BFF]"></i> {{ u.stripeId.slice(0, 12) }}...
+                                        </div>
+                                        <button v-else @click="createStripeSession(u)" class="text-[10px] bg-[#635BFF] hover:bg-[#524ac9] text-white px-2 py-1 rounded transition flex items-center gap-1">
+                                            <i class="fa-solid fa-link"></i> Gerar Link
+                                        </button>
+                                    </td>
+                                    <td class="p-4">
+                                        <button @click="toggleStatus(u)" :class="u.status==='active'?'bg-green-100 text-green-700':'bg-yellow-100 text-yellow-700'" class="px-3 py-1 rounded-full text-xs font-bold uppercase transition hover:scale-105">
+                                            {{ u.status }}
+                                        </button>
+                                    </td>
+                                    <td class="p-4 text-right pr-6 flex justify-end gap-2">
+                                        <button @click="openEditModal(u)" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-primary hover:text-white text-slate-500 transition"><i class="fa-solid fa-pen"></i></button>
+                                        <button @click="deleteUser(u)" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-red-500 hover:text-white text-slate-500 transition"><i class="fa-solid fa-trash"></i></button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div v-show="currentView === 'crm'" class="max-w-6xl mx-auto h-[calc(100vh-140px)] animate-fade-in">
+                    <h2 class="text-2xl font-bold text-slate-800 mb-6">Funil de Vendas</h2>
+                    <div class="flex gap-4 h-full overflow-x-auto pb-4">
+                        <div class="w-80 flex-shrink-0 flex flex-col bg-white rounded-2xl border border-slate-200 h-full">
+                            <div class="p-4 border-b border-slate-100 bg-slate-50 rounded-t-2xl font-bold text-slate-700 flex justify-between">
+                                <span>Novos (Trial)</span> <span class="bg-slate-200 px-2 rounded text-xs py-0.5">{{ crmColumns.new.length }}</span>
+                            </div>
+                            <div class="p-3 space-y-3 overflow-y-auto flex-1 bg-slate-50/50">
+                                <div v-for="u in crmColumns.new" :key="u.id" class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 hover:border-primary cursor-pointer transition">
+                                    <div class="font-bold text-sm">{{ u.displayName }}</div>
+                                    <div class="text-[10px] text-slate-500 mb-2">Cadastrou {{ timeSince(u.createdAt) }}</div>
+                                    <button @click="addQuickNote(u, 'zap')" class="w-full py-1.5 bg-green-50 text-green-700 text-xs font-bold rounded-lg hover:bg-green-100 border border-green-100"><i class="fa-brands fa-whatsapp"></i> Boas vindas</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="w-80 flex-shrink-0 flex flex-col bg-white rounded-2xl border border-slate-200 h-full">
+                            <div class="p-4 border-b border-slate-100 bg-yellow-50 rounded-t-2xl font-bold text-yellow-800 flex justify-between">
+                                <span>Vencendo < 3 dias</span> <span class="bg-yellow-200 px-2 rounded text-xs py-0.5">{{ crmColumns.expiring.length }}</span>
+                            </div>
+                            <div class="p-3 space-y-3 overflow-y-auto flex-1 bg-slate-50/50">
+                                <div v-for="u in crmColumns.expiring" :key="u.id" class="bg-white p-3 rounded-xl shadow-sm border border-l-4 border-l-yellow-400 border-slate-200">
+                                    <div class="font-bold text-sm">{{ u.displayName }}</div>
+                                    <div class="text-xs text-red-500 font-bold mb-2">Restam {{ getTrialDaysLeft(u) }} dias</div>
+                                    <button @click="createStripeSession(u)" class="w-full py-1.5 bg-primary text-white text-xs font-bold rounded-lg hover:bg-primary/90 shadow-sm mb-1">Enviar Link Pagamento</button>
+                                    <button @click="addQuickNote(u, 'cobranca')" class="w-full py-1.5 bg-slate-100 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-200">Registrar Cobrança</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="w-80 flex-shrink-0 flex flex-col bg-white rounded-2xl border border-slate-200 h-full">
+                            <div class="p-4 border-b border-slate-100 bg-green-50 rounded-t-2xl font-bold text-green-800 flex justify-between">
+                                <span>Clientes Ativos</span> <span class="bg-green-200 px-2 rounded text-xs py-0.5">{{ crmColumns.active.length }}</span>
+                            </div>
+                            <div class="p-3 space-y-3 overflow-y-auto flex-1 bg-slate-50/50">
+                                <div v-for="u in crmColumns.active" :key="u.id" class="bg-white p-3 rounded-xl shadow-sm border border-l-4 border-l-green-500 border-slate-200 opacity-80 hover:opacity-100 transition">
+                                    <div class="font-bold text-sm">{{ u.displayName }}</div>
+                                    <div class="text-[10px] text-slate-500">Plano Pro Mensal</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-show="currentView === 'logs'" class="max-w-4xl mx-auto animate-fade-in">
+                    <h2 class="text-2xl font-bold text-slate-800 mb-6">Logs de Auditoria</h2>
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div v-if="systemLogs.length === 0" class="p-8 text-center text-slate-400">Nenhum registro.</div>
+                        <table v-else class="w-full text-left text-xs md:text-sm">
+                            <thead class="bg-slate-50 text-slate-500 font-bold">
+                                <tr>
+                                    <th class="p-4">Data</th>
+                                    <th class="p-4">Admin</th>
+                                    <th class="p-4">Ação</th>
+                                    <th class="p-4">Detalhes</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                <tr v-for="log in systemLogs" :key="log.id" class="hover:bg-slate-50">
+                                    <td class="p-4 text-slate-500 font-mono text-[10px] md:text-xs whitespace-nowrap">{{ new Date(log.timestamp).toLocaleString() }}</td>
+                                    <td class="p-4 font-bold text-slate-700">{{ log.adminEmail }}</td>
+                                    <td class="p-4">
+                                        <span :class="getActionColor(log.action)" class="px-2 py-0.5 rounded text-[10px] font-bold uppercase">{{ log.action }}</span>
+                                    </td>
+                                    <td class="p-4 text-slate-600 truncate max-w-xs">{{ log.details }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
             </main>
         </div>
 
         <div v-if="showModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 md:p-8 border border-slate-100 animate-fade-in-up">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-fade-in-up">
                 <div class="flex justify-between items-center mb-6">
-                    <h3 class="font-bold text-xl text-slate-800">{{ modalMode === 'create' ? 'Novo Assinante' : 'Editar Assinante' }}</h3>
-                    <button @click="showModal=false" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:text-red-500 flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
+                    <h3 class="font-bold text-xl text-slate-800">{{ modalMode === 'create' ? 'Novo Usuário' : 'Editar Usuário' }}</h3>
+                    <button @click="showModal=false" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-xmark text-xl"></i></button>
                 </div>
-                
                 <div class="space-y-4">
-                    <div>
-                        <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Nome da Empresa</label>
-                        <input v-model="userForm.name" class="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary focus:bg-white transition">
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-4">
-                         <div>
-                            <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">E-mail</label>
-                            <input v-model="userForm.email" :disabled="modalMode==='edit'" class="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary focus:bg-white transition disabled:opacity-60">
-                        </div>
-                        <div>
-                            <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Telefone</label>
-                            <input v-model="userForm.phone" placeholder="(00) 00000..." class="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary focus:bg-white transition">
-                        </div>
-                    </div>
-
-                    <div v-if="modalMode === 'create'">
-                        <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Senha Inicial</label>
-                        <input v-model="userForm.password" type="password" class="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary focus:bg-white transition">
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                        <div>
-                            <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Status</label>
-                            <select v-model="userForm.status" class="w-full h-10 px-2 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary">
-                                <option value="trial">Trial (Grátis)</option>
-                                <option value="active">PRO (Pago)</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Validade</label>
-                            <input v-model="userForm.planExpiresAt" type="date" class="w-full h-10 px-2 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary">
-                        </div>
+                    <input v-model="userForm.name" placeholder="Nome da Empresa" class="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary">
+                    <input v-model="userForm.email" :disabled="modalMode==='edit'" placeholder="Email" class="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary disabled:opacity-50">
+                    <div v-if="modalMode==='create'"><input v-model="userForm.password" type="password" placeholder="Senha" class="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary"></div>
+                    <div class="grid grid-cols-2 gap-3">
+                         <input v-model="userForm.phone" placeholder="WhatsApp" class="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary">
+                         <input v-model="userForm.planExpiresAt" type="date" class="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary">
                     </div>
                 </div>
-
-                <div class="flex gap-3 mt-8">
-                    <button @click="handleUserSubmit" :disabled="loadingAction" class="w-full h-14 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-lg shadow-primary/20 transition flex items-center justify-center gap-2 active:scale-95">
-                        <i v-if="loadingAction" class="fa-solid fa-circle-notch fa-spin"></i> {{ modalMode === 'create' ? 'Criar Usuário' : 'Salvar Alterações' }}
-                    </button>
-                </div>
+                <button @click="handleUserSubmit" :disabled="loadingAction" class="w-full mt-6 h-12 bg-primary text-white font-bold rounded-xl hover:bg-primary/90 transition shadow-lg flex items-center justify-center gap-2">
+                    <i v-if="loadingAction" class="fa-solid fa-circle-notch fa-spin"></i> Salvar
+                </button>
             </div>
         </div>
 
