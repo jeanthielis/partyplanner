@@ -1,8 +1,9 @@
-const { createApp, ref, computed, reactive, onMounted } = Vue;
+const { createApp, ref, computed, reactive, onMounted, watch } = Vue;
 
 import { 
     db, auth, firebaseConfig, 
-    collection, onSnapshot, doc, updateDoc, deleteDoc, getDoc, setDoc, signOut, onAuthStateChanged, addDoc 
+    collection, onSnapshot, doc, updateDoc, deleteDoc, getDoc, setDoc, signOut, onAuthStateChanged, addDoc,
+    query, orderBy, limit // Adicionei estes imports
 } from './firebase.js';
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -10,24 +11,26 @@ import { getAuth, createUserWithEmailAndPassword, updateProfile } from "https://
 
 createApp({
     setup() {
-        // Estado
+        // UI State
+        const currentView = ref('dashboard');
+        const showMobileMenu = ref(false);
+        const showModal = ref(false);
+        const modalMode = ref('create');
+        const loadingAction = ref(false);
+        
+        // Data State
         const users = ref([]);
+        const systemLogs = ref([]);
         const searchTerm = ref('');
-        const filterStatus = ref('all');
         const currentUser = ref(null);
         const pricing = 49.90;
-        
-        // Controle de UI
-        const showModal = ref(false); // Modal único para Criar/Editar
-        const modalMode = ref('create'); // 'create' ou 'edit'
-        const showMobileMenu = ref(false); // Menu lateral no mobile
-        const loadingAction = ref(false);
 
-        // Formulário User
-        const userForm = reactive({ 
-            id: null, name: '', email: '', password: '', 
-            status: 'trial', phone: '', planExpiresAt: '' 
-        });
+        // Forms
+        const userForm = reactive({ id: null, name: '', email: '', password: '', status: 'trial', phone: '', planExpiresAt: '' });
+
+        // Chart Instances
+        let growthChartInstance = null;
+        let statusChartInstance = null;
 
         // ============================================================
         // 1. INICIALIZAÇÃO
@@ -35,19 +38,18 @@ createApp({
         onMounted(() => {
             onAuthStateChanged(auth, async (u) => {
                 if (u) {
-                    const docSnap = await getDoc(doc(db, "users", u.uid));
-                    // Verificação de segurança simples
-                    if (docSnap.exists() && (docSnap.data().role === 'admin' || u.email === 'jeanthielis@gmail.com')) {
-                        currentUser.value = u;
-                        loadUsers();
-                    } else {
-                        // Se não for admin, carrega igual (para teste) ou redireciona
-                        loadUsers(); 
-                    }
+                    currentUser.value = u;
+                    loadUsers();
+                    loadLogs();
                 } else {
                     window.location.href = "index.html";
                 }
             });
+        });
+
+        // Watcher para renderizar gráficos quando mudar para dashboard
+        watch(currentView, (newVal) => {
+            if (newVal === 'dashboard') setTimeout(renderCharts, 200);
         });
 
         const loadUsers = () => {
@@ -62,192 +64,220 @@ createApp({
                         createdAt: data.createdAt || new Date().toISOString(),
                         lastLogin: data.lastLogin || null,
                         adminNotes: data.adminNotes || '',
-                        planExpiresAt: data.planExpiresAt || null // Nova data de validade
+                        planExpiresAt: data.planExpiresAt || null,
+                        stripeId: data.stripeCustomerId || null // Novo campo
                     };
                 });
+                if(currentView.value === 'dashboard') renderCharts();
+            });
+        };
+
+        const loadLogs = () => {
+            const q = query(collection(db, "system_logs"), orderBy("timestamp", "desc"), limit(50));
+            onSnapshot(q, (snap) => {
+                systemLogs.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
             });
         };
 
         // ============================================================
-        // 2. AÇÕES DE USUÁRIO (CRIAR / EDITAR)
+        // 2. FUNÇÕES DE ADMINISTRAÇÃO AVANÇADA
         // ============================================================
-        const openCreateModal = () => {
-            modalMode.value = 'create';
-            Object.assign(userForm, { id: null, name: '', email: '', password: '', status: 'trial', phone: '', planExpiresAt: '' });
-            showModal.value = true;
-            showMobileMenu.value = false;
+        
+        // LOG AUDITORIA (Feature 4)
+        const logAction = async (action, details) => {
+            try {
+                await addDoc(collection(db, "system_logs"), {
+                    timestamp: new Date().toISOString(),
+                    adminEmail: currentUser.value.email,
+                    action: action,
+                    details: details
+                });
+            } catch (e) { console.error("Falha no log", e); }
         };
 
-        const openEditModal = (user) => {
-            modalMode.value = 'edit';
-            Object.assign(userForm, { 
-                id: user.id, 
-                name: user.displayName, 
-                email: user.email, 
-                password: '', // Não editamos senha aqui
-                status: user.status, 
-                phone: user.phone,
-                planExpiresAt: user.planExpiresAt || '' 
-            });
-            showModal.value = true;
-        };
-
-        const handleUserSubmit = async () => {
-            if (!userForm.name || !userForm.email) return Swal.fire('Erro', 'Nome e Email obrigatórios', 'warning');
+        // STRIPE (Feature 1) - Frontend Logic
+        const createStripeSession = async (user) => {
+            // Nota: Em produção, isso chamaria uma Cloud Function. 
+            // Aqui, simulamos a criação do link e atualização do status.
             
+            const { isConfirmed } = await Swal.fire({
+                title: 'Gerar Cobrança',
+                text: `Criar link de pagamento para ${user.displayName}?`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Sim, Gerar Link',
+                confirmButtonColor: '#635BFF'
+            });
+
+            if (isConfirmed) {
+                Swal.fire({ title: 'Gerando...', didOpen: () => Swal.showLoading() });
+                
+                // Simulação de Backend
+                setTimeout(async () => {
+                    // 1. Loga a ação
+                    await logAction('PAYMENT_LINK', `Gerou link para ${user.email}`);
+                    
+                    // 2. Atualiza o usuário com um "ID de cliente Stripe" falso para demo
+                    await updateDoc(doc(db, "users", user.id), {
+                        stripeCustomerId: 'cus_' + Math.random().toString(36).substr(2, 9)
+                    });
+                    
+                    Swal.fire({
+                        title: 'Link Criado!',
+                        html: `Envie para o cliente: <br><b>https://buy.stripe.com/test_${user.id}</b>`,
+                        icon: 'success'
+                    });
+                }, 1500);
+            }
+        };
+
+        // GRÁFICOS BI (Feature 2)
+        const renderCharts = () => {
+            const ctxGrowth = document.getElementById('growthChart');
+            const ctxStatus = document.getElementById('statusChart');
+
+            if (!ctxGrowth || !ctxStatus) return;
+
+            // Prepara Dados Crescimento (Últimos 6 meses fictícios ou reais)
+            // Aqui simplificado: Agrupamento por mês de criação
+            const months = {};
+            users.value.forEach(u => {
+                const k = u.createdAt.substring(0, 7); // YYYY-MM
+                months[k] = (months[k] || 0) + 1;
+            });
+            const labels = Object.keys(months).sort();
+            const dataGrowth = labels.map(k => months[k]);
+
+            // Chart Crescimento
+            if (growthChartInstance) growthChartInstance.destroy();
+            growthChartInstance = new Chart(ctxGrowth, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Novos Usuários',
+                        data: dataGrowth,
+                        borderColor: '#6366F1',
+                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            // Chart Status (Pizza)
+            const statusCount = { active: 0, trial: 0 };
+            users.value.forEach(u => { statusCount[u.status] = (statusCount[u.status] || 0) + 1; });
+            
+            if (statusChartInstance) statusChartInstance.destroy();
+            statusChartInstance = new Chart(ctxStatus, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Ativos', 'Trial'],
+                    datasets: [{
+                        data: [statusCount.active, statusCount.trial],
+                        backgroundColor: ['#22C55E', '#EAB308']
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        };
+
+        // ============================================================
+        // 3. AÇÕES CRUD (USER)
+        // ============================================================
+        const handleUserSubmit = async () => {
+            if (!userForm.name || !userForm.email) return Swal.fire('Erro', 'Dados incompletos', 'warning');
             loadingAction.value = true;
             try {
                 if (modalMode.value === 'create') {
-                    // MODO CRIAÇÃO (Ghost App)
-                    if (!userForm.password) throw new Error("Senha obrigatória para criar.");
-                    
                     const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
                     const secondaryAuth = getAuth(secondaryApp);
                     const cred = await createUserWithEmailAndPassword(secondaryAuth, userForm.email, userForm.password);
                     await updateProfile(cred.user, { displayName: userForm.name });
-                    
                     await setDoc(doc(db, "users", cred.user.uid), {
-                        email: userForm.email, role: 'user', status: userForm.status, 
-                        createdAt: new Date().toISOString(),
-                        planExpiresAt: userForm.planExpiresAt || null,
+                        email: userForm.email, role: 'user', status: userForm.status, createdAt: new Date().toISOString(),
                         companyConfig: { fantasia: userForm.name, email: userForm.email, phone: userForm.phone }
                     });
-                    
                     await secondaryAuth.signOut();
-                    Swal.fire('Criado', `Usuário ${userForm.name} criado!`, 'success');
-
+                    await logAction('CREATE_USER', `Criou: ${userForm.email}`);
                 } else {
-                    // MODO EDIÇÃO (Apenas Firestore)
                     const updateData = {
                         status: userForm.status,
                         planExpiresAt: userForm.planExpiresAt || null,
                         "companyConfig.fantasia": userForm.name,
-                        "companyConfig.phone": userForm.phone,
-                        "companyConfig.email": userForm.email // Atualiza email de contato, não o de login
+                        "companyConfig.phone": userForm.phone
                     };
-                    
                     await updateDoc(doc(db, "users", userForm.id), updateData);
-                    Swal.fire('Atualizado', 'Dados salvos com sucesso.', 'success');
+                    await logAction('EDIT_USER', `Editou: ${userForm.email}`);
                 }
                 showModal.value = false;
-            } catch (error) {
-                console.error(error);
-                Swal.fire('Erro', error.message, 'error');
-            } finally {
-                loadingAction.value = false;
-            }
+                Swal.fire('Sucesso', 'Operação realizada.', 'success');
+            } catch (e) { Swal.fire('Erro', e.message, 'error'); } 
+            finally { loadingAction.value = false; }
         };
 
-        // ============================================================
-        // 3. FERRAMENTAS EXTRAS
-        // ============================================================
         const toggleStatus = async (user) => {
-            const newStatus = user.status === 'active' ? 'trial' : 'active';
-            // Se ativou, dá 30 dias. Se trial, remove data ou dá 7 dias.
-            let expiry = null;
-            if (newStatus === 'active') {
-                const d = new Date(); d.setDate(d.getDate() + 30);
-                expiry = d.toISOString().split('T')[0];
-            }
-            await updateDoc(doc(db, "users", user.id), { status: newStatus, planExpiresAt: expiry });
+            const ns = user.status === 'active' ? 'trial' : 'active';
+            await updateDoc(doc(db, "users", user.id), { status: ns });
+            await logAction('CHANGE_STATUS', `${user.email} -> ${ns}`);
         };
 
-        const sendGlobalNotification = async () => {
-            const { value: text } = await Swal.fire({
-                title: 'Enviar Aviso Global',
-                input: 'textarea',
-                inputLabel: 'Mensagem (aparecerá para todos os usuários)',
-                inputPlaceholder: 'Ex: Manutenção hoje às 22h...',
-                showCancelButton: true
-            });
-
-            if (text) {
-                // Cria uma coleção de avisos (você precisaria implementar a leitura disso no app.js)
-                await addDoc(collection(db, "system_messages"), {
-                    text, createdAt: new Date().toISOString(), type: 'info', active: true
-                });
-                Swal.fire('Enviado', 'Mensagem disparada para o sistema.', 'success');
-            }
-        };
-
-        const exportCSV = () => {
-            const headers = "Nome,Email,Telefone,Status,Data Cadastro,Ultimo Login\n";
-            const rows = users.value.map(u => 
-                `"${u.displayName}","${u.email}","${u.phone}","${u.status}","${formatDate(u.createdAt)}","${formatDate(u.lastLogin)}"`
-            ).join("\n");
-            
-            const blob = new Blob([headers + rows], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = "clientes_partyplanner.csv";
-            link.click();
-        };
-
-        // CRM e Notas
-        const saveNote = async (user) => { await updateDoc(doc(db, "users", user.id), { adminNotes: user.adminNotes }); };
-        const addQuickNote = (user, type) => {
-            const date = new Date().toLocaleDateString('pt-BR');
-            let text = type === 'zap' ? 'Entrei em contato via WhatsApp.' : 'Enviei cobrança/aviso.';
-            user.adminNotes = `[${date}] ${text}\n` + (user.adminNotes || '');
-            saveNote(user);
-        };
         const deleteUser = async (user) => {
-            if ((await Swal.fire({ title: 'Excluir?', icon: 'warning', showCancelButton: true })).isConfirmed) {
+            if ((await Swal.fire({title:'Excluir?',icon:'warning',showCancelButton:true})).isConfirmed){
                 await deleteDoc(doc(db, "users", user.id));
+                await logAction('DELETE_USER', `Excluiu: ${user.email}`);
             }
         };
-        const logout = async () => { await signOut(auth); window.location.href = "index.html"; };
 
-        // ============================================================
-        // 4. COMPUTEDS E HELPERS
-        // ============================================================
+        // CRM: Quick Actions
+        const addQuickNote = async (user, type) => {
+             const date = new Date().toLocaleDateString('pt-BR');
+             const msg = type === 'zap' ? 'Contato via WhatsApp' : 'Enviado Cobrança';
+             await updateDoc(doc(db, "users", user.id), { adminNotes: `[${date}] ${msg}\n` + (user.adminNotes||'') });
+             await logAction('CRM_UPDATE', `Nota para ${user.email}: ${msg}`);
+             Swal.fire({toast:true, position:'top-end', title:'Nota salva', icon:'success', timer:2000, showConfirmButton:false});
+        };
+
+        const openCreateModal = () => { modalMode.value='create'; Object.assign(userForm,{name:'',email:'',password:'',phone:''}); showModal.value=true; };
+        const openEditModal = (u) => { modalMode.value='edit'; Object.assign(userForm,{id:u.id, name:u.displayName, email:u.email, phone:u.phone, status:u.status, planExpiresAt:u.planExpiresAt}); showModal.value=true; };
+        const logout = async () => { await signOut(auth); window.location.href="index.html"; };
+
+        // Computed & Helpers
         const filteredUsers = computed(() => {
-            let list = users.value;
-            if (filterStatus.value === 'active') list = list.filter(u => u.status === 'active');
-            else if (filterStatus.value === 'trial') list = list.filter(u => u.status === 'trial');
-            else if (filterStatus.value === 'inactive') {
-                 const limit = new Date(); limit.setDate(limit.getDate() - 3);
-                 list = list.filter(u => u.lastLogin && new Date(u.lastLogin) < limit);
-            }
-            if (searchTerm.value) {
-                const lower = searchTerm.value.toLowerCase();
-                list = list.filter(u => u.displayName.toLowerCase().includes(lower) || u.email.toLowerCase().includes(lower));
-            }
-            return list.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+            let l = users.value;
+            if(searchTerm.value) l = l.filter(u => u.displayName.toLowerCase().includes(searchTerm.value.toLowerCase()));
+            return l.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
         });
 
-        // Métricas
-        const newUsersToday = computed(() => users.value.filter(u => u.createdAt && u.createdAt.startsWith(new Date().toISOString().split('T')[0])).length);
-        const activeCount = computed(() => users.value.filter(u => u.status === 'active').length);
-        const mrr = computed(() => activeCount.value * pricing);
-        const expiringTrials = computed(() => users.value.filter(u => u.status === 'trial' && getTrialDaysLeft(u) >= 0 && getTrialDaysLeft(u) <= 3).length);
-        const inactiveUsers = computed(() => { const limit = new Date(); limit.setDate(limit.getDate() - 3); return users.value.filter(u => u.lastLogin && new Date(u.lastLogin) < limit).length; });
+        // CRM Columns (Feature 5)
+        const crmColumns = computed(() => {
+            return {
+                new: users.value.filter(u => u.status === 'trial' && getTrialDaysLeft(u) > 3),
+                expiring: users.value.filter(u => u.status === 'trial' && getTrialDaysLeft(u) <= 3),
+                active: users.value.filter(u => u.status === 'active')
+            };
+        });
 
-        // Formatadores
-        const formatCurrency = (val) => val.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-        const formatDate = (d) => d ? new Date(d).toLocaleDateString('pt-BR') : '-';
-        const timeSince = (d) => {
-            if (!d) return 'Nunca';
-            const s = Math.floor((new Date() - new Date(d)) / 1000);
-            if (s < 60) return "Agora";
-            if (s < 3600) return Math.floor(s/60) + "m atrás";
-            if (s < 86400) return Math.floor(s/3600) + "h atrás";
-            return Math.floor(s/86400) + "d atrás";
-        };
-        const getWhatsappLink = (p) => p ? `https://wa.me/55${p.replace(/\D/g, '')}` : '#';
-        const getTrialDaysLeft = (u) => {
-            const end = new Date(u.createdAt); end.setDate(end.getDate() + 7);
-            return Math.ceil((end - new Date()) / (1000 * 60 * 60 * 24));
-        };
-        const getTrialPercentage = (u) => Math.min(100, Math.max(0, ((7 - getTrialDaysLeft(u)) / 7) * 100));
+        const mrr = computed(() => users.value.filter(u => u.status==='active').length * pricing);
+        const newUsersToday = computed(() => users.value.filter(u => u.createdAt?.startsWith(new Date().toISOString().split('T')[0])).length);
+        const inactiveUsers = computed(() => { const d=new Date(); d.setDate(d.getDate()-3); return users.value.filter(u => u.lastLogin && new Date(u.lastLogin)<d).length; });
+        const conversionRate = computed(() => { const total = users.value.length; if(!total) return 0; const active = users.value.filter(u=>u.status==='active').length; return ((active/total)*100).toFixed(1); });
+        
+        const getTrialDaysLeft = (u) => { const end=new Date(u.createdAt); end.setDate(end.getDate()+7); return Math.ceil((end-new Date())/(86400000)); };
+        const formatCurrency = (v) => v.toLocaleString('pt-BR',{minimumFractionDigits:2});
+        const timeSince = (d) => { if(!d) return '-'; const s=Math.floor((new Date()-new Date(d))/1000); if(s<3600) return 'Agora'; if(s<86400) return Math.floor(s/3600)+'h atrás'; return Math.floor(s/86400)+'d atrás'; };
+        const getWhatsappLink = (p) => p?`https://wa.me/55${p.replace(/\D/g,'')}`:'#';
+        const getActionColor = (a) => { if(a.includes('DELETE')) return 'bg-red-100 text-red-700'; if(a.includes('CREATE')) return 'bg-green-100 text-green-700'; return 'bg-slate-100 text-slate-700'; };
 
         return {
-            users, searchTerm, filterStatus, filteredUsers, currentUser, logout,
-            newUsersToday, activeCount, mrr, expiringTrials, inactiveUsers,
-            showModal, modalMode, userForm, openCreateModal, openEditModal, handleUserSubmit, loadingAction, // Modal actions
-            toggleStatus, saveNote, addQuickNote, deleteUser, sendGlobalNotification, exportCSV, // Novas ações
-            showMobileMenu, // Mobile
-            formatCurrency, formatDate, timeSince, getWhatsappLink, getTrialDaysLeft, getTrialPercentage
+            currentView, showMobileMenu, showModal, modalMode, userForm, loadingAction,
+            users, filteredUsers, systemLogs, currentUser, searchTerm,
+            openCreateModal, openEditModal, handleUserSubmit, deleteUser, toggleStatus, logout,
+            createStripeSession, addQuickNote,
+            mrr, newUsersToday, inactiveUsers, conversionRate, crmColumns,
+            formatCurrency, timeSince, getTrialDaysLeft, getWhatsappLink, getActionColor
         };
     }
 }).mount('#adminApp');
