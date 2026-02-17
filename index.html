@@ -6,11 +6,8 @@
     <title>PartyPlanner Pro - O Sistema do Decorador Profissional</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
-    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 
     <script>
         tailwind.config = {
@@ -31,281 +28,196 @@
         }
     </script>
 
-    <meta property="og:title" content="PartyPlanner Pro 🚀">
-    <meta property="og:description" content="Gestão completa para Decoradores: Contratos, Agenda e Pix em um só lugar.">
-    <meta property="og:image" content="https://partyplanner.web.app/share-image.png"> 
-    <meta property="og:image:type" content="image/png">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
-    <meta property="og:type" content="website">
-    <meta name="theme-color" content="#4F46E5">
-
     <style>
-        /* Efeitos visuais extras */
-        .glass-nav { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .glass-nav { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.05); }
         .text-gradient { background: linear-gradient(135deg, #fff 30%, #818cf8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .hero-glow { position: absolute; width: 600px; height: 600px; background: radial-gradient(circle, rgba(79,70,229,0.15) 0%, rgba(0,0,0,0) 70%); top: -20%; left: 50%; transform: translateX(-50%); pointer-events: none; z-index: 0; }
-        .mockup-shadow { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
-        
-        /* Animação suave */
-        .fade-up { animation: fadeUp 0.8s ease-out forwards; opacity: 0; transform: translateY(20px); }
-        @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
-        .delay-100 { animation-delay: 0.1s; }
-        .delay-200 { animation-delay: 0.2s; }
+        .mockup-container { perspective: 1000px; }
+        .mockup-screen { transform: rotateX(5deg) rotateY(-1deg); box-shadow: 0 50px 100px -20px rgba(0,0,0,0.5); transition: 0.5s; }
+        .mockup-screen:hover { transform: rotateX(0deg) rotateY(0deg); }
     </style>
 </head>
 <body class="bg-dark-950 text-slate-300 font-sans selection:bg-brand-500 selection:text-white overflow-x-hidden">
 
-    <nav class="fixed w-full z-50 glass-nav transition-all duration-300" id="navbar">
+    <nav class="fixed w-full z-50 glass-nav">
         <div class="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-gradient-to-br from-brand-500 to-brand-700 rounded-xl flex items-center justify-center text-white shadow-lg">
+                <div class="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center text-white shadow-lg">
                     <i class="fa-solid fa-wand-magic-sparkles"></i>
                 </div>
-                <span class="font-bold text-xl text-white tracking-tight">PartyPlanner<span class="text-brand-500">Pro</span></span>
+                <span class="font-bold text-xl text-white">PartyPlanner<span class="text-brand-500">Pro</span></span>
             </div>
 
-            <div class="hidden md:flex gap-8 text-sm font-medium text-slate-400">
+            <div class="hidden md:flex gap-8 text-sm font-medium">
                 <a href="#funcionalidades" class="hover:text-white transition">Funcionalidades</a>
-                <a href="#app-visual" class="hover:text-white transition">Por Dentro</a>
+                <a href="#app-visual" class="hover:text-white transition">Interface</a>
                 <a href="#precos" class="hover:text-white transition">Planos</a>
+                <a href="#faq" class="hover:text-white transition">Dúvidas</a>
             </div>
 
             <div class="hidden md:flex items-center gap-4">
-                <a href="app.html" class="text-sm font-bold text-slate-300 hover:text-white transition">Já sou cliente</a>
-                <a href="app.html" class="bg-brand-600 hover:bg-brand-500 text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-brand-500/20 transition transform hover:-translate-y-0.5">
-                    Começar Grátis
+                <a href="app.html" class="text-sm font-bold hover:text-white">Entrar</a>
+                <a href="app.html" class="bg-brand-600 hover:bg-brand-500 text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-neon transition">
+                    Criar Conta
                 </a>
             </div>
-
-            <button onclick="document.getElementById('mobile-menu').classList.toggle('hidden')" class="md:hidden text-white text-2xl">
-                <i class="fa-solid fa-bars"></i>
-            </button>
-        </div>
-
-        <div id="mobile-menu" class="hidden md:hidden bg-dark-900 border-t border-slate-800 p-6 space-y-4 shadow-xl">
-            <a href="#funcionalidades" class="block text-slate-400 hover:text-white">Funcionalidades</a>
-            <a href="#precos" class="block text-slate-400 hover:text-white">Planos</a>
-            <a href="app.html" class="block w-full text-center bg-brand-600 text-white py-3 rounded-xl font-bold">Acessar Sistema</a>
         </div>
     </nav>
 
     <section class="relative pt-32 pb-20 md:pt-48 md:pb-32 overflow-hidden">
         <div class="hero-glow"></div>
-        
-        <div class="max-w-7xl mx-auto px-6 flex flex-col items-center text-center relative z-10">
-            
-            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-brand-500/10 border border-brand-500/20 mb-8 fade-up">
-                <span class="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></span>
-                <span class="text-xs font-bold text-brand-400 uppercase tracking-widest">Novo Sistema 2.0</span>
-            </div>
-
-            <h1 class="text-4xl md:text-7xl font-extrabold text-white mb-6 leading-tight max-w-4xl fade-up delay-100">
-                Transforme sua Decoração em um <br class="hidden md:block">
-                <span class="text-gradient">Negócio Lucrativo</span>
+        <div class="max-w-7xl mx-auto px-6 text-center relative z-10">
+            <h1 class="text-5xl md:text-7xl font-extrabold text-white mb-6 leading-tight">
+                Gestão Profissional para <br>
+                <span class="text-gradient">Decoradores de Festas</span>
             </h1>
-
-            <p class="text-lg md:text-xl text-slate-400 mb-10 max-w-2xl fade-up delay-200">
-                Abandone o papel e as planilhas. Gere orçamentos em segundos, envie contratos digitais e receba pagamentos via Pix. Tudo automático.
+            <p class="text-lg md:text-xl text-slate-400 mb-10 max-w-2xl mx-auto">
+                Gere contratos em segundos, controle sua agenda e profissionalize seu financeiro. Tudo em um só lugar.
             </p>
 
-            <div class="flex flex-col sm:flex-row gap-4 w-full sm:w-auto fade-up delay-200">
-                <a href="app.html" class="px-8 py-4 bg-brand-600 hover:bg-brand-500 text-white rounded-2xl font-bold text-lg shadow-neon transition flex items-center justify-center gap-3">
-                    <i class="fa-solid fa-rocket"></i> Testar Agora
+            <div class="flex flex-col sm:flex-row gap-4 justify-center mb-20">
+                <a href="app.html" class="px-8 py-4 bg-brand-600 text-white rounded-2xl font-bold text-lg shadow-neon hover:scale-105 transition">
+                    Começar Agora Grátis
                 </a>
-                <a href="app.html?acesso=cliente" class="px-8 py-4 bg-dark-800 hover:bg-dark-800/80 border border-slate-700 text-white rounded-2xl font-bold text-lg transition flex items-center justify-center gap-3">
-                    <i class="fa-solid fa-user"></i> Sou Cliente
+                <a href="client.html" class="px-8 py-4 bg-dark-800 border border-slate-700 text-white rounded-2xl font-bold text-lg">
+                    Área do Cliente
                 </a>
             </div>
 
-            <div class="mt-20 relative w-full max-w-5xl fade-up delay-200">
-                <div class="absolute -inset-1 bg-gradient-to-r from-brand-600 to-purple-600 rounded-[2rem] blur opacity-30"></div>
-                <div class="relative bg-dark-900 border border-slate-800 rounded-[2rem] overflow-hidden mockup-shadow">
-                    <div class="h-8 bg-dark-800 border-b border-slate-700 flex items-center px-4 gap-2">
-                        <div class="w-3 h-3 rounded-full bg-red-500"></div>
-                        <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
-                        <div class="w-3 h-3 rounded-full bg-green-500"></div>
+            <div class="mockup-container max-w-5xl mx-auto">
+                <div class="mockup-screen bg-dark-900 rounded-[2.5rem] p-4 border border-slate-700">
+                    <div class="bg-dark-950 rounded-[2rem] overflow-hidden border border-slate-800">
+                        <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=2070&auto=format&fit=crop" class="w-full opacity-80" alt="Dashboard Preview">
                     </div>
-                    <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=2070&auto=format&fit=crop" alt="Dashboard do Sistema" class="w-full h-auto opacity-90">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="app-visual" class="py-24 bg-dark-900/50">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="grid md:grid-cols-2 gap-16 items-center">
+                <div>
+                    <h2 class="text-3xl md:text-4xl font-bold text-white mb-6">Interface intuitiva e <br> modo escuro nativo</h2>
+                    <p class="text-slate-400 mb-8">O PartyPlanner Pro foi desenhado para facilitar sua rotina, seja no computador ou no celular durante a montagem do evento.</p>
                     
-                    <div class="absolute bottom-8 right-8 bg-dark-800/90 backdrop-blur border border-brand-500/30 p-4 rounded-xl shadow-2xl flex items-center gap-4 hidden md:flex">
-                        <div class="bg-green-500/20 p-3 rounded-full text-green-400"><i class="fa-solid fa-check"></i></div>
-                        <div>
-                            <p class="text-xs text-slate-400 uppercase font-bold">Último Contrato</p>
-                            <p class="text-white font-bold">Assinado Agora</p>
+                    <div class="space-y-6">
+                        <div class="flex gap-4">
+                            <div class="w-12 h-12 bg-brand-500/20 rounded-xl flex items-center justify-center text-brand-500 flex-shrink-0"><i class="fa-solid fa-moon"></i></div>
+                            <div><h4 class="text-white font-bold">Modo Dark</h4><p class="text-sm">Conforto visual para trabalhar em qualquer ambiente.</p></div>
+                        </div>
+                        <div class="flex gap-4">
+                            <div class="w-12 h-12 bg-brand-500/20 rounded-xl flex items-center justify-center text-brand-500 flex-shrink-0"><i class="fa-solid fa-mobile-screen"></i></div>
+                            <div><h4 class="text-white font-bold">100% Responsivo</h4><p class="text-sm">Acesse sua agenda e contratos de qualquer lugar.</p></div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-    </section>
-
-    <section id="funcionalidades" class="py-24 bg-dark-900 border-y border-slate-800">
-        <div class="max-w-7xl mx-auto px-6">
-            <div class="text-center mb-16">
-                <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">Tudo o que você precisa</h2>
-                <p class="text-slate-400">Ferramentas essenciais para parar de perder tempo com burocracia.</p>
-            </div>
-
-            <div class="grid md:grid-cols-3 gap-8">
-                <div class="bg-dark-950 p-8 rounded-3xl border border-slate-800 hover:border-brand-500/50 transition group hover:-translate-y-1">
-                    <div class="w-14 h-14 bg-brand-500/10 rounded-2xl flex items-center justify-center text-brand-500 text-2xl mb-6 group-hover:bg-brand-600 group-hover:text-white transition">
-                        <i class="fa-solid fa-file-signature"></i>
+                <div class="relative flex justify-center">
+                    <div class="w-64 h-[500px] bg-black rounded-[3rem] border-8 border-slate-800 shadow-2xl overflow-hidden relative z-10">
+                        <div class="bg-brand-600 h-20 p-6 flex items-end"><div class="w-full h-2 bg-white/20 rounded"></div></div>
+                        <div class="p-4 space-y-3">
+                            <div class="h-24 bg-dark-800 rounded-xl border border-slate-700 p-3">
+                                <div class="w-1/2 h-3 bg-brand-500/30 rounded mb-2"></div>
+                                <div class="w-full h-3 bg-slate-700 rounded"></div>
+                            </div>
+                            <div class="h-24 bg-dark-800 rounded-xl border border-slate-700"></div>
+                        </div>
                     </div>
-                    <h3 class="text-xl font-bold text-white mb-3">Contratos Digitais</h3>
-                    <p class="text-slate-400 text-sm leading-relaxed">
-                        Seu cliente assina o contrato na tela do celular. O PDF é gerado automaticamente com sua logo e dados.
-                    </p>
-                </div>
-
-                <div class="bg-dark-950 p-8 rounded-3xl border border-slate-800 hover:border-brand-500/50 transition group hover:-translate-y-1">
-                    <div class="w-14 h-14 bg-purple-500/10 rounded-2xl flex items-center justify-center text-purple-500 text-2xl mb-6 group-hover:bg-purple-600 group-hover:text-white transition">
-                        <i class="fa-solid fa-calendar-check"></i>
+                    <div class="absolute -right-4 top-20 w-56 h-40 bg-dark-800 rounded-2xl border border-slate-700 shadow-2xl p-4 hidden lg:block">
+                        <div class="flex justify-between mb-4"><div class="w-12 h-3 bg-green-500/30 rounded"></div><div class="w-8 h-3 bg-slate-700 rounded"></div></div>
+                        <div class="space-y-2"><div class="w-full h-2 bg-slate-700 rounded"></div><div class="w-full h-2 bg-slate-700 rounded"></div></div>
                     </div>
-                    <h3 class="text-xl font-bold text-white mb-3">Agenda Inteligente</h3>
-                    <p class="text-slate-400 text-sm leading-relaxed">
-                        Evite conflitos de data. Visualize seus eventos em formato de calendário ou lista e nunca mais perca um horário.
-                    </p>
-                </div>
-
-                <div class="bg-dark-950 p-8 rounded-3xl border border-slate-800 hover:border-brand-500/50 transition group hover:-translate-y-1">
-                    <div class="w-14 h-14 bg-green-500/10 rounded-2xl flex items-center justify-center text-green-500 text-2xl mb-6 group-hover:bg-green-600 group-hover:text-white transition">
-                        <i class="fa-brands fa-whatsapp"></i>
-                    </div>
-                    <h3 class="text-xl font-bold text-white mb-3">Portal do Cliente</h3>
-                    <p class="text-slate-400 text-sm leading-relaxed">
-                        Envie um link exclusivo para seu cliente acompanhar o orçamento, aprovar e enviar o comprovante do Pix.
-                    </p>
                 </div>
             </div>
         </div>
     </section>
 
-    <section id="app-visual" class="py-24 overflow-hidden relative">
-        <div class="absolute top-0 right-0 w-1/2 h-full bg-brand-900/10 skew-x-12 pointer-events-none"></div>
-        <div class="max-w-7xl mx-auto px-6 grid md:grid-cols-2 gap-16 items-center">
+    <section id="precos" class="py-24">
+        <div class="max-w-7xl mx-auto px-6 text-center">
+            <h2 class="text-3xl font-bold text-white mb-4">Planos Simples e Transparentes</h2>
+            <p class="mb-12">Escolha o que melhor se adapta ao seu volume de eventos.</p>
             
-            <div class="order-2 md:order-1 relative flex justify-center">
-                <div class="relative w-[300px] h-[600px] bg-black rounded-[3rem] border-8 border-slate-800 shadow-2xl overflow-hidden">
-                    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-slate-800 rounded-b-xl z-20"></div>
-                    <img src="https://images.unsplash.com/photo-1616588589676-60b30c3c1681?q=80&w=1000&auto=format&fit=crop" alt="Mobile App" class="w-full h-full object-cover opacity-80">
-                    
-                    <div class="absolute bottom-6 left-4 right-4 bg-white/10 backdrop-blur-md p-4 rounded-xl border border-white/20">
-                        <div class="flex justify-between items-center text-white">
-                            <span class="text-sm font-bold">Festa da Júlia</span>
-                            <span class="bg-green-500 text-xs px-2 py-1 rounded">Pago</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="absolute -z-10 top-20 -left-10 w-40 h-40 bg-brand-600 rounded-full blur-[80px] opacity-50"></div>
-                <div class="absolute -z-10 bottom-20 -right-10 w-40 h-40 bg-purple-600 rounded-full blur-[80px] opacity-50"></div>
-            </div>
-
-            <div class="order-1 md:order-2">
-                <h2 class="text-3xl md:text-5xl font-bold text-white mb-6">Controle total na palma da mão.</h2>
-                <p class="text-slate-400 text-lg mb-8">
-                    Seja no escritório ou montando uma festa, você tem acesso total aos seus dados. O PartyPlanner Pro é otimizado para funcionar perfeitamente no seu celular.
-                </p>
-                <ul class="space-y-4">
-                    <li class="flex items-center gap-3 text-slate-300">
-                        <i class="fa-solid fa-circle-check text-brand-500"></i> Receba notificações de aprovação
-                    </li>
-                    <li class="flex items-center gap-3 text-slate-300">
-                        <i class="fa-solid fa-circle-check text-brand-500"></i> Envie orçamentos pelo WhatsApp
-                    </li>
-                    <li class="flex items-center gap-3 text-slate-300">
-                        <i class="fa-solid fa-circle-check text-brand-500"></i> Veja quem está devendo (Financeiro)
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </section>
-
-    <section id="precos" class="py-24 bg-dark-900 relative">
-        <div class="max-w-7xl mx-auto px-6">
-            <div class="text-center mb-16">
-                <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">Escolha seu Plano</h2>
-                <p class="text-slate-400">Investimento baixo para um retorno alto na sua organização.</p>
-            </div>
-
             <div class="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-                
-                <div class="bg-dark-950 p-8 rounded-[2rem] border border-slate-800 flex flex-col">
-                    <div class="mb-4">
-                        <span class="bg-slate-800 text-slate-300 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">Mensal</span>
-                    </div>
-                    <div class="mb-6 flex items-end gap-1">
-                        <span class="text-4xl font-bold text-white">R$ 49,90</span>
-                        <span class="text-slate-500 mb-1">/mês</span>
-                    </div>
-                    <p class="text-slate-400 text-sm mb-8">Ideal para quem quer flexibilidade e baixo custo inicial.</p>
-                    <ul class="space-y-4 mb-8 flex-1">
-                        <li class="flex items-center gap-3 text-sm text-slate-300"><i class="fa-solid fa-check text-brand-500"></i> Eventos Ilimitados</li>
-                        <li class="flex items-center gap-3 text-sm text-slate-300"><i class="fa-solid fa-check text-brand-500"></i> Contratos em PDF</li>
-                        <li class="flex items-center gap-3 text-sm text-slate-300"><i class="fa-solid fa-check text-brand-500"></i> Suporte por Email</li>
+                <div class="bg-dark-900 p-10 rounded-[2.5rem] border border-slate-800 hover:border-brand-500 transition">
+                    <h3 class="text-xl font-bold text-white mb-2">Mensal</h3>
+                    <div class="text-4xl font-bold text-white mb-6">R$ 49,90 <span class="text-sm font-normal text-slate-500">/mês</span></div>
+                    <ul class="text-left space-y-4 mb-8">
+                        <li><i class="fa-solid fa-check text-brand-500 mr-2"></i> Eventos Ilimitados</li>
+                        <li><i class="fa-solid fa-check text-brand-500 mr-2"></i> Contratos com Assinatura Digital</li>
+                        <li><i class="fa-solid fa-check text-brand-500 mr-2"></i> Dashboard Financeiro Completo</li>
                     </ul>
-                    <a href="app.html" class="w-full block text-center py-4 rounded-xl border border-slate-700 text-white font-bold hover:bg-slate-800 transition">
-                        Escolher Mensal
-                    </a>
+                    <a href="app.html" class="block w-full py-4 bg-dark-800 text-white rounded-xl font-bold border border-slate-700">Começar Mensal</a>
                 </div>
-
-                <div class="bg-dark-950 p-8 rounded-[2rem] border border-brand-500/50 relative flex flex-col shadow-2xl shadow-brand-900/20 transform md:-translate-y-4">
-                    <div class="absolute -top-4 right-8 bg-gradient-to-r from-brand-600 to-purple-600 text-white px-4 py-1 rounded-full text-xs font-bold uppercase shadow-lg">
-                        Mais Popular
-                    </div>
-                    <div class="mb-4">
-                        <span class="bg-brand-500/20 text-brand-400 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">Anual</span>
-                    </div>
-                    <div class="mb-2 flex items-end gap-1">
-                        <span class="text-5xl font-extrabold text-white">R$ 499,90</span>
-                        <span class="text-slate-500 mb-1">/ano</span>
-                    </div>
-                    <p class="text-green-400 text-sm font-bold mb-6">Economize R$ 98,90 (2 meses grátis!)</p>
-                    <ul class="space-y-4 mb-8 flex-1">
-                        <li class="flex items-center gap-3 text-sm text-white"><i class="fa-solid fa-circle-check text-brand-500"></i> <strong>Tudo do plano mensal</strong></li>
-                        <li class="flex items-center gap-3 text-sm text-slate-300"><i class="fa-solid fa-check text-brand-500"></i> Prioridade no Suporte</li>
-                        <li class="flex items-center gap-3 text-sm text-slate-300"><i class="fa-solid fa-check text-brand-500"></i> Acesso antecipado a novidades</li>
+                <div class="bg-dark-900 p-10 rounded-[2.5rem] border-2 border-brand-500 relative shadow-glow">
+                    <div class="absolute -top-4 right-10 bg-brand-500 text-white px-4 py-1 rounded-full text-xs font-bold">ECONOMIZE R$ 98,90</div>
+                    <h3 class="text-xl font-bold text-white mb-2">Anual</h3>
+                    <div class="text-4xl font-bold text-white mb-6">R$ 499,90 <span class="text-sm font-normal text-slate-500">/ano</span></div>
+                    <ul class="text-left space-y-4 mb-8">
+                        <li class="font-bold text-white"><i class="fa-solid fa-check text-brand-500 mr-2"></i> Tudo do Plano Mensal</li>
+                        <li><i class="fa-solid fa-check text-brand-500 mr-2"></i> 2 Meses Grátis</li>
+                        <li><i class="fa-solid fa-check text-brand-500 mr-2"></i> Prioridade no Suporte</li>
                     </ul>
-                    <a href="app.html" class="w-full block text-center py-4 rounded-xl bg-brand-600 text-white font-bold hover:bg-brand-500 transition shadow-neon">
-                        Garantir Desconto Agora
-                    </a>
+                    <a href="app.html" class="block w-full py-4 bg-brand-600 text-white rounded-xl font-bold shadow-neon">Garantir Desconto</a>
                 </div>
-
             </div>
         </div>
     </section>
 
-    <section class="py-24 bg-dark-950">
+    <section id="faq" class="py-24 bg-dark-900/30">
         <div class="max-w-3xl mx-auto px-6">
             <h2 class="text-3xl font-bold text-white text-center mb-12">Perguntas Frequentes</h2>
-            
             <div class="space-y-4">
-                <div class="bg-dark-900 p-6 rounded-2xl border border-slate-800">
-                    <h3 class="font-bold text-white mb-2">Preciso instalar algo no computador?</h3>
-                    <p class="text-slate-400 text-sm">Não! O PartyPlanner Pro é 100% online. Você acessa pelo navegador do seu celular, tablet ou computador.</p>
-                </div>
-                <div class="bg-dark-900 p-6 rounded-2xl border border-slate-800">
-                    <h3 class="font-bold text-white mb-2">Como funciona o Portal do Cliente?</h3>
-                    <p class="text-slate-400 text-sm">Ao criar um evento, o sistema gera um link único. Você envia esse link para seu cliente (via WhatsApp), e ele pode ver o orçamento, assinar o contrato na tela e anexar o comprovante do Pix.</p>
-                </div>
-                <div class="bg-dark-900 p-6 rounded-2xl border border-slate-800">
-                    <h3 class="font-bold text-white mb-2">Posso cancelar quando quiser?</h3>
-                    <p class="text-slate-400 text-sm">Sim. No plano mensal não há fidelidade. No plano anual, você garante o desconto e o acesso pelo período de 12 meses.</p>
-                </div>
+                <details class="group bg-dark-900 rounded-2xl border border-slate-800 p-6">
+                    <summary class="list-none cursor-pointer flex justify-between items-center font-bold text-white">
+                        Como funciona a assinatura digital?
+                        <i class="fa-solid fa-chevron-down group-open:rotate-180 transition"></i>
+                    </summary>
+                    <p class="mt-4 text-slate-400">Seu cliente recebe um link único, abre no celular e assina com o dedo. O sistema anexa a assinatura dele e a sua automaticamente no contrato em PDF.</p>
+                </details>
+                <details class="group bg-dark-900 rounded-2xl border border-slate-800 p-6">
+                    <summary class="list-none cursor-pointer flex justify-between items-center font-bold text-white">
+                        Posso usar no celular?
+                        <i class="fa-solid fa-chevron-down group-open:rotate-180 transition"></i>
+                    </summary>
+                    <p class="mt-4 text-slate-400">Sim! O PartyPlanner Pro é um Web App que funciona perfeitamente em qualquer smartphone, tablet ou computador.</p>
+                </details>
+                <details class="group bg-dark-900 rounded-2xl border border-slate-800 p-6">
+                    <summary class="list-none cursor-pointer flex justify-between items-center font-bold text-white">
+                        O pagamento é seguro?
+                        <i class="fa-solid fa-chevron-down group-open:rotate-180 transition"></i>
+                    </summary>
+                    <p class="mt-4 text-slate-400">Utilizamos os padrões de segurança do Google Firebase para proteger seus dados e os dados de seus clientes.</p>
+                </details>
             </div>
         </div>
     </section>
 
-    <footer class="py-12 bg-dark-900 border-t border-slate-800 text-center text-slate-500 text-sm">
+    <footer class="py-12 bg-dark-950 border-t border-slate-800">
         <div class="max-w-7xl mx-auto px-6">
-            <div class="flex items-center justify-center gap-2 mb-4 font-bold text-lg text-slate-300">
-                <i class="fa-solid fa-wand-magic-sparkles text-brand-600"></i> PartyPlanner Pro
+            <div class="grid md:grid-cols-4 gap-12 mb-12">
+                <div class="col-span-2">
+                    <div class="flex items-center gap-2 font-bold text-white text-lg mb-4">
+                        <i class="fa-solid fa-wand-magic-sparkles text-brand-500"></i> PartyPlanner Pro
+                    </div>
+                    <p class="text-sm max-w-xs">A ferramenta definitiva para organizadores e decoradores de eventos de sucesso.</p>
+                </div>
+                <div>
+                    <h5 class="text-white font-bold mb-4">Suporte</h5>
+                    <ul class="text-sm space-y-2">
+                        <li><a href="help.html" class="hover:text-white">Central de Ajuda</a></li>
+                        <li><a href="mailto:contato@partyplanner.pro" class="hover:text-white">Email</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h5 class="text-white font-bold mb-4">Legal</h5>
+                    <ul class="text-sm space-y-2">
+                        <li><a href="terms.html" class="hover:text-white">Termos de Uso</a></li>
+                        <li><a href="privacy.html" class="hover:text-white">Privacidade</a></li>
+                    </ul>
+                </div>
             </div>
-            <p class="mb-4">&copy; 2026 Todos os direitos reservados.</p>
-            <div class="flex justify-center gap-6 text-2xl">
-                <a href="#" class="hover:text-brand-500 transition"><i class="fa-brands fa-instagram"></i></a>
-                <a href="#" class="hover:text-brand-500 transition"><i class="fa-brands fa-whatsapp"></i></a>
+            <div class="pt-8 border-t border-slate-800 text-center text-xs">
+                &copy; 2026 PartyPlanner Pro. Todos os direitos reservados.
             </div>
         </div>
     </footer>
