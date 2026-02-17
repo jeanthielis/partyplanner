@@ -1,54 +1,57 @@
 const { createApp, ref, computed, reactive, onMounted, watch } = Vue;
 
-// Importando do nosso arquivo local atualizado
 import { 
     db, auth, firebaseConfig, 
     collection, onSnapshot, doc, updateDoc, deleteDoc, getDoc, setDoc, signOut, onAuthStateChanged, addDoc,
     query, orderBy, limit 
 } from './firebase.js';
 
-// Imports diretos para criação de usuário secundário (mantendo versão 9.22.0)
+// Usando imports diretos para evitar conflitos de versão
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
 
 createApp({
     setup() {
-        // UI State
+        // --- ESTADO DA UI ---
         const currentView = ref('dashboard');
         const showMobileMenu = ref(false);
         const showModal = ref(false);
         const modalMode = ref('create');
         const loadingAction = ref(false);
         
-        // Data State
+        // --- DADOS ---
         const users = ref([]);
         const systemLogs = ref([]);
         const searchTerm = ref('');
         const currentUser = ref(null);
         const pricing = 49.90;
 
+        // --- FORMULÁRIO ---
         const userForm = reactive({ id: null, name: '', email: '', password: '', status: 'trial', phone: '', planExpiresAt: '' });
 
+        // --- GRÁFICOS ---
         let growthChartInstance = null;
         let statusChartInstance = null;
 
+        // --- INICIALIZAÇÃO ---
         onMounted(() => {
             onAuthStateChanged(auth, async (u) => {
                 if (u) {
                     currentUser.value = u;
                     loadUsers();
-                    // Pequeno delay para garantir que imports carregaram
-                    setTimeout(loadLogs, 500);
+                    loadLogs();
                 } else {
                     window.location.href = "index.html";
                 }
             });
         });
 
+        // Atualiza gráficos ao trocar de aba
         watch(currentView, (newVal) => {
             if (newVal === 'dashboard') setTimeout(renderCharts, 300);
         });
 
+        // --- CARREGAMENTO DE DADOS ---
         const loadUsers = () => {
             onSnapshot(collection(db, "users"), (snap) => {
                 users.value = snap.docs.map(d => {
@@ -70,36 +73,29 @@ createApp({
         };
 
         const loadLogs = () => {
-            // PROTEÇÃO: Verifica se orderBy existe antes de chamar
-            if (!orderBy || !limit || typeof orderBy !== 'function') {
-                console.warn("Funções 'orderBy' ou 'limit' indefinidas. Verifique o cache do js/firebase.js");
+            // Verifica se as funções do Firestore carregaram corretamente
+            if (typeof orderBy !== 'function' || typeof limit !== 'function') {
+                console.warn("Funções do Firestore pendentes. Verifique js/firebase.js");
                 return;
             }
-
             try {
-                const logsRef = collection(db, "system_logs");
-                const q = query(logsRef, orderBy("timestamp", "desc"), limit(50));
-                
+                const q = query(collection(db, "system_logs"), orderBy("timestamp", "desc"), limit(50));
                 onSnapshot(q, (snap) => {
                     systemLogs.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                }, (error) => {
-                    console.error("Erro ao ler logs:", error);
                 });
-            } catch (e) {
-                console.error("Erro fatal ao iniciar query de logs:", e);
-            }
+            } catch (e) { console.error("Erro ao carregar logs", e); }
         };
 
+        // --- AÇÕES DO SISTEMA (LOGS, STRIPE, ETC) ---
         const logAction = async (action, details) => {
             try {
-                const logsRef = collection(db, "system_logs");
-                await addDoc(logsRef, {
+                await addDoc(collection(db, "system_logs"), {
                     timestamp: new Date().toISOString(),
                     adminEmail: currentUser.value.email,
                     action: action,
                     details: details
                 });
-            } catch (e) { console.error("Falha no log", e); }
+            } catch (e) { console.error("Erro ao salvar log", e); }
         };
 
         const createStripeSession = async (user) => {
@@ -112,11 +108,12 @@ createApp({
             });
 
             if (isConfirmed) {
-                Swal.fire({ title: 'Gerando...', didOpen: () => Swal.showLoading() });
+                Swal.fire({ title: 'Processando...', didOpen: () => Swal.showLoading() });
+                // Simulação de chamada ao backend
                 setTimeout(async () => {
                     await logAction('PAYMENT_LINK', `Gerou link para ${user.email}`);
-                    await updateDoc(doc(db, "users", user.id), { stripeCustomerId: 'cus_' + Math.random().toString(36).substr(2, 9) });
-                    Swal.fire({ title: 'Link Criado!', html: `Envie: <br><b>https://buy.stripe.com/test_${user.id}</b>`, icon: 'success' });
+                    await updateDoc(doc(db, "users", user.id), { stripeCustomerId: 'cus_TEST_' + Date.now() });
+                    Swal.fire({ title: 'Link Gerado!', html: `Envie para o cliente:<br><b>https://buy.stripe.com/test_${user.id}</b>`, icon: 'success' });
                 }, 1000);
             }
         };
@@ -129,6 +126,7 @@ createApp({
 
             if (!ctxGrowth || !ctxStatus) return;
 
+            // Dados Crescimento
             const months = {};
             users.value.forEach(u => {
                 const k = (u.createdAt || '').substring(0, 7);
@@ -147,6 +145,7 @@ createApp({
                 options: { responsive: true, maintainAspectRatio: false }
             });
 
+            // Dados Status
             const statusCount = { active: 0, trial: 0 };
             users.value.forEach(u => { statusCount[u.status] = (statusCount[u.status] || 0) + 1; });
             
@@ -161,22 +160,28 @@ createApp({
             });
         };
 
+        // --- CRUD USUÁRIOS ---
         const handleUserSubmit = async () => {
-            if (!userForm.name || !userForm.email) return Swal.fire('Erro', 'Dados incompletos', 'warning');
+            if (!userForm.name || !userForm.email) return Swal.fire('Erro', 'Preencha nome e email', 'warning');
             loadingAction.value = true;
             try {
                 if (modalMode.value === 'create') {
+                    // Criar usuário no Auth secundário (Ghost)
                     const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
                     const secondaryAuth = getAuth(secondaryApp);
                     const cred = await createUserWithEmailAndPassword(secondaryAuth, userForm.email, userForm.password);
                     await updateProfile(cred.user, { displayName: userForm.name });
+                    
+                    // Salvar no Firestore
                     await setDoc(doc(db, "users", cred.user.uid), {
                         email: userForm.email, role: 'user', status: userForm.status, createdAt: new Date().toISOString(),
                         companyConfig: { fantasia: userForm.name, email: userForm.email, phone: userForm.phone }
                     });
+                    
                     await secondaryAuth.signOut();
                     await logAction('CREATE_USER', `Criou: ${userForm.email}`);
                 } else {
+                    // Editar usuário existente
                     const updateData = {
                         status: userForm.status,
                         planExpiresAt: userForm.planExpiresAt || null,
@@ -187,9 +192,12 @@ createApp({
                     await logAction('EDIT_USER', `Editou: ${userForm.email}`);
                 }
                 showModal.value = false;
-                Swal.fire('Sucesso', 'Operação realizada.', 'success');
-            } catch (e) { Swal.fire('Erro', e.message, 'error'); } 
-            finally { loadingAction.value = false; }
+                Swal.fire('Sucesso', 'Salvo com sucesso!', 'success');
+            } catch (e) { 
+                Swal.fire('Erro', e.message, 'error'); 
+            } finally { 
+                loadingAction.value = false; 
+            }
         };
 
         const toggleStatus = async (user) => {
@@ -199,7 +207,7 @@ createApp({
         };
 
         const deleteUser = async (user) => {
-            if ((await Swal.fire({title:'Excluir?',icon:'warning',showCancelButton:true})).isConfirmed){
+            if ((await Swal.fire({title:'Excluir usuário?',icon:'warning',showCancelButton:true})).isConfirmed){
                 await deleteDoc(doc(db, "users", user.id));
                 await logAction('DELETE_USER', `Excluiu: ${user.email}`);
             }
@@ -210,34 +218,43 @@ createApp({
              const msg = type === 'zap' ? 'Contato via WhatsApp' : 'Enviado Cobrança';
              await updateDoc(doc(db, "users", user.id), { adminNotes: `[${date}] ${msg}\n` + (user.adminNotes||'') });
              await logAction('CRM_UPDATE', `Nota para ${user.email}: ${msg}`);
-             Swal.fire({toast:true, position:'top-end', title:'Nota salva', icon:'success', timer:2000, showConfirmButton:false});
+             const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 2000});
+             Toast.fire({icon: 'success', title: 'Nota salva'});
         };
 
-        const openCreateModal = () => { modalMode.value='create'; Object.assign(userForm,{name:'',email:'',password:'',phone:''}); showModal.value=true; };
+        // --- HELPERS E MODALS ---
+        const openCreateModal = () => { modalMode.value='create'; Object.assign(userForm,{name:'',email:'',password:'',phone:'', status:'trial'}); showModal.value=true; };
         const openEditModal = (u) => { modalMode.value='edit'; Object.assign(userForm,{id:u.id, name:u.displayName, email:u.email, phone:u.phone, status:u.status, planExpiresAt:u.planExpiresAt}); showModal.value=true; };
         const logout = async () => { await signOut(auth); window.location.href="index.html"; };
 
+        // --- COMPUTEDS (LÓGICA DO DASHBOARD/FILTROS) ---
         const filteredUsers = computed(() => {
-            let l = users.value;
+            let l = users.value || [];
             if(searchTerm.value) l = l.filter(u => u.displayName.toLowerCase().includes(searchTerm.value.toLowerCase()));
             return l.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
         });
 
-        // Computed do CRM (Usando 'recent' em vez de 'new')
+        const getTrialDaysLeft = (u) => { 
+            if(!u.createdAt) return 0;
+            const end=new Date(u.createdAt); end.setDate(end.getDate()+7); 
+            return Math.ceil((end-new Date())/(86400000)); 
+        };
+
+        // *** AQUI ESTAVA O ERRO ANTERIOR *** // Renomeado para 'latest', 'warning', 'pro' para segurança
         const crmColumns = computed(() => {
+            const list = users.value || [];
             return {
-                recent: users.value.filter(u => u.status === 'trial' && getTrialDaysLeft(u) > 3),
-                expiring: users.value.filter(u => u.status === 'trial' && getTrialDaysLeft(u) <= 3),
-                active: users.value.filter(u => u.status === 'active')
+                latest: list.filter(u => u.status === 'trial' && getTrialDaysLeft(u) > 3),
+                warning: list.filter(u => u.status === 'trial' && getTrialDaysLeft(u) <= 3),
+                pro: list.filter(u => u.status === 'active')
             };
         });
 
-        const mrr = computed(() => users.value.filter(u => u.status==='active').length * pricing);
-        const newUsersToday = computed(() => users.value.filter(u => u.createdAt?.startsWith(new Date().toISOString().split('T')[0])).length);
-        const inactiveUsers = computed(() => { const d=new Date(); d.setDate(d.getDate()-3); return users.value.filter(u => u.lastLogin && new Date(u.lastLogin)<d).length; });
+        const mrr = computed(() => (users.value || []).filter(u => u.status==='active').length * pricing);
+        const newUsersToday = computed(() => (users.value || []).filter(u => u.createdAt?.startsWith(new Date().toISOString().split('T')[0])).length);
+        const inactiveUsers = computed(() => { const d=new Date(); d.setDate(d.getDate()-3); return (users.value || []).filter(u => u.lastLogin && new Date(u.lastLogin)<d).length; });
         const conversionRate = computed(() => { const total = users.value.length; if(!total) return 0; const active = users.value.filter(u=>u.status==='active').length; return ((active/total)*100).toFixed(1); });
         
-        const getTrialDaysLeft = (u) => { const end=new Date(u.createdAt); end.setDate(end.getDate()+7); return Math.ceil((end-new Date())/(86400000)); };
         const formatCurrency = (v) => v.toLocaleString('pt-BR',{minimumFractionDigits:2});
         const timeSince = (d) => { if(!d) return '-'; const s=Math.floor((new Date()-new Date(d))/1000); if(s<3600) return 'Agora'; if(s<86400) return Math.floor(s/3600)+'h atrás'; return Math.floor(s/86400)+'d atrás'; };
         const getWhatsappLink = (p) => p?`https://wa.me/55${p.replace(/\D/g,'')}`:'#';
