@@ -173,7 +173,6 @@ createApp({
             return list.sort((a,b) => a.date.localeCompare(b.date)); 
         });
         
-        // CORREÇÃO: Busca de cliente agora funciona a partir do primeiro caractere
         const filteredClientsSearch = computed(() => {
             const term = clientSearchTerm.value.toLowerCase().trim();
             if (!term || isSelectingClient.value) return [];
@@ -184,7 +183,7 @@ createApp({
 
         // --- FIREBASE OPS ---
         const fetchClientToCache = async (id) => { if (!id || clientCache[id]) return; try { const s = await getDoc(doc(db, "clients", id)); if (s.exists()) clientCache[id] = s.data(); else clientCache[id] = { name: 'Excluído', phone: '-' }; } catch (e) {} };
-        const sanitizeApp = (d) => { const data = d.data ? d.data() : d; return { id: d.id || data.id, ...data, selectedServices: Array.isArray(data.selectedServices) ? data.selectedServices : [], details: { ...(data.details || {}), balloonColors: data.details?.balloonColors || '' }, checklist: data.checklist || [], clientSignature: data.clientSignature || '' }; };
+        const sanitizeApp = (d) => { const data = d.data ? d.data() : d; return { id: d.id || data.id, ...data, selectedServices: Array.isArray(data.selectedServices) ? data.selectedServices : [], details: { ...(data.details || {}), balloonColors: data.details?.balloonColors || '', entryFee: data.details?.entryFee || 0 }, checklist: data.checklist || [], clientSignature: data.clientSignature || '' }; };
         const sanitizeExpense = (d) => { const data=d.data?d.data():d; return {id:d.id||data.id,...data,value:toNum(data.value)}; };
         
         const loadDashboardData = async () => {
@@ -213,12 +212,10 @@ createApp({
             loadDashboardData();
         });
         
-        // CORREÇÃO: Sincroniza a lista de clientes para busca local
         const syncData = () => { 
             const myId = user.value.uid; 
             onSnapshot(query(collection(db, "services"), where("userId", "==", myId)), (snap) => services.value = snap.docs.map(d => ({ id: d.id, ...d.data() }))); 
             
-            // Sincroniza clientes para catalogClientsList para permitir busca instantânea no agendamento
             onSnapshot(query(collection(db, "clients"), where("userId", "==", myId)), (snap) => {
                 catalogClientsList.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
             });
@@ -316,7 +313,8 @@ createApp({
             y = doc.lastAutoTable.finalY + 10; 
             doc.setFont("helvetica", "bold"); 
             doc.text(`TOTAL: ${formatCurrency(app.totalServices)}`, 140, y, {align: "right"}); y += 5; 
-            doc.text(`SINAL: ${formatCurrency(app.entryFee || app.details.entryFee)}`, 140, y, {align: "right"}); y += 5; 
+            // CORREÇÃO: Busca o valor da entrada corretamente do objeto details
+            doc.text(`SINAL: ${formatCurrency(app.details?.entryFee || 0)}`, 140, y, {align: "right"}); y += 5; 
             doc.text(`RESTANTE: ${formatCurrency(app.finalBalance)}`, 140, y, {align: "right"}); 
             if (app.status !== 'budget') { 
                 y += 15; doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.text("CLÁUSULAS E CONDIÇÕES:", 20, y); y += 5; doc.setFont("helvetica", "normal"); 
