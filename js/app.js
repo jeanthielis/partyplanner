@@ -215,11 +215,9 @@ createApp({
         const syncData = () => { 
             const myId = user.value.uid; 
             onSnapshot(query(collection(db, "services"), where("userId", "==", myId)), (snap) => services.value = snap.docs.map(d => ({ id: d.id, ...d.data() }))); 
-            
             onSnapshot(query(collection(db, "clients"), where("userId", "==", myId)), (snap) => {
                 catalogClientsList.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
             });
-
             onSnapshot(query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "pending")), (snap) => { pendingAppointments.value = snap.docs.map(sanitizeApp); pendingAppointments.value.forEach(a => fetchClientToCache(a.clientId)); }); 
             onSnapshot(query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "budget")), (snap) => { budgetList.value = snap.docs.map(sanitizeApp); budgetList.value.forEach(a => fetchClientToCache(a.clientId)); }); 
         };
@@ -249,7 +247,16 @@ createApp({
         const handleAuth = async () => { authLoading.value = true; try { if (isRegistering.value) { const res = await createUserWithEmailAndPassword(auth, authForm.email, authForm.password); await setDoc(doc(db, "users", res.user.uid), { email: authForm.email, role: 'user', createdAt: new Date().toISOString(), companyConfig: { fantasia: authForm.name || 'Minha Empresa', email: authForm.email } }); } else { await signInWithEmailAndPassword(auth, authForm.email, authForm.password); } } catch (e) { Swal.fire('Ops', 'Erro no login.', 'error'); } finally { authLoading.value = false; } };
         const copyClientLink = () => { const path = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1); const url = `${window.location.origin}${path}client.html?uid=${user.value.uid}`; navigator.clipboard.writeText(url).then(() => Swal.fire('Copiado!', 'Link da Área do Cliente copiado.', 'success')); };
         const saveAppointment = async () => { const data = { ...tempApp, totalServices: totalServices.value, finalBalance: finalBalance.value, userId: user.value.uid, status: 'pending' }; if (isEditing.value) await updateDoc(doc(db, "appointments", editingId.value), data); else await addDoc(collection(db, "appointments"), data); showAppointmentModal.value = false; loadDashboardData(); };
-        const showReceipt = (app) => { currentReceipt.value = sanitizeApp(app); showReceiptModal.value = true; };
+        
+        // CORREÇÃO: Mapeia o valor da entrada para o campo entryFee esperado pelo HTML do recibo
+        const showReceipt = (app) => { 
+            const sanitized = sanitizeApp(app);
+            // Garante que o entryFee esteja disponível no nível superior para o template
+            sanitized.entryFee = sanitized.details?.entryFee || 0;
+            currentReceipt.value = sanitized; 
+            showReceiptModal.value = true; 
+        };
+
         const logout = () => { signOut(auth); window.location.href="index.html"; };
         const openNewExpense = () => { editingExpenseId.value = null; Object.assign(newExpense, { description: '', value: '', date: today, category: 'outros' }); showExpenseModal.value = true; };
         const openEditExpense = (expense) => { editingExpenseId.value = expense.id; Object.assign(newExpense, { description: expense.description, value: expense.value, date: expense.date, category: expense.category }); showExpenseModal.value = true; };
@@ -313,7 +320,6 @@ createApp({
             y = doc.lastAutoTable.finalY + 10; 
             doc.setFont("helvetica", "bold"); 
             doc.text(`TOTAL: ${formatCurrency(app.totalServices)}`, 140, y, {align: "right"}); y += 5; 
-            // CORREÇÃO: Busca o valor da entrada corretamente do objeto details
             doc.text(`SINAL: ${formatCurrency(app.details?.entryFee || 0)}`, 140, y, {align: "right"}); y += 5; 
             doc.text(`RESTANTE: ${formatCurrency(app.finalBalance)}`, 140, y, {align: "right"}); 
             if (app.status !== 'budget') { 
