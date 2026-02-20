@@ -94,7 +94,7 @@ createApp({
                 if (u) {
                     if (u.isAnonymous) { isGlobalLoading.value = false; return; }
                     await loadDashboardData();
-                    searchExpenses(); // Carrega financeiro inicial
+                    searchExpenses();
                     syncData();
                     const uDoc = await getDoc(doc(db, "users", u.uid));
                     if (uDoc.exists() && uDoc.data().companyConfig) Object.assign(company, uDoc.data().companyConfig);
@@ -120,7 +120,6 @@ createApp({
             return expensesList.value.sort((a, b) => b.date.localeCompare(a.date)); 
         });
 
-        // SUMÁRIO FILTRADO (Substitui financeSummary)
         const filteredSummary = computed(() => {
             const list = statementList.value;
             const income = list.filter(i => i.type === 'income').reduce((acc, i) => acc + toNum(i.value), 0);
@@ -128,7 +127,6 @@ createApp({
             return { income, expense, balance: income - expense };
         });
 
-        // RANKING
         const rankingData = computed(() => {
             const expensesOnly = statementList.value.filter(i => i.type === 'expense');
             const totalExp = expensesOnly.reduce((acc, i) => acc + toNum(i.value), 0);
@@ -175,66 +173,59 @@ createApp({
             return list.sort((a,b) => a.date.localeCompare(b.date)); 
         });
         
-        const filteredClientsSearch = computed(() => scheduleClientsList.value);
+        // CORREÇÃO: Busca de cliente agora funciona a partir do primeiro caractere
+        const filteredClientsSearch = computed(() => {
+            const term = clientSearchTerm.value.toLowerCase().trim();
+            if (!term || isSelectingClient.value) return [];
+            return catalogClientsList.value.filter(c => 
+                c.name.toLowerCase().includes(term)
+            );
+        });
 
         // --- FIREBASE OPS ---
         const fetchClientToCache = async (id) => { if (!id || clientCache[id]) return; try { const s = await getDoc(doc(db, "clients", id)); if (s.exists()) clientCache[id] = s.data(); else clientCache[id] = { name: 'Excluído', phone: '-' }; } catch (e) {} };
         const sanitizeApp = (d) => { const data = d.data ? d.data() : d; return { id: d.id || data.id, ...data, selectedServices: Array.isArray(data.selectedServices) ? data.selectedServices : [], details: { ...(data.details || {}), balloonColors: data.details?.balloonColors || '' }, checklist: data.checklist || [], clientSignature: data.clientSignature || '' }; };
         const sanitizeExpense = (d) => { const data=d.data?d.data():d; return {id:d.id||data.id,...data,value:toNum(data.value)}; };
-        // 1. Corrigir a função de carregamento
-const loadDashboardData = async () => {
-    if (!user.value) return;
-    
-    isLoadingDashboard.value = true;
-    
-    try {
-        // CORREÇÃO AQUI: Usar as variáveis corretas [y, m]
-        const [y, m] = dashboardMonth.value.split('-'); 
         
-        // Ajuste para pegar o último dia do mês corretamente
-        const lastDay = new Date(y, m, 0).getDate();
-        
-        const startStr = `${y}-${m}-01`; 
-        const endStr = `${y}-${m}-${lastDay}`; // Usar o último dia real do mês
-        
-        // Queries
-        const qApps = query(
-            collection(db, "appointments"), 
-            where("userId", "==", user.value.uid), 
-            where("date", ">=", startStr), 
-            where("date", "<=", endStr)
-        );
-        
-        const qExp = query(
-            collection(db, "expenses"), 
-            where("userId", "==", user.value.uid), 
-            where("date", ">=", startStr), 
-            where("date", "<=", endStr)
-        );
-        
-        const [sA, sE] = await Promise.all([getDocs(qApps), getDocs(qExp)]);
-        
-        // Atualiza os dados reativos
-        dashboardData.appointments = sA.docs.map(sanitizeApp).filter(a => a.status !== 'cancelled');
-        dashboardData.expenses = sE.docs.map(sanitizeExpense);
-        
-        // Carrega nomes dos clientes para o cache
-        dashboardData.appointments.forEach(a => fetchClientToCache(a.clientId));
-        
-    } catch(e) {
-        console.error("Erro ao carregar dashboard:", e);
-        Swal.fire('Erro', 'Falha ao carregar dados do painel.', 'error');
-    } finally {
-        isLoadingDashboard.value = false;
-    }
-};
+        const loadDashboardData = async () => {
+            if (!user.value) return;
+            isLoadingDashboard.value = true;
+            try {
+                const [y, m] = dashboardMonth.value.split('-'); 
+                const lastDay = new Date(y, m, 0).getDate();
+                const startStr = `${y}-${m}-01`; 
+                const endStr = `${y}-${m}-${lastDay}`;
+                const qApps = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("date", ">=", startStr), where("date", "<=", endStr));
+                const qExp = query(collection(db, "expenses"), where("userId", "==", user.value.uid), where("date", ">=", startStr), where("date", "<=", endStr));
+                const [sA, sE] = await Promise.all([getDocs(qApps), getDocs(qExp)]);
+                dashboardData.appointments = sA.docs.map(sanitizeApp).filter(a => a.status !== 'cancelled');
+                dashboardData.expenses = sE.docs.map(sanitizeExpense);
+                dashboardData.appointments.forEach(a => fetchClientToCache(a.clientId));
+            } catch(e) {
+                console.error("Erro ao carregar dashboard:", e);
+                Swal.fire('Erro', 'Falha ao carregar dados do painel.', 'error');
+            } finally {
+                isLoadingDashboard.value = false;
+            }
+        };
 
-// 2. Adicionar o Watch para atualizar quando mudar o mês (Adicione logo abaixo da função acima)
-watch(dashboardMonth, () => {
-    loadDashboardData();
-});
+        watch(dashboardMonth, () => {
+            loadDashboardData();
+        });
         
-        const syncData = () => { const myId = user.value.uid; onSnapshot(query(collection(db, "services"), where("userId", "==", myId)), (snap) => services.value = snap.docs.map(d => ({ id: d.id, ...d.data() }))); onSnapshot(query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "pending")), (snap) => { pendingAppointments.value = snap.docs.map(sanitizeApp); pendingAppointments.value.forEach(a => fetchClientToCache(a.clientId)); }); onSnapshot(query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "budget")), (snap) => { budgetList.value = snap.docs.map(sanitizeApp); budgetList.value.forEach(a => fetchClientToCache(a.clientId)); }); };
+        // CORREÇÃO: Sincroniza a lista de clientes para busca local
+        const syncData = () => { 
+            const myId = user.value.uid; 
+            onSnapshot(query(collection(db, "services"), where("userId", "==", myId)), (snap) => services.value = snap.docs.map(d => ({ id: d.id, ...d.data() }))); 
+            
+            // Sincroniza clientes para catalogClientsList para permitir busca instantânea no agendamento
+            onSnapshot(query(collection(db, "clients"), where("userId", "==", myId)), (snap) => {
+                catalogClientsList.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            });
+
+            onSnapshot(query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "pending")), (snap) => { pendingAppointments.value = snap.docs.map(sanitizeApp); pendingAppointments.value.forEach(a => fetchClientToCache(a.clientId)); }); 
+            onSnapshot(query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "budget")), (snap) => { budgetList.value = snap.docs.map(sanitizeApp); budgetList.value.forEach(a => fetchClientToCache(a.clientId)); }); 
+        };
         
         const searchHistory = async () => { if(!agendaFilter.start || !agendaFilter.end) return Swal.fire('Atenção', 'Selecione datas', 'warning'); const q = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("status", "==", agendaTab.value), where("date", ">=", agendaFilter.start), where("date", "<=", agendaFilter.end)); const snap = await getDocs(q); historyList.value = snap.docs.map(sanitizeApp); historyList.value.forEach(a => fetchClientToCache(a.clientId)); };
         
@@ -249,7 +240,13 @@ watch(dashboardMonth, () => {
             expensesList.value = [...loadedExpenses, ...loadedIncome]; 
             isExtractLoaded.value = true; 
         };
-        const searchCatalogClients = async () => { const q = query(collection(db, "clients"), where("userId", "==", user.value.uid)); const snap = await getDocs(q); catalogClientsList.value = snap.docs.map(d => ({id: d.id, ...d.data()})).filter(c => c.name.toLowerCase().includes(catalogClientSearch.value.toLowerCase())); };
+        
+        const searchCatalogClients = async () => { 
+            const term = catalogClientSearch.value.toLowerCase().trim();
+            const q = query(collection(db, "clients"), where("userId", "==", user.value.uid)); 
+            const snap = await getDocs(q); 
+            catalogClientsList.value = snap.docs.map(d => ({id: d.id, ...d.data()})).filter(c => c.name.toLowerCase().includes(term)); 
+        };
 
         // --- ACTIONS ---
         const handleAuth = async () => { authLoading.value = true; try { if (isRegistering.value) { const res = await createUserWithEmailAndPassword(auth, authForm.email, authForm.password); await setDoc(doc(db, "users", res.user.uid), { email: authForm.email, role: 'user', createdAt: new Date().toISOString(), companyConfig: { fantasia: authForm.name || 'Minha Empresa', email: authForm.email } }); } else { await signInWithEmailAndPassword(auth, authForm.email, authForm.password); } } catch (e) { Swal.fire('Ops', 'Erro no login.', 'error'); } finally { authLoading.value = false; } };
@@ -262,11 +259,17 @@ watch(dashboardMonth, () => {
         const openClientModal = () => { showClientModal.value = true; };
         const downloadReceiptImage = () => { html2canvas(document.getElementById('receipt-capture-area')).then(c => { const l = document.createElement('a'); l.download = 'Recibo.png'; l.href = c.toDataURL(); l.click(); }); };
         const openWhatsApp = (app) => { const cli = clientCache[app.clientId]; if (!cli || !cli.phone) return Swal.fire('Erro', 'Cliente sem telefone cadastrado.', 'error'); const phoneClean = cli.phone.replace(/\D/g, ''); const msg = `Olá ${cli.name}, aqui é da ${company.fantasia}. Segue o comprovante do seu agendamento para o dia ${formatDate(app.date)}.`; window.open(`https://wa.me/55${phoneClean}?text=${encodeURIComponent(msg)}`, '_blank'); };
-        const openWhatsAppSupport = () => { window.open('https://wa.me/?text=Preciso%20de%20ajuda%20com%20meu%20evento', '_blank'); };
-        const selectClient = (client) => { isSelectingClient.value = true; tempApp.clientId = client.id; clientSearchTerm.value = client.name; scheduleClientsList.value = []; setTimeout(() => { isSelectingClient.value = false; }, 500); };
+        
+        const selectClient = (client) => { 
+            isSelectingClient.value = true; 
+            tempApp.clientId = client.id; 
+            clientSearchTerm.value = client.name; 
+            setTimeout(() => { isSelectingClient.value = false; }, 300); 
+        };
+        
         const addServiceToApp = () => { if(tempServiceSelect.value) tempApp.selectedServices.push(tempServiceSelect.value); tempServiceSelect.value=''; };
         const removeServiceFromApp = (i) => tempApp.selectedServices.splice(i,1);
-        const startNewSchedule = () => { isEditing.value=false; Object.assign(tempApp, { clientId:'', date:'', time:'', location:{bairro:''}, details:{entryFee:0}, selectedServices:[]}); showAppointmentModal.value = true; };
+        const startNewSchedule = () => { isEditing.value=false; clientSearchTerm.value = ''; Object.assign(tempApp, { clientId:'', date:'', time:'', location:{bairro:''}, details:{entryFee:0}, selectedServices:[]}); showAppointmentModal.value = true; };
         const editAppointment = (app) => { isEditing.value=true; editingId.value=app.id; Object.assign(tempApp, JSON.parse(JSON.stringify(app))); clientSearchTerm.value = getClientName(app.clientId); showAppointmentModal.value=true; };
         
         let canvasContext = null; let isDrawing = false;
@@ -279,8 +282,55 @@ watch(dashboardMonth, () => {
         const clearSignature = () => { const canvas = document.getElementById('signature-pad'); canvasContext.clearRect(0, 0, canvas.width, canvas.height); };
         const isCanvasBlank = (canvas) => { const context = canvas.getContext('2d'); const pixelBuffer = new Uint32Array(context.getImageData(0, 0, canvas.width, canvas.height).data.buffer); return !pixelBuffer.some(color => color !== 0); }
         const saveSignature = async () => { const canvas = document.getElementById('signature-pad'); const dataUrl = canvas.toDataURL(); if (isCanvasBlank(canvas)) return Swal.fire('Atenção', 'Faça sua assinatura.', 'warning'); authLoading.value = true; try { company.signature = dataUrl; await updateDoc(doc(db, "users", user.value.uid), { companyConfig: company }); Swal.fire('Sucesso', 'Assinatura salva!', 'success'); showSignatureModal.value = false; } catch (e) { Swal.fire('Erro', 'Erro ao salvar.', 'error'); } finally { authLoading.value = false; } };
-        const downloadClientReceipt = async (app) => { if (!app.clientSignature) Swal.fire('Aviso', 'Este contrato ainda não foi assinado pelo cliente.', 'info'); currentReceipt.value = app; if(!clientCache[app.clientId] && clientData.value) clientCache[app.clientId] = clientData.value; generateContractPDF(); };
-        const generateContractPDF = () => { const { jsPDF } = window.jspdf; const doc = new jsPDF(); const app = currentReceipt.value; const cli = clientCache[app.clientId] || {name:'...',cpf:'...', phone: '', email: ''}; let docTitle = "CONTRATO DE PRESTAÇÃO DE SERVIÇOS"; if(app.status === 'budget') docTitle = "ORÇAMENTO"; doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text(company.fantasia.toUpperCase(), 105, 20, {align: "center"}); doc.setFontSize(10); doc.setFont("helvetica", "normal"); let headerY = 26; if (company.cnpj) { doc.text(`CNPJ: ${company.cnpj}`, 105, headerY, {align: "center"}); headerY += 5; } doc.text(`${company.rua} - ${company.bairro}`, 105, headerY, {align: "center"}); headerY += 5; doc.text(`${company.cidade}/${company.estado} - Tel: ${company.phone}`, 105, headerY, {align: "center"}); doc.line(20, headerY + 5, 190, headerY + 5); doc.setFontSize(14); doc.setFont("helvetica", "bold"); doc.text(docTitle, 105, headerY + 15, {align:"center"}); let y = headerY + 25; doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.text("CONTRATANTE:", 20, y); y += 5; doc.setFont("helvetica", "normal"); doc.text(`Nome: ${cli.name} | CPF: ${cli.cpf || '-'}`, 20, y); y += 5; doc.text(`Tel: ${cli.phone} | E-mail: ${cli.email || '-'}`, 20, y); y += 10; doc.setFont("helvetica", "bold"); doc.text("EVENTO:", 20, y); y += 5; doc.setFont("helvetica", "normal"); doc.text(`Data: ${formatDate(app.date)} | Hora: ${app.time}`, 20, y); y += 5; doc.text(`Local: ${app.location.bairro}`, 20, y); if(app.details.balloonColors) { y += 5; doc.text(`Cores: ${app.details.balloonColors}`, 20, y); } y += 10; const body = app.selectedServices.map(s => [s.description, formatCurrency(s.price)]); doc.autoTable({ startY: y, head: [['Descrição', 'Valor']], body: body, theme: 'grid', headStyles: { fillColor: [60, 60, 60] }, margin: { left: 20, right: 20 } }); y = doc.lastAutoTable.finalY + 10; doc.setFont("helvetica", "bold"); doc.text(`TOTAL: ${formatCurrency(app.totalServices)}`, 140, y, {align: "right"}); y += 5; doc.text(`SINAL: ${formatCurrency(app.entryFee)}`, 140, y, {align: "right"}); y += 5; doc.text(`RESTANTE: ${formatCurrency(app.finalBalance)}`, 140, y, {align: "right"}); if (app.status !== 'budget') { y += 15; doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.text("CLÁUSULAS E CONDIÇÕES:", 20, y); y += 5; doc.setFont("helvetica", "normal"); const clauses = [ "1. RESERVA: O pagamento do sinal garante a reserva da data.", "2. DESISTÊNCIA: Em caso de cancelamento com menos de 15 dias, o sinal não será devolvido.", "3. DANOS: O CONTRATANTE responsabiliza-se pela conservação dos materiais.", "4. PAGAMENTO: O restante deve ser pago até a data do evento.", "5. MONTAGEM: O local deve estar liberado no horário combinado." ]; clauses.forEach(clause => { const lines = doc.splitTextToSize(clause, 170); doc.text(lines, 20, y); y += (lines.length * 4) + 2; if (y > 230) { doc.addPage(); y = 20; } }); if (y > 230) { doc.addPage(); y = 40; } else { y += 20; } if (app.clientSignature) { doc.addImage(app.clientSignature, 'PNG', 115, y - 15, 60, 20); } if (company.signature) { doc.addImage(company.signature, 'PNG', 25, y - 15, 60, 20); } doc.line(20, y, 90, y); doc.line(110, y, 180, y); doc.text("CONTRATADA", 55, y + 5, {align: "center"}); doc.text("CONTRATANTE", 145, y + 5, {align: "center"}); } else { y += 20; doc.setFontSize(8); doc.text("* Este documento é apenas um orçamento.", 105, y, {align: "center"}); } doc.save(`Doc_${cli.name.replace(/ /g, '_')}.pdf`); };
+        const downloadClientReceipt = async (app) => { if (!app.clientSignature) Swal.fire('Aviso', 'Este contrato ainda não foi assinado pelo cliente.', 'info'); currentReceipt.value = app; generateContractPDF(); };
+        
+        const generateContractPDF = () => { 
+            const { jsPDF } = window.jspdf; 
+            const doc = new jsPDF(); 
+            const app = currentReceipt.value; 
+            const cli = clientCache[app.clientId] || {name:'...',cpf:'...', phone: '', email: ''}; 
+            let docTitle = "CONTRATO DE PRESTAÇÃO DE SERVIÇOS"; 
+            if(app.status === 'budget') docTitle = "ORÇAMENTO"; 
+            doc.setFont("helvetica", "bold"); doc.setFontSize(14); 
+            doc.text(company.fantasia.toUpperCase(), 105, 20, {align: "center"}); 
+            doc.setFontSize(10); doc.setFont("helvetica", "normal"); 
+            let headerY = 26; 
+            if (company.cnpj) { doc.text(`CNPJ: ${company.cnpj}`, 105, headerY, {align: "center"}); headerY += 5; } 
+            doc.text(`${company.rua} - ${company.bairro}`, 105, headerY, {align: "center"}); 
+            headerY += 5; doc.text(`${company.cidade}/${company.estado} - Tel: ${company.phone}`, 105, headerY, {align: "center"}); 
+            doc.line(20, headerY + 5, 190, headerY + 5); 
+            doc.setFontSize(14); doc.setFont("helvetica", "bold"); 
+            doc.text(docTitle, 105, headerY + 15, {align:"center"}); 
+            let y = headerY + 25; 
+            doc.setFontSize(10); doc.setFont("helvetica", "bold"); 
+            doc.text("CONTRATANTE:", 20, y); y += 5; doc.setFont("helvetica", "normal"); 
+            doc.text(`Nome: ${cli.name} | CPF: ${cli.cpf || '-'}`, 20, y); y += 5; 
+            doc.text(`Tel: ${cli.phone} | E-mail: ${cli.email || '-'}`, 20, y); y += 10; 
+            doc.setFont("helvetica", "bold"); doc.text("EVENTO:", 20, y); y += 5; 
+            doc.setFont("helvetica", "normal"); 
+            doc.text(`Data: ${formatDate(app.date)} | Hora: ${app.time}`, 20, y); y += 5; 
+            doc.text(`Local: ${app.location.bairro}`, 20, y); 
+            if(app.details.balloonColors) { y += 5; doc.text(`Cores: ${app.details.balloonColors}`, 20, y); } y += 10; 
+            const body = app.selectedServices.map(s => [s.description, formatCurrency(s.price)]); 
+            doc.autoTable({ startY: y, head: [['Descrição', 'Valor']], body: body, theme: 'grid', headStyles: { fillColor: [60, 60, 60] }, margin: { left: 20, right: 20 } }); 
+            y = doc.lastAutoTable.finalY + 10; 
+            doc.setFont("helvetica", "bold"); 
+            doc.text(`TOTAL: ${formatCurrency(app.totalServices)}`, 140, y, {align: "right"}); y += 5; 
+            doc.text(`SINAL: ${formatCurrency(app.entryFee || app.details.entryFee)}`, 140, y, {align: "right"}); y += 5; 
+            doc.text(`RESTANTE: ${formatCurrency(app.finalBalance)}`, 140, y, {align: "right"}); 
+            if (app.status !== 'budget') { 
+                y += 15; doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.text("CLÁUSULAS E CONDIÇÕES:", 20, y); y += 5; doc.setFont("helvetica", "normal"); 
+                const clauses = [ "1. RESERVA: O pagamento do sinal garante a reserva da data.", "2. DESISTÊNCIA: Em caso de cancelamento com menos de 15 dias, o sinal não será devolvido.", "3. DANOS: O CONTRATANTE responsabiliza-se pela conservação dos materiais.", "4. PAGAMENTO: O restante deve ser pago até a data do evento.", "5. MONTAGEM: O local deve estar liberado no horário combinado." ]; 
+                clauses.forEach(clause => { const lines = doc.splitTextToSize(clause, 170); doc.text(lines, 20, y); y += (lines.length * 4) + 2; if (y > 230) { doc.addPage(); y = 20; } }); 
+                if (y > 230) { doc.addPage(); y = 40; } else { y += 20; } 
+                if (app.clientSignature) { doc.addImage(app.clientSignature, 'PNG', 115, y - 15, 60, 20); } 
+                if (company.signature) { doc.addImage(company.signature, 'PNG', 25, y - 15, 60, 20); } 
+                doc.line(20, y, 90, y); doc.line(110, y, 180, y); 
+                doc.text("CONTRATADA", 55, y + 5, {align: "center"}); doc.text("CONTRATANTE", 145, y + 5, {align: "center"}); 
+            } else { y += 20; doc.setFontSize(8); doc.text("* Este documento é apenas um orçamento.", 105, y, {align: "center"}); } 
+            doc.save(`Doc_${cli.name.replace(/ /g, '_')}.pdf`); 
+        };
+
         const saveAsBudget = async () => { const appData = { ...JSON.parse(JSON.stringify(tempApp)), totalServices: totalServices.value, finalBalance: finalBalance.value, userId: user.value.uid, status: 'budget' }; if(!appData.checklist.length) appData.checklist = [{text:'Materiais', done:false}]; if (isEditing.value && editingId.value) await updateDoc(doc(db, "appointments", editingId.value), appData); else await addDoc(collection(db, "appointments"), appData); showAppointmentModal.value = false; Swal.fire('Orçamento Criado!', 'Ver na aba Orçamentos.', 'success'); };
         const approveBudget = async (app) => { const { isConfirmed } = await Swal.fire({ title: 'Aprovar Orçamento?', text: 'Mover para Agenda?', icon: 'question', showCancelButton: true, confirmButtonColor: '#4F46E5' }); if (isConfirmed) { await updateDoc(doc(db, "appointments", app.id), { status: 'pending' }); Swal.fire('Aprovado!', '', 'success'); view.value = 'schedule'; } };
         const saveClient = async () => { if(!newClient.name) return; await addDoc(collection(db, "clients"), { name: newClient.name, phone: newClient.phone, cpf: newClient.cpf, email: newClient.email, userId: user.value.uid }); showClientModal.value = false; newClient.name = ''; newClient.phone = ''; newClient.cpf = ''; newClient.email = ''; if(view.value === 'registrations') searchCatalogClients(); Swal.fire('Salvo!', '', 'success'); };
@@ -299,7 +349,7 @@ watch(dashboardMonth, () => {
         return {
             user, view, isDark, authForm, authLoading, isRegistering, handleAuth, logout, isGlobalLoading,
             dashboardMonth, financeData, next7DaysApps, statementList, isExtractLoaded, 
-            filteredSummary, // USAR ESTE AGORA NO LUGAR DO ANTIGO FINANCE SUMMARY
+            filteredSummary, 
             expensesFilter, searchExpenses,
             showExpenseModal, newExpense, addExpense: saveExpenseLogic, saveExpenseLogic, openNewExpense, openEditExpense, deleteExpense, editingExpenseId,
             startNewSchedule, editAppointment, saveAppointment, showAppointmentModal, showClientModal, showServiceModal, newService, saveService, deleteService,
@@ -309,7 +359,6 @@ watch(dashboardMonth, () => {
             company, handleLogoUpload, saveCompany, downloadReceiptImage, generateContractPDF, openWhatsApp, formatCurrency, formatDate, getDay, getMonth, statusText, getClientName, 
             toggleDarkMode, expenseCategories, expensesByCategoryStats, agendaTab, agendaFilter, searchHistory, changeStatus, registrationTab, kpiPendingReceivables, totalAppointmentsCount, topExpenseCategory, getCategoryIcon, maskPhone, maskCPF,
             
-            // EXPORTS RECENTES
             copyClientLink, budgetList, saveAsBudget, approveBudget, pendingAppointments,
             openSignatureModal, clearSignature, saveSignature, showSignatureModal, 
             downloadClientReceipt,
