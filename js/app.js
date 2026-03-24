@@ -49,6 +49,7 @@ createApp({
         
         const clientSearchTerm = ref('');
         const isSelectingClient = ref(false);
+        const selectedClientNameLock = ref('');
         const catalogClientSearch = ref('');
         const appointmentViewMode = ref('list');
         const calendarCursor = ref(new Date());
@@ -72,6 +73,7 @@ createApp({
 
         // Forms
         const newClient = reactive({ name: '', phone: '', cpf: '', email: '' });
+        const editingClientId = ref(null);
         const newService = reactive({ description: '', price: '' });
         const newExpense = reactive({ description: '', value: '', date: today, category: 'outros' });
         const tempServiceSelect = ref('');
@@ -175,10 +177,20 @@ createApp({
         
         const filteredClientsSearch = computed(() => {
             const term = clientSearchTerm.value.toLowerCase().trim();
-            if (!term || isSelectingClient.value) return [];
+            if (!term) return [];
+            // Hide dropdown when a client is selected and search term matches the selection
+            if (selectedClientNameLock.value && clientSearchTerm.value === selectedClientNameLock.value) return [];
             return catalogClientsList.value.filter(c => 
                 c.name.toLowerCase().includes(term)
             );
+        });
+
+        // Clear client selection when user types something different
+        watch(clientSearchTerm, (newVal) => {
+            if (selectedClientNameLock.value && newVal !== selectedClientNameLock.value) {
+                tempApp.clientId = '';
+                selectedClientNameLock.value = '';
+            }
         });
 
         // --- FIREBASE OPS ---
@@ -260,15 +272,14 @@ createApp({
         const logout = () => { signOut(auth); window.location.href="index.html"; };
         const openNewExpense = () => { editingExpenseId.value = null; Object.assign(newExpense, { description: '', value: '', date: today, category: 'outros' }); showExpenseModal.value = true; };
         const openEditExpense = (expense) => { editingExpenseId.value = expense.id; Object.assign(newExpense, { description: expense.description, value: expense.value, date: expense.date, category: expense.category }); showExpenseModal.value = true; };
-        const openClientModal = () => { showClientModal.value = true; };
+        
         const downloadReceiptImage = () => { html2canvas(document.getElementById('receipt-capture-area')).then(c => { const l = document.createElement('a'); l.download = 'Recibo.png'; l.href = c.toDataURL(); l.click(); }); };
         const openWhatsApp = (app) => { const cli = clientCache[app.clientId]; if (!cli || !cli.phone) return Swal.fire('Erro', 'Cliente sem telefone cadastrado.', 'error'); const phoneClean = cli.phone.replace(/\D/g, ''); const msg = `Olá ${cli.name}, aqui é da ${company.fantasia}. Segue o comprovante do seu agendamento para o dia ${formatDate(app.date)}.`; window.open(`https://wa.me/55${phoneClean}?text=${encodeURIComponent(msg)}`, '_blank'); };
         
         const selectClient = (client) => { 
-            isSelectingClient.value = true; 
             tempApp.clientId = client.id; 
             clientSearchTerm.value = client.name; 
-            setTimeout(() => { isSelectingClient.value = false; }, 300); 
+            selectedClientNameLock.value = client.name;
         };
         
         const addServiceToApp = () => { if(tempServiceSelect.value) tempApp.selectedServices.push(tempServiceSelect.value); tempServiceSelect.value=''; };
@@ -337,7 +348,54 @@ createApp({
 
         const saveAsBudget = async () => { const appData = { ...JSON.parse(JSON.stringify(tempApp)), totalServices: totalServices.value, finalBalance: finalBalance.value, userId: user.value.uid, status: 'budget' }; if(!appData.checklist.length) appData.checklist = [{text:'Materiais', done:false}]; if (isEditing.value && editingId.value) await updateDoc(doc(db, "appointments", editingId.value), appData); else await addDoc(collection(db, "appointments"), appData); showAppointmentModal.value = false; Swal.fire('Orçamento Criado!', 'Ver na aba Orçamentos.', 'success'); };
         const approveBudget = async (app) => { const { isConfirmed } = await Swal.fire({ title: 'Aprovar Orçamento?', text: 'Mover para Agenda?', icon: 'question', showCancelButton: true, confirmButtonColor: '#4F46E5' }); if (isConfirmed) { await updateDoc(doc(db, "appointments", app.id), { status: 'pending' }); Swal.fire('Aprovado!', '', 'success'); view.value = 'schedule'; } };
-        const saveClient = async () => { if(!newClient.name) return; await addDoc(collection(db, "clients"), { name: newClient.name, phone: newClient.phone, cpf: newClient.cpf, email: newClient.email, userId: user.value.uid }); showClientModal.value = false; newClient.name = ''; newClient.phone = ''; newClient.cpf = ''; newClient.email = ''; if(view.value === 'registrations') searchCatalogClients(); Swal.fire('Salvo!', '', 'success'); };
+        const openClientModal = () => { 
+            editingClientId.value = null;
+            newClient.name = ''; newClient.phone = ''; newClient.cpf = ''; newClient.email = '';
+            showClientModal.value = true; 
+        };
+
+        const openEditClient = (client) => {
+            editingClientId.value = client.id;
+            newClient.name = client.name;
+            newClient.phone = client.phone || '';
+            newClient.cpf = client.cpf || '';
+            newClient.email = client.email || '';
+            showClientModal.value = true;
+        };
+
+        const saveClient = async () => { 
+            if(!newClient.name) return; 
+
+            if (editingClientId.value) {
+                // Editar cliente existente
+                await updateDoc(doc(db, 'clients', editingClientId.value), {
+                    name: newClient.name, phone: newClient.phone, cpf: newClient.cpf, email: newClient.email
+                });
+                // Atualiza cache
+                clientCache[editingClientId.value] = { ...clientCache[editingClientId.value], name: newClient.name, phone: newClient.phone, cpf: newClient.cpf, email: newClient.email };
+                showClientModal.value = false;
+                newClient.name = ''; newClient.phone = ''; newClient.cpf = ''; newClient.email = '';
+                editingClientId.value = null;
+                if(view.value === 'registrations') searchCatalogClients();
+                Swal.fire('Atualizado!', 'Dados do cliente salvos.', 'success');
+            } else {
+                // Novo cliente
+                const docRef = await addDoc(collection(db, "clients"), { name: newClient.name, phone: newClient.phone, cpf: newClient.cpf, email: newClient.email, userId: user.value.uid }); 
+                
+                const savedClient = { id: docRef.id, name: newClient.name, phone: newClient.phone, cpf: newClient.cpf, email: newClient.email, userId: user.value.uid };
+                
+                // Auto-select the new client in appointment modal if it's open
+                if (showAppointmentModal.value) {
+                    clientCache[docRef.id] = savedClient;
+                    selectClient(savedClient);
+                }
+
+                showClientModal.value = false; 
+                newClient.name = ''; newClient.phone = ''; newClient.cpf = ''; newClient.email = ''; 
+                if(view.value === 'registrations') searchCatalogClients(); 
+                Swal.fire('Salvo!', '', 'success'); 
+            }
+        };
         const saveService = async () => { if(!newService.description || !newService.price) return; await addDoc(collection(db, "services"), { description: newService.description, price: toNum(newService.price), userId: user.value.uid }); newService.description = ''; newService.price = ''; showServiceModal.value = false; };
         const saveExpenseLogic = async () => { const data = { ...newExpense, value: toNum(newExpense.value), userId: user.value.uid }; if (editingExpenseId.value) { await updateDoc(doc(db, "expenses", editingExpenseId.value), data); } else { await addDoc(collection(db, "expenses"), data); } showExpenseModal.value = false; Swal.fire('Salvo','','success'); if (expensesFilter.start && expensesFilter.end) searchExpenses(); loadDashboardData(); };
         const saveCompany = () => { updateDoc(doc(db, "users", user.value.uid), { companyConfig: company }); Swal.fire('Salvo', '', 'success'); };
@@ -359,7 +417,7 @@ createApp({
             startNewSchedule, editAppointment, saveAppointment, showAppointmentModal, showClientModal, showServiceModal, newService, saveService, deleteService,
             newClient, saveClient, tempApp, tempServiceSelect, services, totalServices, finalBalance, isEditing, clientSearchTerm, filteredClientsSearch, selectClient,
             addServiceToApp, removeServiceFromApp, appointmentViewMode, calendarGrid, calendarTitle, changeCalendarMonth, selectCalendarDay, selectedCalendarDate, appointmentsOnSelectedDate, filteredListAppointments,
-            catalogClientsList, catalogClientSearch, searchCatalogClients, openClientModal, deleteClient, currentReceipt, showReceipt, showReceiptModal,
+            catalogClientsList, catalogClientSearch, searchCatalogClients, openClientModal, openEditClient, editingClientId, deleteClient, currentReceipt, showReceipt, showReceiptModal,
             company, handleLogoUpload, saveCompany, downloadReceiptImage, generateContractPDF, openWhatsApp, formatCurrency, formatDate, getDay, getMonth, statusText, getClientName, 
             toggleDarkMode, expenseCategories, expensesByCategoryStats, agendaTab, agendaFilter, searchHistory, changeStatus, registrationTab, kpiPendingReceivables, totalAppointmentsCount, topExpenseCategory, getCategoryIcon, maskPhone, maskCPF,
             
