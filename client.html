@@ -139,9 +139,9 @@
                         
                         <div v-else class="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-xl border border-yellow-100 dark:border-yellow-800 text-center mt-2">
                             <p class="text-xs font-bold text-yellow-700 mb-2 uppercase">Aguardando Assinatura</p>
-                            <p class="text-[10px] text-slate-500 mb-3">Assine para confirmar a contratação.</p>
-                            <button @click="openSignature(app)" class="bg-brand-600 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-lg hover:bg-brand-500 transition w-full flex items-center justify-center gap-2">
-                                <i class="fa-solid fa-pen-nib"></i> Assinar Agora
+                            <p class="text-[10px] text-slate-500 mb-3">Leia o contrato e assine para confirmar a contratação.</p>
+                            <button @click="openContractPreview(app)" class="bg-brand-600 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-lg hover:bg-brand-500 transition w-full flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-file-contract"></i> Visualizar e Assinar Contrato
                             </button>
                         </div>
 
@@ -163,7 +163,115 @@
             </div>
         </div>
 
-        <div v-if="showSignModal" class="fixed inset-0 z-[70] bg-black/90 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
+        <!-- CONTRACT PREVIEW MODAL -->
+        <div v-if="showContractModal" class="fixed inset-0 z-[70] bg-black/90 flex items-center justify-center p-4 backdrop-blur-sm">
+            <div class="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-lg shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col" style="max-height: 90vh;">
+                <!-- Header -->
+                <div class="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center flex-shrink-0">
+                    <h3 class="font-bold text-lg text-slate-800 dark:text-white flex items-center gap-2">
+                        <i class="fa-solid fa-file-contract text-brand-600"></i> Contrato de Prestação de Serviços
+                    </h3>
+                    <button @click="showContractModal=false" class="text-slate-400 hover:text-red-500 w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <!-- Scrollable Contract Content -->
+                <div class="overflow-y-auto flex-1 p-5 space-y-4 text-sm text-slate-700 dark:text-slate-300">
+                    <!-- Company Header -->
+                    <div class="text-center pb-4 border-b border-slate-200 dark:border-slate-700">
+                        <img v-if="company.logo" :src="company.logo" class="w-16 h-16 rounded-full object-cover mx-auto mb-2 shadow">
+                        <p class="font-black text-slate-900 dark:text-white text-base uppercase">{{ company.fantasia }}</p>
+                        <p v-if="company.cnpj" class="text-xs text-slate-500 mt-0.5">CNPJ: {{ company.cnpj }}</p>
+                        <p v-if="company.rua" class="text-xs text-slate-500">{{ company.rua }}, {{ company.bairro }} — {{ company.cidade }}/{{ company.estado }}</p>
+                        <p v-if="company.phone" class="text-xs text-slate-500">Tel: {{ company.phone }}</p>
+                    </div>
+
+                    <!-- Title -->
+                    <div class="text-center">
+                        <span class="text-xs font-black uppercase tracking-widest text-brand-600 bg-brand-50 dark:bg-brand-900/20 px-4 py-1.5 rounded-full">Contrato de Prestação de Serviços</span>
+                    </div>
+
+                    <!-- Parties -->
+                    <div class="bg-slate-50 dark:bg-slate-800 rounded-2xl p-4 space-y-1">
+                        <p class="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">Contratante</p>
+                        <p><span class="font-bold text-slate-900 dark:text-white">Nome:</span> {{ clientData?.name }}</p>
+                        <p v-if="clientData?.cpf"><span class="font-bold text-slate-900 dark:text-white">CPF:</span> {{ clientData?.cpf }}</p>
+                        <p v-if="clientData?.phone"><span class="font-bold text-slate-900 dark:text-white">Tel:</span> {{ clientData?.phone }}</p>
+                    </div>
+
+                    <!-- Event Details -->
+                    <div class="bg-slate-50 dark:bg-slate-800 rounded-2xl p-4 space-y-1">
+                        <p class="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">Dados do Evento</p>
+                        <p v-if="contractApp"><span class="font-bold text-slate-900 dark:text-white">Data:</span> {{ formatDate(contractApp.date) }} às {{ contractApp.time }}</p>
+                        <p v-if="contractApp"><span class="font-bold text-slate-900 dark:text-white">Local:</span> {{ contractApp?.location?.bairro }}</p>
+                        <p v-if="contractApp?.details?.balloonColors"><span class="font-bold text-slate-900 dark:text-white">Decoração:</span> {{ contractApp.details.balloonColors }}</p>
+                    </div>
+
+                    <!-- Services -->
+                    <div v-if="contractApp?.selectedServices?.length" class="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700">
+                        <div class="bg-slate-800 text-white px-4 py-2 flex justify-between text-xs font-bold uppercase">
+                            <span>Serviço</span><span>Valor</span>
+                        </div>
+                        <div v-for="s in contractApp.selectedServices" :key="s.description" class="flex justify-between px-4 py-2.5 border-b border-slate-100 dark:border-slate-800 last:border-0 bg-white dark:bg-slate-900">
+                            <span class="text-slate-700 dark:text-slate-300">{{ s.description }}</span>
+                            <span class="font-bold text-slate-900 dark:text-white">{{ formatCurrency(s.price) }}</span>
+                        </div>
+                    </div>
+
+                    <!-- Financials -->
+                    <div v-if="contractApp" class="bg-brand-50 dark:bg-brand-900/20 rounded-2xl p-4 space-y-1.5">
+                        <div class="flex justify-between text-xs"><span class="text-slate-500">Total dos Serviços</span><span class="font-bold">{{ formatCurrency(contractApp.totalServices) }}</span></div>
+                        <div class="flex justify-between text-xs"><span class="text-slate-500">Sinal / Entrada</span><span class="font-bold">{{ formatCurrency(contractApp.details?.entryFee || 0) }}</span></div>
+                        <div class="flex justify-between border-t border-brand-200 dark:border-brand-800 pt-1.5 mt-1.5"><span class="font-black text-slate-900 dark:text-white">Restante a Pagar</span><span class="font-black text-brand-600 text-base">{{ formatCurrency(contractApp.finalBalance) }}</span></div>
+                    </div>
+
+                    <!-- Clauses -->
+                    <div class="space-y-3">
+                        <p class="text-[10px] font-black uppercase text-slate-400 tracking-wider">Cláusulas e Condições</p>
+                        <div class="space-y-2.5">
+                            <div class="flex gap-3 text-xs leading-relaxed">
+                                <span class="font-black text-brand-600 flex-shrink-0">1.</span>
+                                <p><span class="font-bold text-slate-900 dark:text-white">DO OBJETO:</span> O presente contrato tem como objeto a prestação de serviços de decoração conforme itens descritos acima.</p>
+                            </div>
+                            <div class="flex gap-3 text-xs leading-relaxed">
+                                <span class="font-black text-brand-600 flex-shrink-0">2.</span>
+                                <p><span class="font-bold text-slate-900 dark:text-white">DA RESERVA:</span> A data somente será reservada mediante o pagamento do sinal. Em caso de cancelamento com menos de 30 dias, o valor do sinal não será devolvido, servindo como multa contratual.</p>
+                            </div>
+                            <div class="flex gap-3 text-xs leading-relaxed">
+                                <span class="font-black text-brand-600 flex-shrink-0">3.</span>
+                                <p><span class="font-bold text-slate-900 dark:text-white">DO PAGAMENTO:</span> O valor restante deverá ser quitado até a data do evento, antes do início da montagem.</p>
+                            </div>
+                            <div class="flex gap-3 text-xs leading-relaxed">
+                                <span class="font-black text-brand-600 flex-shrink-0">4.</span>
+                                <p><span class="font-bold text-slate-900 dark:text-white">DA CONSERVAÇÃO:</span> O CONTRATANTE responsabiliza-se pela conservação das peças e materiais durante o evento. Danos, quebras ou extravios serão de responsabilidade do contratante.</p>
+                            </div>
+                            <div class="flex gap-3 text-xs leading-relaxed">
+                                <span class="font-black text-brand-600 flex-shrink-0">5.</span>
+                                <p><span class="font-bold text-slate-900 dark:text-white">DA MONTAGEM:</span> O local deve estar disponível e limpo no horário combinado. A desmontagem ocorrerá conforme horário pré-agendado.</p>
+                            </div>
+                            <div class="flex gap-3 text-xs leading-relaxed">
+                                <span class="font-black text-brand-600 flex-shrink-0">6.</span>
+                                <p><span class="font-bold text-slate-900 dark:text-white">DE FORÇA MAIOR:</span> A CONTRATADA não se responsabiliza por falhas decorrentes de casos fortuitos ou força maior (tempestades, falta de energia, etc).</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Spacer for bottom button -->
+                    <div class="h-2"></div>
+                </div>
+
+                <!-- Accept Footer -->
+                <div class="p-5 border-t border-slate-100 dark:border-slate-800 flex-shrink-0 bg-white dark:bg-slate-900 rounded-b-3xl">
+                    <p class="text-center text-xs text-slate-500 mb-3">Ao clicar em "Li e aceito os termos", você confirma que leu e concorda com todas as cláusulas acima.</p>
+                    <button @click="acceptAndSign" class="w-full h-14 bg-brand-600 hover:bg-brand-500 text-white rounded-2xl font-bold shadow-lg flex items-center justify-center gap-2 transition active:scale-95">
+                        <i class="fa-solid fa-check-circle"></i> Li e aceito os termos — Assinar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- SIGNATURE MODAL -->
             <div class="bg-white dark:bg-slate-900 p-4 rounded-3xl w-full max-w-md shadow-2xl border border-slate-200 dark:border-slate-700">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="font-bold text-lg text-slate-800 dark:text-white">Assinar Contrato</h3>
