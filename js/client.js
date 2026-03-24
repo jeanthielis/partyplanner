@@ -11,6 +11,8 @@ createApp({
         const authLoading = ref(false);
         const accessInput = ref('');
         const showSignModal = ref(false);
+        const showContractModal = ref(false);
+        const contractApp = ref(null);
         const currentApp = ref(null);
         
         // --- DADOS ---
@@ -125,6 +127,16 @@ createApp({
         let canvasContext = null;
         let isDrawing = false;
 
+        const openContractPreview = (app) => {
+            contractApp.value = app;
+            showContractModal.value = true;
+        };
+
+        const acceptAndSign = () => {
+            showContractModal.value = false;
+            openSignature(contractApp.value);
+        };
+
         const openSignature = (app) => {
             currentApp.value = app;
             showSignModal.value = true;
@@ -232,11 +244,21 @@ createApp({
                 }
 
                 showSignModal.value = false;
-                await Swal.fire({ title: 'Assinado!', text: 'Contrato confirmado. Baixando PDF...', icon: 'success', timer: 1500, showConfirmButton:false });
                 
-                // Gera o PDF com a nova assinatura
-                currentApp.value.clientSignature = dataUrl; 
-                downloadContract(currentApp.value);
+                const result = await Swal.fire({ 
+                    title: '✅ Contrato Assinado!', 
+                    text: 'Contrato confirmado com sucesso! Deseja baixar uma cópia em PDF?', 
+                    icon: 'success',
+                    showCancelButton: true,
+                    confirmButtonText: '<i class="fa-solid fa-file-pdf"></i> Sim, baixar',
+                    cancelButtonText: 'Agora não',
+                    confirmButtonColor: '#4F46E5'
+                });
+                
+                if (result.isConfirmed) {
+                    currentApp.value.clientSignature = dataUrl; 
+                    downloadContract(currentApp.value);
+                }
 
             } catch (e) {
                 console.error(e);
@@ -384,9 +406,9 @@ createApp({
 
         return {
             loadingState, authLoading, accessInput, company, clientData, appointments,
-            showSignModal, handleInputMask, handleAccess, logout,
-            getDay, getMonth, statusText, formatCurrency, openSignature, openSupport,
-            clearCanvas, saveSignature, downloadContract
+            showSignModal, showContractModal, contractApp, handleInputMask, handleAccess, logout,
+            getDay, getMonth, statusText, formatCurrency, formatDate, openSignature, openSupport,
+            clearCanvas, saveSignature, downloadContract, openContractPreview, acceptAndSign
         };
     }
 }).mount('#client-app');

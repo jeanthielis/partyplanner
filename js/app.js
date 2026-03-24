@@ -2,7 +2,7 @@ const { createApp, ref, computed, reactive, onMounted, watch } = Vue;
 
 import { 
     db, auth, 
-    collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDocs, query, where, setDoc, getDoc, 
+    collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDocs, query, where, setDoc, getDoc, orderBy, limit,
     signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged
 } from './firebase.js';
 
@@ -20,7 +20,7 @@ createApp({
         const authForm = reactive({ email: '', password: '', name: '' });
         
         // Empresa
-        const company = reactive({ fantasia: '', logo: '', signature: '', cnpj: '', email: '', phone: '', rua: '', bairro: '', cidade: '', estado: '' });
+        const company = reactive({ fantasia: '', logo: '', signature: '', cnpj: '', email: '', phone: '', rua: '', bairro: '', cidade: '', estado: '', emailjs_service_id: '', emailjs_template_id: '', emailjs_public_key: '' });
 
         // Dados
         const dashboardMonth = ref(new Date().toISOString().slice(0, 7));
@@ -67,6 +67,18 @@ createApp({
         const editingId = ref(null);
         const editingExpenseId = ref(null);
         const currentReceipt = ref(null);
+
+        // Meta mensal
+        const monthlyGoal = ref(0);
+        const showGoalModal = ref(false);
+        const tempGoal = ref('');
+
+        // Auditoria
+        const auditLog = ref([]);
+        const showAuditModal = ref(false);
+
+        // EmailJS
+        const showEmailJSModal = ref(false);
         const showSignatureModal = ref(false);
         const signatureApp = ref(null);
         const signatureMode = ref('company');
@@ -77,7 +89,7 @@ createApp({
         const newService = reactive({ description: '', price: '' });
         const newExpense = reactive({ description: '', value: '', date: today, category: 'outros' });
         const tempServiceSelect = ref('');
-        const tempApp = reactive({ clientId: '', date: '', time: '', location: { bairro: '' }, details: { entryFee: 0, balloonColors: '' }, notes: '', selectedServices: [], checklist: [] });
+        const tempApp = reactive({ clientId: '', date: '', time: '', location: { bairro: '' }, details: { entryFee: 0, balloonColors: '' }, notes: '', internalNotes: '', installments: 1, selectedServices: [], checklist: [] });
 
         const expenseCategories = [
             { id: 'combustivel', label: 'Combustível', icon: 'fa-gas-pump', color: 'text-orange-500', bg: 'bg-orange-100' },
@@ -100,6 +112,7 @@ createApp({
                     syncData();
                     const uDoc = await getDoc(doc(db, "users", u.uid));
                     if (uDoc.exists() && uDoc.data().companyConfig) Object.assign(company, uDoc.data().companyConfig);
+                    if (uDoc.exists() && uDoc.data().monthlyGoal) monthlyGoal.value = uDoc.data().monthlyGoal;
                 }
                 setTimeout(() => { isGlobalLoading.value = false; }, 800);
             });
@@ -151,6 +164,33 @@ createApp({
         const totalAppointmentsCount = computed(() => dashboardData.appointments.filter(a => a.status !== 'budget').length);
         const expensesByCategoryStats = computed(() => { if (!dashboardData.expenses.length) return []; return expenseCategories.map(cat => { const total = dashboardData.expenses.filter(e => e.category === cat.id).reduce((sum, e) => sum + toNum(e.value), 0); return { ...cat, total }; }).filter(c => c.total > 0).sort((a, b) => b.total - a.total); });
         const topExpenseCategory = computed(() => expensesByCategoryStats.value[0] || null);
+
+        // Eventos urgentes (próximos 3 dias)
+        const urgentEvents = computed(() => {
+            const now = new Date(); now.setHours(0,0,0,0);
+            const in3 = new Date(now); in3.setDate(now.getDate() + 3);
+            const todayStr = now.toISOString().split('T')[0];
+            const in3Str = in3.toISOString().split('T')[0];
+            return pendingAppointments.value.filter(a => a.date >= todayStr && a.date <= in3Str);
+        });
+
+        // Eventos com saldo em atraso (data passou e ainda tem saldo a pagar)
+        const overdueEvents = computed(() => {
+            const todayStr = new Date().toISOString().split('T')[0];
+            return pendingAppointments.value.filter(a => a.date < todayStr && toNum(a.finalBalance) > 0);
+        });
+
+        // Progresso da meta mensal
+        const goalProgress = computed(() => {
+            if (!monthlyGoal.value || monthlyGoal.value <= 0) return 0;
+            return Math.min((kpiRevenue.value / monthlyGoal.value) * 100, 100).toFixed(1);
+        });
+
+        // Parcela valor
+        const installmentValue = computed(() => {
+            const n = parseInt(tempApp.installments) || 1;
+            return n > 0 ? finalBalance.value / n : finalBalance.value;
+        });
         
         const next7DaysApps = computed(() => { 
             const now = new Date(); now.setHours(0,0,0,0);
@@ -258,7 +298,77 @@ createApp({
         // --- ACTIONS ---
         const handleAuth = async () => { authLoading.value = true; try { if (isRegistering.value) { const res = await createUserWithEmailAndPassword(auth, authForm.email, authForm.password); await setDoc(doc(db, "users", res.user.uid), { email: authForm.email, role: 'user', createdAt: new Date().toISOString(), companyConfig: { fantasia: authForm.name || 'Minha Empresa', email: authForm.email } }); } else { await signInWithEmailAndPassword(auth, authForm.email, authForm.password); } } catch (e) { Swal.fire('Ops', 'Erro no login.', 'error'); } finally { authLoading.value = false; } };
         const copyClientLink = () => { const path = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1); const url = `${window.location.origin}${path}client.html?uid=${user.value.uid}`; navigator.clipboard.writeText(url).then(() => Swal.fire('Copiado!', 'Link da Área do Cliente copiado.', 'success')); };
-        const saveAppointment = async () => { const data = { ...tempApp, totalServices: totalServices.value, finalBalance: finalBalance.value, userId: user.value.uid, status: 'pending' }; if (isEditing.value) await updateDoc(doc(db, "appointments", editingId.value), data); else await addDoc(collection(db, "appointments"), data); showAppointmentModal.value = false; loadDashboardData(); };
+        const logAudit = async (action, details) => {
+            try {
+                await addDoc(collection(db, "auditLog"), {
+                    userId: user.value.uid,
+                    action,
+                    details,
+                    timestamp: new Date().toISOString(),
+                    userName: company.fantasia || user.value.email
+                });
+            } catch(e) { console.warn('Audit log error:', e); }
+        };
+
+        const sendEmailJS = async (clientId, appData) => {
+            if (!company.emailjs_service_id || !company.emailjs_template_id || !company.emailjs_public_key) return;
+            const cli = clientCache[clientId];
+            if (!cli || !cli.email) return;
+            try {
+                const clientLink = `${window.location.origin}${window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1)}client.html?uid=${user.value.uid}`;
+                await emailjs.send(company.emailjs_service_id, company.emailjs_template_id, {
+                    to_name: cli.name,
+                    to_email: cli.email,
+                    company_name: company.fantasia,
+                    event_date: formatDate(appData.date),
+                    event_time: appData.time,
+                    event_location: appData.location?.bairro || '',
+                    total_value: formatCurrency(appData.totalServices),
+                    client_link: clientLink
+                }, company.emailjs_public_key);
+            } catch(e) { console.warn('EmailJS error:', e); }
+        };
+
+        const saveAppointment = async () => {
+            const data = { ...tempApp, totalServices: totalServices.value, finalBalance: finalBalance.value, userId: user.value.uid, status: 'pending' };
+            let appId = editingId.value;
+            if (isEditing.value) {
+                await updateDoc(doc(db, "appointments", editingId.value), data);
+                await logAudit('edit_appointment', `Editou agendamento de ${getClientName(data.clientId)} para ${formatDate(data.date)}`);
+            } else {
+                const ref = await addDoc(collection(db, "appointments"), data);
+                appId = ref.id;
+                await logAudit('create_appointment', `Criou agendamento de ${getClientName(data.clientId)} para ${formatDate(data.date)}`);
+                // Envia email automático
+                await sendEmailJS(data.clientId, data);
+            }
+            showAppointmentModal.value = false;
+            loadDashboardData();
+            // Pergunta se quer enviar WhatsApp com link do contrato
+            if (!isEditing.value) {
+                const cli = clientCache[data.clientId];
+                if (cli && cli.phone) {
+                    const { isConfirmed } = await Swal.fire({
+                        title: '✅ Agendamento criado!',
+                        text: `Deseja enviar o link do contrato para ${cli.name} via WhatsApp?`,
+                        icon: 'success',
+                        showCancelButton: true,
+                        confirmButtonText: '<i class="fa-brands fa-whatsapp"></i> Enviar WhatsApp',
+                        cancelButtonText: 'Agora não',
+                        confirmButtonColor: '#22c55e'
+                    });
+                    if (isConfirmed) {
+                        const path = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+                        const link = `${window.location.origin}${path}client.html?uid=${user.value.uid}`;
+                        const phone = cli.phone.replace(/\D/g, '');
+                        const msg = `Olá ${cli.name}! 🎉 Seu agendamento com *${company.fantasia}* para o dia *${formatDate(data.date)}* foi confirmado.\n\nAcesse o link abaixo para ver os detalhes e assinar o contrato:\n${link}`;
+                        window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+                    }
+                } else {
+                    Swal.fire('✅ Agendamento criado!', '', 'success');
+                }
+            }
+        };
         
         // CORREÇÃO: Mapeia o valor da entrada para o campo entryFee esperado pelo HTML do recibo
         const showReceipt = (app) => { 
@@ -284,8 +394,104 @@ createApp({
         
         const addServiceToApp = () => { if(tempServiceSelect.value) tempApp.selectedServices.push(tempServiceSelect.value); tempServiceSelect.value=''; };
         const removeServiceFromApp = (i) => tempApp.selectedServices.splice(i,1);
-        const startNewSchedule = () => { isEditing.value=false; clientSearchTerm.value = ''; Object.assign(tempApp, { clientId:'', date:'', time:'', location:{bairro:''}, details:{entryFee:0}, selectedServices:[]}); showAppointmentModal.value = true; };
-        const editAppointment = (app) => { isEditing.value=true; editingId.value=app.id; Object.assign(tempApp, JSON.parse(JSON.stringify(app))); clientSearchTerm.value = getClientName(app.clientId); showAppointmentModal.value=true; };
+        const saveMonthlyGoal = async () => {
+            const val = toNum(tempGoal.value);
+            if (!val || val <= 0) return Swal.fire('Atenção', 'Informe um valor válido.', 'warning');
+            monthlyGoal.value = val;
+            await updateDoc(doc(db, "users", user.value.uid), { monthlyGoal: val });
+            showGoalModal.value = false;
+            Swal.fire('Meta definida!', `Meta de ${formatCurrency(val)} para o mês.`, 'success');
+        };
+
+        const generateMonthlyReport = () => {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const [y, m] = dashboardMonth.value.split('-');
+            const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+            const monthName = monthNames[parseInt(m) - 1];
+            let posY = 20;
+
+            doc.setFont("helvetica", "bold"); doc.setFontSize(16);
+            doc.text(company.fantasia.toUpperCase(), 105, posY, {align:"center"}); posY += 8;
+            doc.setFont("helvetica", "normal"); doc.setFontSize(11);
+            doc.text(`RELATÓRIO FINANCEIRO — ${monthName.toUpperCase()} ${y}`, 105, posY, {align:"center"}); posY += 6;
+            doc.line(20, posY, 190, posY); posY += 10;
+
+            doc.setFontSize(12); doc.setFont("helvetica", "bold");
+            doc.text("RESUMO", 20, posY); posY += 8;
+            doc.setFont("helvetica", "normal"); doc.setFontSize(10);
+            doc.text(`Receita Total:`, 20, posY); doc.text(formatCurrency(financeData.value.revenue), 190, posY, {align:"right"}); posY += 6;
+            doc.text(`Despesas Totais:`, 20, posY); doc.text(formatCurrency(financeData.value.expenses), 190, posY, {align:"right"}); posY += 6;
+            doc.setFont("helvetica", "bold");
+            doc.text(`Lucro Líquido:`, 20, posY); doc.text(formatCurrency(financeData.value.profit), 190, posY, {align:"right"}); posY += 6;
+            doc.text(`A Receber (Pendentes):`, 20, posY); doc.text(formatCurrency(kpiPendingReceivables.value), 190, posY, {align:"right"}); posY += 6;
+            if (monthlyGoal.value > 0) {
+                doc.text(`Meta do Mês:`, 20, posY); doc.text(`${formatCurrency(monthlyGoal.value)} (${goalProgress.value}% atingido)`, 190, posY, {align:"right"}); posY += 6;
+            }
+            posY += 4; doc.line(20, posY, 190, posY); posY += 10;
+
+            // Eventos do mês
+            if (dashboardData.appointments.length > 0) {
+                doc.setFont("helvetica", "bold"); doc.setFontSize(12);
+                doc.text("EVENTOS DO MÊS", 20, posY); posY += 6;
+                const appsBody = dashboardData.appointments.map(a => [
+                    formatDate(a.date), getClientName(a.clientId), statusText(a.status),
+                    formatCurrency(a.totalServices), formatCurrency(a.finalBalance)
+                ]);
+                doc.autoTable({ startY: posY, head: [['Data','Cliente','Status','Total','Saldo']], body: appsBody, theme: 'grid', headStyles: { fillColor: [60,60,60] }, styles: { fontSize: 8 }, margin: { left: 20, right: 20 } });
+                posY = doc.lastAutoTable.finalY + 10;
+            }
+
+            // Despesas do mês
+            if (dashboardData.expenses.length > 0) {
+                if (posY > 220) { doc.addPage(); posY = 20; }
+                doc.setFont("helvetica", "bold"); doc.setFontSize(12);
+                doc.text("DESPESAS DO MÊS", 20, posY); posY += 6;
+                const expBody = dashboardData.expenses.map(e => [
+                    formatDate(e.date), e.description, expenseCategories.find(c=>c.id===e.category)?.label||'Outro', formatCurrency(e.value)
+                ]);
+                doc.autoTable({ startY: posY, head: [['Data','Descrição','Categoria','Valor']], body: expBody, theme: 'grid', headStyles: { fillColor: [60,60,60] }, styles: { fontSize: 8 }, margin: { left: 20, right: 20 } });
+            }
+
+            doc.setFontSize(8);
+            doc.text(`Gerado em ${new Date().toLocaleDateString('pt-BR')} via PartyPlanner Pro`, 105, 290, {align:"center"});
+            doc.save(`Relatorio_${monthName}_${y}.pdf`);
+        };
+
+        const exportBackupJSON = async () => {
+            const { isConfirmed } = await Swal.fire({ title: 'Exportar Backup', text: 'Isso irá baixar todos os seus dados em JSON.', icon: 'info', showCancelButton: true, confirmButtonText: 'Exportar' });
+            if (!isConfirmed) return;
+            const [clients, appointments, expenses] = await Promise.all([
+                getDocs(query(collection(db, "clients"), where("userId", "==", user.value.uid))),
+                getDocs(query(collection(db, "appointments"), where("userId", "==", user.value.uid))),
+                getDocs(query(collection(db, "expenses"), where("userId", "==", user.value.uid)))
+            ]);
+            const data = {
+                exportDate: new Date().toISOString(),
+                company: { ...company },
+                clients: clients.docs.map(d => ({id: d.id, ...d.data()})),
+                appointments: appointments.docs.map(d => ({id: d.id, ...d.data()})),
+                expenses: expenses.docs.map(d => ({id: d.id, ...d.data()}))
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url;
+            a.download = `Backup_PartyPlanner_${new Date().toISOString().split('T')[0]}.json`;
+            a.click(); URL.revokeObjectURL(url);
+            Swal.fire('Backup exportado!', 'Arquivo JSON baixado com sucesso.', 'success');
+        };
+
+        const loadAuditLog = async () => {
+            try {
+                const q = query(collection(db, "auditLog"), where("userId", "==", user.value.uid), orderBy("timestamp", "desc"), limit(50));
+                const snap = await getDocs(q);
+                auditLog.value = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                showAuditModal.value = true;
+            } catch(e) { Swal.fire('Erro', 'Não foi possível carregar o log.', 'error'); }
+        };
+
+        const startNewSchedule = () => { isEditing.value=false; clientSearchTerm.value = ''; selectedClientNameLock.value = ''; Object.assign(tempApp, { clientId:'', date:'', time:'', location:{bairro:''}, details:{entryFee:0, balloonColors:''}, notes:'', internalNotes:'', installments: 1, selectedServices:[],checklist:[]}); showAppointmentModal.value = true; };
+        const editAppointment = (app) => { isEditing.value=true; editingId.value=app.id; Object.assign(tempApp, JSON.parse(JSON.stringify(app))); if (!tempApp.internalNotes) tempApp.internalNotes = ''; if (!tempApp.installments) tempApp.installments = 1; clientSearchTerm.value = getClientName(app.clientId); selectedClientNameLock.value = getClientName(app.clientId); showAppointmentModal.value=true; };
         
         let canvasContext = null; let isDrawing = false;
         const openSignatureModal = (target, mode = 'company') => { signatureApp.value = target; signatureMode.value = mode; showSignatureModal.value = true; setTimeout(() => initCanvas(), 100); };
@@ -399,10 +605,10 @@ createApp({
         const saveService = async () => { if(!newService.description || !newService.price) return; await addDoc(collection(db, "services"), { description: newService.description, price: toNum(newService.price), userId: user.value.uid }); newService.description = ''; newService.price = ''; showServiceModal.value = false; };
         const saveExpenseLogic = async () => { const data = { ...newExpense, value: toNum(newExpense.value), userId: user.value.uid }; if (editingExpenseId.value) { await updateDoc(doc(db, "expenses", editingExpenseId.value), data); } else { await addDoc(collection(db, "expenses"), data); } showExpenseModal.value = false; Swal.fire('Salvo','','success'); if (expensesFilter.start && expensesFilter.end) searchExpenses(); loadDashboardData(); };
         const saveCompany = () => { updateDoc(doc(db, "users", user.value.uid), { companyConfig: company }); Swal.fire('Salvo', '', 'success'); };
-        const deleteClient = async (id) => { if((await Swal.fire({title:'Excluir?',showCancelButton:true})).isConfirmed) { await deleteDoc(doc(db,"clients",id)); searchCatalogClients(); }};
+        const deleteClient = async (id) => { const cli = catalogClientsList.value.find(c => c.id === id); if((await Swal.fire({title:'Excluir?',showCancelButton:true})).isConfirmed) { await deleteDoc(doc(db,"clients",id)); await logAudit('delete_client', `Excluiu cliente: ${cli?.name || id}`); searchCatalogClients(); }};
         const deleteService = async (id) => { await deleteDoc(doc(db, "services", id)); };
         const deleteExpense = async (id) => { const { isConfirmed } = await Swal.fire({ title: 'Excluir?', text: 'Não pode desfazer.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33' }); if (isConfirmed) { await deleteDoc(doc(db, "expenses", id)); if (expensesFilter.start && expensesFilter.end) searchExpenses(); loadDashboardData(); Swal.fire('Excluído!', '', 'success'); } };
-        const changeStatus = async (app, status) => { const {isConfirmed} = await Swal.fire({title: 'Alterar Status?', icon:'question', showCancelButton:true}); if(isConfirmed) { await updateDoc(doc(db,"appointments",app.id), {status:status}); Swal.fire('Feito','','success'); loadDashboardData(); } };
+        const changeStatus = async (app, status) => { const {isConfirmed} = await Swal.fire({title: 'Alterar Status?', icon:'question', showCancelButton:true}); if(isConfirmed) { await updateDoc(doc(db,"appointments",app.id), {status:status}); await logAudit('change_status', `Status de agendamento de ${getClientName(app.clientId)} (${formatDate(app.date)}) alterado para ${statusText(status)}`); Swal.fire('Feito','','success'); loadDashboardData(); } };
         const handleLogoUpload = (e) => { const f = e.target.files[0]; if(f){ const r=new FileReader(); r.onload=x=>{company.logo=x.target.result; updateDoc(doc(db,"users",user.value.uid),{companyConfig:company});}; r.readAsDataURL(f); }};
         const toggleDarkMode = () => { isDark.value=!isDark.value; document.documentElement.classList.toggle('dark'); };
         const changeCalendarMonth = (off) => { const d = new Date(calendarCursor.value); d.setMonth(d.getMonth() + off); calendarCursor.value = d; };
@@ -410,21 +616,27 @@ createApp({
 
         return {
             user, view, isDark, authForm, authLoading, isRegistering, handleAuth, logout, isGlobalLoading,
-            dashboardMonth, financeData, next7DaysApps, statementList, isExtractLoaded, 
-            filteredSummary, 
+            dashboardMonth, financeData, next7DaysApps, statementList, isExtractLoaded,
+            filteredSummary,
             expensesFilter, searchExpenses,
             showExpenseModal, newExpense, addExpense: saveExpenseLogic, saveExpenseLogic, openNewExpense, openEditExpense, deleteExpense, editingExpenseId,
             startNewSchedule, editAppointment, saveAppointment, showAppointmentModal, showClientModal, showServiceModal, newService, saveService, deleteService,
             newClient, saveClient, tempApp, tempServiceSelect, services, totalServices, finalBalance, isEditing, clientSearchTerm, filteredClientsSearch, selectClient,
             addServiceToApp, removeServiceFromApp, appointmentViewMode, calendarGrid, calendarTitle, changeCalendarMonth, selectCalendarDay, selectedCalendarDate, appointmentsOnSelectedDate, filteredListAppointments,
             catalogClientsList, catalogClientSearch, searchCatalogClients, openClientModal, openEditClient, editingClientId, deleteClient, currentReceipt, showReceipt, showReceiptModal,
-            company, handleLogoUpload, saveCompany, downloadReceiptImage, generateContractPDF, openWhatsApp, formatCurrency, formatDate, getDay, getMonth, statusText, getClientName, 
+            company, handleLogoUpload, saveCompany, downloadReceiptImage, generateContractPDF, openWhatsApp, formatCurrency, formatDate, getDay, getMonth, statusText, getClientName,
             toggleDarkMode, expenseCategories, expensesByCategoryStats, agendaTab, agendaFilter, searchHistory, changeStatus, registrationTab, kpiPendingReceivables, totalAppointmentsCount, topExpenseCategory, getCategoryIcon, maskPhone, maskCPF,
-            
             copyClientLink, budgetList, saveAsBudget, approveBudget, pendingAppointments,
-            openSignatureModal, clearSignature, saveSignature, showSignatureModal, 
+            openSignatureModal, clearSignature, saveSignature, showSignatureModal,
             downloadClientReceipt,
-            financeTab, rankingData
+            financeTab, rankingData,
+            // Novas features
+            urgentEvents, overdueEvents,
+            monthlyGoal, goalProgress, showGoalModal, tempGoal, saveMonthlyGoal,
+            generateMonthlyReport, exportBackupJSON,
+            showAuditModal, auditLog, loadAuditLog,
+            installmentValue,
+            showEmailJSModal
         };
     }
 }).mount('#app');
