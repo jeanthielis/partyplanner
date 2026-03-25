@@ -345,9 +345,114 @@
                         <div class="flex bg-white dark:bg-slate-900 p-1.5 rounded-2xl w-fit border border-slate-200 dark:border-slate-800 shadow-sm"><button v-for="t in ['clients','services','company']" @click="registrationTab=t" :class="registrationTab===t?'bg-brand-600 text-white shadow-md':'text-slate-500 hover:text-slate-800 dark:hover:text-white'" class="px-5 py-2 rounded-xl text-sm font-bold capitalize transition">{{ t==='clients'?'Clientes':(t==='services'?'Serviços':'Empresa') }}</button></div>
                         <div v-if="registrationTab === 'clients'" class="space-y-4">
                             <div class="bg-brand-50 dark:bg-brand-900/20 border border-brand-100 dark:border-brand-800 p-4 rounded-2xl flex justify-between items-center"><div><h4 class="font-bold text-brand-700 dark:text-brand-300 text-sm">Link de Acesso do Cliente</h4><p class="text-xs text-brand-600/80">Envie este link para seu cliente.</p></div><button @click="copyClientLink" class="bg-brand-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow hover:bg-brand-500 transition"><i class="fa-solid fa-copy"></i> Copiar Link</button></div>
-                            <div class="flex justify-end"><button @click="openClientModal" class="bg-brand-600 hover:bg-brand-500 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg flex items-center gap-2"><i class="fa-solid fa-plus"></i> Novo Cliente</button></div><div class="flex gap-2"><input v-model="catalogClientSearch" placeholder="Buscar..." class="w-full h-14 px-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 dark:text-white"><button @click="searchCatalogClients" class="h-14 w-14 bg-slate-800 text-white rounded-2xl hover:bg-slate-900"><i class="fa-solid fa-search"></i></button></div><div class="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800"><div v-for="c in catalogClientsList" :key="c.id" class="p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/50"><div><div class="font-bold text-slate-900 dark:text-white">{{ c.name }}</div><div class="text-xs text-slate-500">{{ c.phone }} <span v-if="c.cpf">| {{ c.cpf }}</span></div></div><div class="flex items-center gap-1"><button @click="openEditClient(c)" class="text-slate-400 hover:text-brand-500 p-2 rounded-lg hover:bg-brand-50 dark:hover:bg-brand-900/20 transition" title="Editar"><i class="fa-solid fa-pen-to-square"></i></button><button @click="deleteClient(c.id)" class="text-slate-400 hover:text-red-500 p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition" title="Excluir"><i class="fa-solid fa-trash"></i></button></div></div></div>
+
+                            <div class="flex justify-end"><button @click="openClientModal" class="bg-brand-600 hover:bg-brand-500 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg flex items-center gap-2"><i class="fa-solid fa-plus"></i> Novo Cliente</button></div>
+
+                            <!-- Filtros de Clientes -->
+                            <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 space-y-3">
+                                <p class="text-[11px] font-black text-slate-400 uppercase tracking-wider">Filtrar Clientes</p>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div class="relative">
+                                        <i class="fa-solid fa-user absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10"></i>
+                                        <input v-model="clientFilter.name" placeholder="Nome" class="w-full h-12 pl-12 pr-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-500 text-slate-800 dark:text-white placeholder-slate-400">
+                                    </div>
+                                    <div class="relative">
+                                        <i class="fa-solid fa-id-card absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10"></i>
+                                        <input v-model="clientFilter.cpf" placeholder="CPF" class="w-full h-12 pl-12 pr-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-500 text-slate-800 dark:text-white placeholder-slate-400">
+                                    </div>
+                                    <div class="relative">
+                                        <i class="fa-solid fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10"></i>
+                                        <input v-model="clientFilter.email" placeholder="E-mail" class="w-full h-12 pl-12 pr-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-500 text-slate-800 dark:text-white placeholder-slate-400">
+                                    </div>
+                                    <div></div>
+                                    <div>
+                                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">Data do Evento — De</label>
+                                        <input v-model="clientFilter.eventDateStart" type="date" class="w-full h-12 px-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-500 text-slate-800 dark:text-white">
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">Data do Evento — Até</label>
+                                        <input v-model="clientFilter.eventDateEnd" type="date" class="w-full h-12 px-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-500 text-slate-800 dark:text-white">
+                                    </div>
+                                </div>
+                                <div class="flex gap-2 pt-1">
+                                    <button @click="clearClientFilter" class="h-11 px-5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-xl font-bold text-sm hover:bg-slate-200 dark:hover:bg-slate-700 transition flex items-center gap-2"><i class="fa-solid fa-xmark"></i> Limpar</button>
+                                    <button @click="searchCatalogClients" class="flex-1 h-11 bg-brand-600 hover:bg-brand-500 text-white rounded-xl font-bold text-sm shadow transition flex items-center justify-center gap-2"><i class="fa-solid fa-search"></i> Buscar</button>
+                                </div>
+                            </div>
+
+                            <!-- Lista de Resultados -->
+                            <div v-if="!catalogSearched" class="text-center py-12 text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+                                <i class="fa-solid fa-magnifying-glass text-3xl mb-3 opacity-30 block"></i>
+                                <p class="text-sm font-medium">Use os filtros acima para buscar clientes.</p>
+                            </div>
+                            <div v-else-if="catalogClientsDisplayList.length === 0" class="text-center py-12 text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+                                <i class="fa-solid fa-user-slash text-3xl mb-3 opacity-30 block"></i>
+                                <p class="text-sm font-medium">Nenhum cliente encontrado.</p>
+                            </div>
+                            <div v-else class="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800">
+                                <div class="px-4 py-2.5 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 rounded-t-2xl">
+                                    <span class="text-xs font-bold text-slate-500">{{ catalogClientsDisplayList.length }} resultado(s)</span>
+                                </div>
+                                <div v-for="c in catalogClientsDisplayList" :key="c.id" class="p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                                    <div>
+                                        <div class="font-bold text-slate-900 dark:text-white">{{ c.name }}</div>
+                                        <div class="text-xs text-slate-500 mt-0.5 space-x-2">
+                                            <span v-if="c.phone"><i class="fa-solid fa-phone text-[9px]"></i> {{ c.phone }}</span>
+                                            <span v-if="c.cpf"><i class="fa-solid fa-id-card text-[9px]"></i> {{ c.cpf }}</span>
+                                            <span v-if="c.email"><i class="fa-solid fa-envelope text-[9px]"></i> {{ c.email }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-1">
+                                        <button @click="openEditClient(c)" class="text-slate-400 hover:text-brand-500 p-2 rounded-lg hover:bg-brand-50 dark:hover:bg-brand-900/20 transition" title="Editar"><i class="fa-solid fa-pen-to-square"></i></button>
+                                        <button @click="deleteClient(c.id)" class="text-slate-400 hover:text-red-500 p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition" title="Excluir"><i class="fa-solid fa-trash"></i></button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div v-if="registrationTab === 'services'" class="space-y-4"><div class="flex justify-end"><button @click="showServiceModal=true" class="bg-brand-600 hover:bg-brand-500 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg flex items-center gap-2"><i class="fa-solid fa-plus"></i> Novo Serviço</button></div><div class="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800"><div v-for="s in services" :key="s.id" class="p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/50"><span class="font-medium text-slate-700 dark:text-slate-300">{{ s.description }}</span><div class="flex items-center gap-4"><span class="text-sm font-bold text-brand-600 bg-brand-50 dark:bg-brand-900/30 px-3 py-1 rounded-lg">{{ formatCurrency(s.price) }}</span><button @click="deleteService(s.id)" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-trash"></i></button></div></div></div></div>
+                        <div v-if="registrationTab === 'services'" class="space-y-4">
+                            <div class="flex justify-end"><button @click="showServiceModal=true" class="bg-brand-600 hover:bg-brand-500 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg flex items-center gap-2"><i class="fa-solid fa-plus"></i> Novo Serviço</button></div>
+
+                            <!-- Filtros de Serviços -->
+                            <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 space-y-3">
+                                <p class="text-[11px] font-black text-slate-400 uppercase tracking-wider">Filtrar Serviços</p>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div class="relative">
+                                        <i class="fa-solid fa-tag absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10"></i>
+                                        <input v-model="serviceSearch" placeholder="Descrição do serviço" class="w-full h-12 pl-12 pr-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-500 text-slate-800 dark:text-white placeholder-slate-400">
+                                    </div>
+                                    <div class="relative">
+                                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10 text-sm font-bold">R$</span>
+                                        <input v-model="serviceMaxPrice" type="number" placeholder="Preço máximo" class="w-full h-12 pl-12 pr-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-500 text-slate-800 dark:text-white placeholder-slate-400">
+                                    </div>
+                                </div>
+                                <div class="flex gap-2 pt-1">
+                                    <button @click="clearServiceFilter" class="h-11 px-5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-xl font-bold text-sm hover:bg-slate-200 dark:hover:bg-slate-700 transition flex items-center gap-2"><i class="fa-solid fa-xmark"></i> Limpar</button>
+                                    <button @click="searchServices" class="flex-1 h-11 bg-brand-600 hover:bg-brand-500 text-white rounded-xl font-bold text-sm shadow transition flex items-center justify-center gap-2"><i class="fa-solid fa-search"></i> Buscar</button>
+                                </div>
+                            </div>
+
+                            <!-- Lista de Resultados -->
+                            <div v-if="!servicesSearched" class="text-center py-12 text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+                                <i class="fa-solid fa-magnifying-glass text-3xl mb-3 opacity-30 block"></i>
+                                <p class="text-sm font-medium">Use os filtros acima para buscar serviços.</p>
+                            </div>
+                            <div v-else-if="servicesDisplayList.length === 0" class="text-center py-12 text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+                                <i class="fa-solid fa-box-open text-3xl mb-3 opacity-30 block"></i>
+                                <p class="text-sm font-medium">Nenhum serviço encontrado.</p>
+                            </div>
+                            <div v-else class="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800">
+                                <div class="px-4 py-2.5 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 rounded-t-2xl">
+                                    <span class="text-xs font-bold text-slate-500">{{ servicesDisplayList.length }} resultado(s)</span>
+                                </div>
+                                <div v-for="s in servicesDisplayList" :key="s.id" class="p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                                    <span class="font-medium text-slate-700 dark:text-slate-300">{{ s.description }}</span>
+                                    <div class="flex items-center gap-4">
+                                        <span class="text-sm font-bold text-brand-600 bg-brand-50 dark:bg-brand-900/30 px-3 py-1 rounded-lg">{{ formatCurrency(s.price) }}</span>
+                                        <button @click="deleteService(s.id)" class="text-slate-400 hover:text-red-500 p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition"><i class="fa-solid fa-trash"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         
                         <div v-if="registrationTab === 'company'" class="bg-white dark:bg-slate-900 p-8 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 space-y-5 max-w-lg">
                             <div class="flex justify-center gap-6 mb-6">
