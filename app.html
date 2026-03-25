@@ -365,7 +365,12 @@
                                 <button @click="openNewExpense" class="bg-red-500 text-white px-4 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-red-500/20 hover:bg-red-600 transition flex items-center gap-2"><i class="fa-solid fa-minus"></i> Nova Despesa</button>
                             </div>
                         </div>
-                        <div class="flex p-1 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 w-full overflow-hidden shadow-sm"><button @click="financeTab='extract'" :class="financeTab==='extract' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:bg-slate-50'" class="flex-1 py-2.5 text-xs font-bold transition rounded-lg mx-0.5">Extrato</button><button @click="financeTab='ranking'" :class="financeTab==='ranking' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:bg-slate-50'" class="flex-1 py-2.5 text-xs font-bold transition rounded-lg mx-0.5">Ranking</button></div>
+                        <div class="flex p-1 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 w-full overflow-hidden shadow-sm">
+                            <button @click="financeTab='extract'" :class="financeTab==='extract' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'" class="flex-1 py-2.5 text-xs font-bold transition rounded-lg mx-0.5">Extrato</button>
+                            <button @click="financeTab='ranking'" :class="financeTab==='ranking' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'" class="flex-1 py-2.5 text-xs font-bold transition rounded-lg mx-0.5">Despesas</button>
+                            <button @click="financeTab='clients'; loadClientRanking()" :class="financeTab==='clients' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'" class="flex-1 py-2.5 text-xs font-bold transition rounded-lg mx-0.5">Clientes</button>
+                            <button @click="financeTab='chart'; loadMonthlyChart()" :class="financeTab==='chart' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'" class="flex-1 py-2.5 text-xs font-bold transition rounded-lg mx-0.5">Mensal</button>
+                        </div>
                         <div class="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm flex flex-wrap gap-3 items-end border border-slate-200 dark:border-slate-800"><div class="flex-1 min-w-[130px]"><label class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block ml-1">De</label><input type="date" v-model="expensesFilter.start" class="w-full h-12 px-4 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 transition-all"></div><div class="flex-1 min-w-[130px]"><label class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block ml-1">Até</label><input type="date" v-model="expensesFilter.end" class="w-full h-12 px-4 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 transition-all"></div><button @click="searchExpenses" class="h-12 bg-slate-800 text-white px-6 rounded-xl font-bold hover:bg-slate-700 shadow-lg"><i class="fa-solid fa-search"></i></button></div>
                         
                         <div v-if="financeTab === 'extract'" class="space-y-6">
@@ -384,6 +389,52 @@
                             <div v-for="item in rankingData" :key="item.id" class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
                                 <div class="flex justify-between items-center mb-2"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full flex items-center justify-center text-lg" :class="item.bgClass + ' ' + item.styleClass"><i :class="'fa-solid ' + item.icon"></i></div><span class="font-bold text-slate-800 dark:text-white">{{ item.label }}</span></div><div class="text-right"><div class="font-bold text-slate-900 dark:text-white">{{ formatCurrency(item.value) }}</div><div class="text-xs text-slate-500">{{ item.percent }}%</div></div></div>
                                 <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden"><div class="h-2 rounded-full" :class="item.bgClass.replace('bg-', 'bg-').replace('100', '500')" :style="{ width: item.percent + '%' }"></div></div>
+                            </div>
+                        </div>
+
+                        <!-- RANKING DE CLIENTES -->
+                        <div v-if="financeTab === 'clients'" class="space-y-3">
+                            <div v-if="clientRankingLoading" class="text-center py-12 text-slate-400"><i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2 block"></i>Carregando...</div>
+                            <div v-else-if="clientRankingData.length === 0" class="text-center py-12 text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+                                <i class="fa-solid fa-trophy text-3xl mb-2 opacity-30 block"></i><p class="text-sm">Nenhum dado disponível.</p>
+                            </div>
+                            <div v-else>
+                                <div v-for="(item, i) in clientRankingData" :key="item.id" class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 flex items-center gap-4">
+                                    <div class="w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm flex-shrink-0"
+                                         :class="i===0?'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30':i===1?'bg-slate-100 text-slate-600 dark:bg-slate-800':i===2?'bg-orange-100 text-orange-600 dark:bg-orange-900/30':'bg-slate-50 text-slate-500 dark:bg-slate-800'">
+                                        {{ i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '#' + (i+1) }}
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="font-bold text-slate-900 dark:text-white text-sm truncate">{{ item.client.name }}</p>
+                                        <p class="text-xs text-slate-400">{{ item.count }} evento(s) · último em {{ formatDate(item.lastDate) }}</p>
+                                    </div>
+                                    <div class="text-right flex-shrink-0">
+                                        <p class="font-black text-brand-600 text-sm">{{ formatCurrency(item.total) }}</p>
+                                        <p class="text-[10px] text-slate-400">total investido</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- COMPARATIVO MENSAL -->
+                        <div v-if="financeTab === 'chart'" class="space-y-4">
+                            <div v-if="monthlyChartLoading" class="text-center py-12 text-slate-400"><i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2 block"></i>Carregando...</div>
+                            <div v-else class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5">
+                                <p class="text-xs font-black text-slate-400 uppercase tracking-wider mb-5">Receita — Últimos 6 Meses</p>
+                                <div class="flex items-end justify-between gap-2 h-40">
+                                    <div v-for="m in monthlyChartData" :key="m.label + m.year" class="flex flex-col items-center flex-1 h-full justify-end gap-2">
+                                        <p class="text-[9px] font-bold text-brand-600 truncate w-full text-center">{{ m.value > 0 ? formatCurrency(m.value).replace('R$\u00a0','').replace(',00','') : '' }}</p>
+                                        <div class="w-full rounded-t-lg transition-all duration-700 min-h-[4px]"
+                                             :style="{ height: monthlyChartData.length ? (Math.max(...monthlyChartData.map(x=>x.value)) > 0 ? (m.value / Math.max(...monthlyChartData.map(x=>x.value)) * 100) : 4) + '%' : '4%', background: 'linear-gradient(180deg, #6366F1, #4F46E5)' }"
+                                             :class="m.value === 0 ? 'opacity-20' : ''">
+                                        </div>
+                                        <p class="text-[10px] font-bold text-slate-400">{{ m.label }}</p>
+                                    </div>
+                                </div>
+                                <div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-between text-xs text-slate-500">
+                                    <span>Total do período: <strong class="text-slate-800 dark:text-white">{{ formatCurrency(monthlyChartData.reduce((a,m)=>a+m.value,0)) }}</strong></span>
+                                    <span>Média mensal: <strong class="text-slate-800 dark:text-white">{{ formatCurrency(monthlyChartData.reduce((a,m)=>a+m.value,0) / 6) }}</strong></span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -450,6 +501,7 @@
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-1">
+                                        <button @click="openClientHistory(c)" class="text-slate-400 hover:text-purple-500 p-2 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 transition" title="Histórico"><i class="fa-solid fa-clock-rotate-left"></i></button>
                                         <button @click="openEditClient(c)" class="text-slate-400 hover:text-brand-500 p-2 rounded-lg hover:bg-brand-50 dark:hover:bg-brand-900/20 transition" title="Editar"><i class="fa-solid fa-pen-to-square"></i></button>
                                         <button @click="deleteClient(c.id)" class="text-slate-400 hover:text-red-500 p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition" title="Excluir"><i class="fa-solid fa-trash"></i></button>
                                     </div>
@@ -549,6 +601,39 @@
                                 <button @click="saveCompany" class="h-11 w-full bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-xl text-sm transition flex items-center justify-center gap-2"><i class="fa-solid fa-envelope"></i> Salvar Configuração de E-mail</button>
                             </div>
 
+                            <!-- Cor do Tema -->
+                            <div class="border-t border-slate-100 dark:border-slate-800 pt-5 space-y-3">
+                                <div>
+                                    <p class="font-bold text-slate-800 dark:text-white text-sm mb-1">Cor do Tema</p>
+                                    <p class="text-xs text-slate-500 mb-3">Personalize a cor principal do sistema.</p>
+                                </div>
+                                <div class="flex items-center gap-4">
+                                    <div class="flex gap-2 flex-wrap">
+                                        <button v-for="c in ['#4F46E5','#7C3AED','#DB2777','#DC2626','#EA580C','#16A34A','#0284C7','#0F766E','#92400E','#374151']" :key="c"
+                                            @click="company.primaryColor = c"
+                                            class="w-8 h-8 rounded-xl border-2 transition-all"
+                                            :style="{ backgroundColor: c }"
+                                            :class="company.primaryColor === c ? 'border-white scale-110 shadow-lg' : 'border-transparent opacity-70 hover:opacity-100'">
+                                        </button>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <input type="color" v-model="company.primaryColor" class="w-10 h-10 rounded-xl cursor-pointer border-0 bg-transparent p-0.5">
+                                        <span class="text-xs text-slate-400 font-mono">{{ company.primaryColor }}</span>
+                                    </div>
+                                </div>
+                                <button @click="saveCompany" class="h-11 w-full bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-xl text-sm transition flex items-center justify-center gap-2"><i class="fa-solid fa-palette"></i> Salvar Cor do Tema</button>
+                            </div>
+
+                            <!-- Cláusulas do Contrato -->
+                            <div class="border-t border-slate-100 dark:border-slate-800 pt-5 space-y-3">
+                                <div>
+                                    <p class="font-bold text-slate-800 dark:text-white text-sm mb-1">Cláusulas do Contrato</p>
+                                    <p class="text-xs text-slate-500 mb-3">Uma cláusula por linha. Se vazio, usa o padrão do sistema.</p>
+                                </div>
+                                <textarea v-model="company.contractClauses" placeholder="1. RESERVA: O pagamento do sinal garante a reserva da data.&#10;2. DESISTÊNCIA: Em caso de cancelamento com menos de 15 dias, o sinal não será devolvido.&#10;3. DANOS: O CONTRATANTE é responsável pelos materiais..." class="w-full h-40 px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-700 dark:text-slate-300 outline-none focus:ring-2 focus:ring-brand-500 transition-all resize-none font-mono leading-relaxed placeholder-slate-400"></textarea>
+                                <button @click="saveCompany" class="h-11 w-full bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-xl text-sm transition flex items-center justify-center gap-2"><i class="fa-solid fa-file-contract"></i> Salvar Cláusulas</button>
+                            </div>
+
                             <!-- Log de Auditoria -->
                             <div class="border-t border-slate-100 dark:border-slate-800 pt-5">
                                 <button @click="loadAuditLog" class="h-11 w-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-sm transition flex items-center justify-center gap-2">
@@ -643,6 +728,33 @@
                     <div><label class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block ml-1">Local</label><div class="relative w-full"><i class="fa-solid fa-map-pin absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="tempApp.location.bairro" placeholder="Endereço / Bairro" class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 dark:text-white placeholder-slate-400"></div></div>
                     <div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700"><div class="flex justify-between items-center mb-3"><label class="text-xs font-bold text-slate-500 uppercase">Itens do Evento</label><button @click="showServiceModal=true" class="text-xs text-brand-600 font-bold hover:underline">+ Catálogo</button></div><div class="flex gap-3 mb-3"><div class="relative w-full flex-1"><i class="fa-solid fa-tag absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><select v-model="tempServiceSelect" class="w-full h-14 pl-12 pr-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-brand-500 text-sm appearance-none truncate text-slate-800 dark:text-white"><option :value="''">Selecione...</option><option v-for="s in services" :value="s">{{ s.description }} - {{ formatCurrency(s.price) }}</option></select></div><button @click="addServiceToApp" class="w-14 h-14 bg-green-500 hover:bg-green-600 text-white rounded-2xl shadow-lg flex items-center justify-center font-bold text-xl transition"><i class="fa-solid fa-plus"></i></button></div><div class="space-y-2"><div v-for="(s,i) in tempApp.selectedServices" class="flex justify-between items-center text-sm bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm"><span class="truncate pr-2 font-medium text-slate-700 dark:text-slate-300">{{ s.description }}</span><div class="flex gap-3 whitespace-nowrap items-center"><span class="font-bold text-brand-600">{{ formatCurrency(s.price) }}</span><button @click="removeServiceFromApp(i)" class="text-red-400 hover:text-red-600 transition"><i class="fa-solid fa-trash-can"></i></button></div></div></div></div>
                     <div><label class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block ml-1">Cores dos Balões</label><div class="relative w-full"><i class="fa-solid fa-palette absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="tempApp.details.balloonColors" placeholder="Ex: Azul Royal e Prata" class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 dark:text-white placeholder-slate-400"></div></div>
+
+                    <!-- CHECKLIST DO EVENTO -->
+                    <div class="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <label class="text-xs font-bold text-slate-500 uppercase">Checklist do Evento</label>
+                            <span v-if="tempApp.checklist?.length" class="text-xs font-bold text-brand-600">{{ checklistProgress }}% concluído</span>
+                        </div>
+                        <!-- Barra de progresso -->
+                        <div v-if="tempApp.checklist?.length" class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
+                            <div class="h-1.5 bg-brand-500 rounded-full transition-all duration-500" :style="{ width: checklistProgress + '%' }"></div>
+                        </div>
+                        <!-- Itens -->
+                        <div class="space-y-2">
+                            <div v-for="(item, i) in tempApp.checklist" :key="i" class="flex items-center gap-2 bg-white dark:bg-slate-900 rounded-xl px-3 py-2 border border-slate-200 dark:border-slate-700">
+                                <button @click="toggleChecklistItem(i)" class="w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all" :class="item.done ? 'bg-green-500 border-green-500 text-white' : 'border-slate-300 dark:border-slate-600'">
+                                    <i v-if="item.done" class="fa-solid fa-check text-[9px]"></i>
+                                </button>
+                                <span class="flex-1 text-sm font-medium text-slate-700 dark:text-slate-300 transition-all" :class="item.done ? 'line-through opacity-50' : ''">{{ item.text }}</span>
+                                <button @click="removeChecklistItem(i)" class="text-slate-300 hover:text-red-400 transition flex-shrink-0"><i class="fa-solid fa-xmark text-xs"></i></button>
+                            </div>
+                        </div>
+                        <!-- Adicionar item -->
+                        <div class="flex gap-2">
+                            <input v-model="newChecklistItem" @keyup.enter="addChecklistItem" placeholder="Nova tarefa..." class="flex-1 h-10 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-500 text-slate-800 dark:text-white placeholder-slate-400">
+                            <button @click="addChecklistItem" class="w-10 h-10 bg-brand-600 hover:bg-brand-500 text-white rounded-xl flex items-center justify-center transition"><i class="fa-solid fa-plus text-sm"></i></button>
+                        </div>
+                    </div>
                     <div><label class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block ml-1">Observações para o Cliente</label><textarea v-model="tempApp.notes" placeholder="Detalhes visíveis no recibo..." class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 dark:text-white placeholder-slate-400 resize-none h-24"></textarea></div>
                     <div><label class="text-[11px] font-bold text-orange-500 uppercase tracking-wider mb-1.5 block ml-1 flex items-center gap-1.5"><i class="fa-solid fa-lock text-[10px]"></i> Notas Internas (visível só para você)</label><textarea v-model="tempApp.internalNotes" placeholder="Anotações privadas sobre o evento..." class="w-full bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-800 rounded-2xl p-4 text-sm font-medium outline-none focus:ring-2 focus:ring-orange-400 transition-all text-slate-800 dark:text-white placeholder-slate-400 resize-none h-20"></textarea></div>
                     <div class="bg-brand-50 dark:bg-slate-800 p-5 rounded-2xl border border-brand-100 dark:border-slate-700 space-y-3">
@@ -686,6 +798,87 @@
 
         <div v-if="user && showExpenseModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
              <div class="bg-white dark:bg-slate-900 p-8 rounded-3xl w-full max-w-sm shadow-2xl border border-slate-200 dark:border-slate-700"><h3 class="font-bold text-slate-800 dark:text-white text-lg mb-6 text-center">{{ editingExpenseId ? 'Editar Despesa' : 'Nova Despesa' }}</h3><div class="space-y-4"><div class="relative w-full"><i class="fa-solid fa-tag absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="newExpense.description" placeholder="Descrição" class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 dark:text-white placeholder-slate-400"></div><div class="relative w-full"><i class="fa-solid fa-dollar-sign absolute left-4 top-1/2 -translate-y-1/2 text-red-400 z-10 pointer-events-none"></i><input v-model="newExpense.value" type="number" placeholder="Valor" class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-red-500 font-bold placeholder-slate-400"></div><div class="relative w-full"><i class="fa-solid fa-layer-group absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><select v-model="newExpense.category" class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 dark:text-white appearance-none"><option v-for="c in expenseCategories" :value="c.id">{{ c.label }}</option></select></div><div class="relative w-full"><i class="fa-solid fa-calendar absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="newExpense.date" type="date" class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 dark:text-white placeholder-slate-400"></div></div><div class="flex gap-3 mt-8"><button @click="showExpenseModal=false" class="flex-1 h-14 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-2xl font-bold transition">Cancelar</button><button @click="saveExpenseLogic" class="flex-1 h-14 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-bold shadow-lg transition">Salvar</button></div></div>
+        </div>
+
+        <!-- MODAL: HISTÓRICO DO CLIENTE -->
+        <div v-if="showClientHistoryModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
+            <div class="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-lg border border-slate-200 dark:border-slate-700 shadow-2xl flex flex-col" style="max-height:88vh;">
+                <div class="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center flex-shrink-0">
+                    <div>
+                        <h3 class="font-bold text-slate-800 dark:text-white text-lg flex items-center gap-2">
+                            <i class="fa-solid fa-clock-rotate-left text-brand-600"></i> Histórico
+                        </h3>
+                        <p class="text-xs text-slate-500 mt-0.5">{{ clientHistoryData?.name }}</p>
+                    </div>
+                    <button @click="showClientHistoryModal=false" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center hover:text-red-500 transition"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+
+                <!-- Resumo do cliente -->
+                <div v-if="!clientHistoryLoading" class="px-5 pt-4 pb-3 flex gap-3 flex-shrink-0">
+                    <div class="flex-1 bg-brand-50 dark:bg-brand-900/20 rounded-xl p-3 text-center border border-brand-100 dark:border-brand-800">
+                        <p class="text-[10px] font-black text-brand-500 uppercase tracking-wider">Eventos</p>
+                        <p class="text-xl font-black text-brand-600 mt-0.5">{{ clientHistoryApps.filter(a=>a.status!=='budget').length }}</p>
+                    </div>
+                    <div class="flex-1 bg-green-50 dark:bg-green-900/20 rounded-xl p-3 text-center border border-green-100 dark:border-green-800">
+                        <p class="text-[10px] font-black text-green-600 uppercase tracking-wider">Total Gasto</p>
+                        <p class="text-sm font-black text-green-700 dark:text-green-400 mt-0.5">{{ formatCurrency(clientHistoryTotal) }}</p>
+                    </div>
+                    <div class="flex-1 bg-slate-50 dark:bg-slate-800 rounded-xl p-3 text-center border border-slate-200 dark:border-slate-700">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Orçamentos</p>
+                        <p class="text-xl font-black text-slate-700 dark:text-white mt-0.5">{{ clientHistoryApps.filter(a=>a.status==='budget').length }}</p>
+                    </div>
+                </div>
+
+                <!-- Lista de eventos -->
+                <div class="overflow-y-auto flex-1 divide-y divide-slate-100 dark:divide-slate-800">
+                    <div v-if="clientHistoryLoading" class="text-center py-12 text-slate-400">
+                        <i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2 block"></i>Carregando...
+                    </div>
+                    <div v-else-if="clientHistoryApps.length === 0" class="text-center py-12 text-slate-400">
+                        <i class="fa-solid fa-calendar-xmark text-3xl mb-2 opacity-30 block"></i>
+                        <p class="text-sm">Nenhum evento encontrado para este cliente.</p>
+                    </div>
+                    <div v-else v-for="app in clientHistoryApps" :key="app.id" class="px-5 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
+                        <div class="flex items-start gap-3">
+                            <div class="w-10 h-10 rounded-xl flex flex-col items-center justify-center flex-shrink-0 text-white text-xs font-black"
+                                 :class="app.status==='concluded'?'bg-green-500':app.status==='cancelled'?'bg-red-400':app.status==='budget'?'bg-yellow-400':'bg-brand-600'">
+                                <span class="text-[8px] leading-none opacity-80">{{ getMonth(app.date) }}</span>
+                                <span class="text-base leading-tight">{{ getDay(app.date) }}</span>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2 mb-0.5">
+                                    <span class="text-[10px] font-black uppercase px-1.5 py-0.5 rounded-full"
+                                          :class="app.status==='concluded'?'bg-green-100 text-green-700':app.status==='cancelled'?'bg-red-100 text-red-600':app.status==='budget'?'bg-yellow-100 text-yellow-700':'bg-brand-100 text-brand-700'">
+                                        {{ statusText(app.status) }}
+                                    </span>
+                                    <span v-if="app.clientSignature" class="text-[10px] font-bold text-green-600">✓ Assinado</span>
+                                </div>
+                                <p class="text-xs text-slate-500">{{ app.time }} · {{ app.location?.bairro }}</p>
+                                <div v-if="app.selectedServices?.length" class="mt-1">
+                                    <p class="text-[10px] text-slate-400 truncate">{{ app.selectedServices.map(s=>s.description).join(', ') }}</p>
+                                </div>
+                            </div>
+                            <div class="text-right flex-shrink-0">
+                                <p class="font-black text-brand-600 text-sm">{{ formatCurrency(app.totalServices) }}</p>
+                                <p v-if="app.finalBalance > 0 && app.status==='pending'" class="text-[10px] text-red-500 font-bold">Falta: {{ formatCurrency(app.finalBalance) }}</p>
+                            </div>
+                        </div>
+                        <!-- Checklist resumo -->
+                        <div v-if="app.checklist?.length" class="mt-2 ml-13">
+                            <div class="flex items-center gap-2 ml-13">
+                                <div class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1 overflow-hidden ml-13">
+                                    <div class="h-1 bg-brand-500 rounded-full" :style="{ width: Math.round(app.checklist.filter(i=>i.done).length/app.checklist.length*100) + '%' }"></div>
+                                </div>
+                                <span class="text-[10px] text-slate-400 font-bold flex-shrink-0">{{ app.checklist.filter(i=>i.done).length }}/{{ app.checklist.length }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-4 border-t border-slate-100 dark:border-slate-800 flex-shrink-0">
+                    <button @click="showClientHistoryModal=false" class="w-full h-12 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-bold transition">Fechar</button>
+                </div>
+            </div>
         </div>
 
         <!-- MODAL: META MENSAL -->
