@@ -20,7 +20,32 @@ createApp({
         const authForm = reactive({ email: '', password: '', name: '' });
         
         // Empresa
-        const company = reactive({ fantasia: '', logo: '', signature: '', cnpj: '', email: '', phone: '', rua: '', bairro: '', cidade: '', estado: '', emailjs_service_id: '', emailjs_template_id: '', emailjs_public_key: '' });
+        const company = reactive({ fantasia: '', logo: '', signature: '', cnpj: '', email: '', phone: '', rua: '', bairro: '', cidade: '', estado: '', emailjs_service_id: '', emailjs_template_id: '', emailjs_public_key: '', primaryColor: '#4F46E5', contractClauses: '' });
+
+        // Ranking de clientes
+        const clientRankingData = ref([]);
+        const clientRankingLoading = ref(false);
+
+        // Comparativo mensal
+        const monthlyChartData = ref([]);
+        const monthlyChartLoading = ref(false);
+
+        // Histórico do cliente
+        const showClientHistoryModal = ref(false);
+        const clientHistoryData = ref(null);
+        const clientHistoryApps = ref([]);
+        const clientHistoryLoading = ref(false);
+
+        // Checklist
+        const newChecklistItem = ref('');
+
+        // Cor do tema
+        const applyThemeColor = (color) => {
+            if (!color) return;
+            document.documentElement.style.setProperty('--brand-600', color);
+            const r = parseInt(color.slice(1,3),16), g = parseInt(color.slice(3,5),16), b = parseInt(color.slice(5,7),16);
+            document.documentElement.style.setProperty('--brand-500', `rgb(${Math.min(r+20,255)},${Math.min(g+20,255)},${Math.min(b+20,255)})`);
+        };
 
         // Dados
         const dashboardMonth = ref(new Date().toISOString().slice(0, 7));
@@ -119,7 +144,10 @@ createApp({
                     searchExpenses();
                     syncData();
                     const uDoc = await getDoc(doc(db, "users", u.uid));
-                    if (uDoc.exists() && uDoc.data().companyConfig) Object.assign(company, uDoc.data().companyConfig);
+                    if (uDoc.exists() && uDoc.data().companyConfig) {
+                        Object.assign(company, uDoc.data().companyConfig);
+                        applyThemeColor(company.primaryColor);
+                    }
                     if (uDoc.exists() && uDoc.data().monthlyGoal) monthlyGoal.value = uDoc.data().monthlyGoal;
                 }
                 setTimeout(() => { isGlobalLoading.value = false; }, 800);
@@ -359,6 +387,97 @@ createApp({
         };
 
         const clearServiceFilter = () => {
+            serviceSearch.value = '';
+            serviceMaxPrice.value = '';
+            servicesDisplayList.value = [];
+            servicesSearched.value = false;
+        };
+
+        // ─── CHECKLIST ────────────────────────────────────────────
+        const addChecklistItem = () => {
+            const text = newChecklistItem.value.trim();
+            if (!text) return;
+            if (!tempApp.checklist) tempApp.checklist = [];
+            tempApp.checklist.push({ text, done: false });
+            newChecklistItem.value = '';
+        };
+        const removeChecklistItem = (i) => tempApp.checklist.splice(i, 1);
+        const toggleChecklistItem = (i) => { tempApp.checklist[i].done = !tempApp.checklist[i].done; };
+        const checklistProgress = computed(() => {
+            const list = tempApp.checklist || [];
+            if (!list.length) return 0;
+            return Math.round((list.filter(i => i.done).length / list.length) * 100);
+        });
+        const saveChecklistInline = async (app) => {
+            await updateDoc(doc(db, 'appointments', app.id), { checklist: app.checklist });
+        };
+
+        // ─── RANKING DE CLIENTES ──────────────────────────────────
+        const loadClientRanking = async () => {
+            clientRankingLoading.value = true;
+            try {
+                const [appsSnap, clientsSnap] = await Promise.all([
+                    getDocs(query(collection(db, 'appointments'), where('userId', '==', user.value.uid), where('status', '==', 'pending'))),
+                    getDocs(query(collection(db, 'clients'), where('userId', '==', user.value.uid)))
+                ]);
+                const concludedSnap = await getDocs(query(collection(db, 'appointments'), where('userId', '==', user.value.uid), where('status', '==', 'concluded')));
+                const clientMap = {};
+                clientsSnap.docs.forEach(d => { clientMap[d.id] = { id: d.id, ...d.data() }; });
+                const tally = {};
+                [...appsSnap.docs, ...concludedSnap.docs].forEach(d => {
+                    const a = { id: d.id, ...d.data() };
+                    if (!tally[a.clientId]) tally[a.clientId] = { count: 0, total: 0, lastDate: '' };
+                    tally[a.clientId].count++;
+                    tally[a.clientId].total += toNum(a.totalServices);
+                    if (a.date > tally[a.clientId].lastDate) tally[a.clientId].lastDate = a.date;
+                });
+                clientRankingData.value = Object.entries(tally)
+                    .map(([id, stats]) => ({ ...stats, client: clientMap[id] || { name: 'Excluído', phone: '' }, id }))
+                    .sort((a, b) => b.total - a.total)
+                    .slice(0, 10);
+            } catch(e) { console.error(e); }
+            finally { clientRankingLoading.value = false; }
+        };
+
+        // ─── COMPARATIVO MENSAL (últimos 6 meses) ─────────────────
+        const loadMonthlyChart = async () => {
+            monthlyChartLoading.value = true;
+            try {
+                const result = [];
+                const now = new Date();
+                for (let i = 5; i >= 0; i--) {
+                    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                    const y = d.getFullYear();
+                    const m = String(d.getMonth() + 1).padStart(2, '0');
+                    const lastDay = new Date(y, d.getMonth() + 1, 0).getDate();
+                    const start = `${y}-${m}-01`;
+                    const end = `${y}-${m}-${lastDay}`;
+                    const snap = await getDocs(query(collection(db, 'appointments'), where('userId', '==', user.value.uid), where('date', '>=', start), where('date', '<=', end)));
+                    const revenue = snap.docs.map(d => sanitizeApp(d)).filter(a => a.status !== 'budget' && a.status !== 'cancelled').reduce((acc, a) => acc + toNum(a.totalServices), 0);
+                    const monthNames = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+                    result.push({ label: monthNames[d.getMonth()], value: revenue, year: y });
+                }
+                monthlyChartData.value = result;
+            } catch(e) { console.error(e); }
+            finally { monthlyChartLoading.value = false; }
+        };
+
+        // ─── HISTÓRICO DO CLIENTE ─────────────────────────────────
+        const openClientHistory = async (client) => {
+            clientHistoryData.value = client;
+            clientHistoryApps.value = [];
+            clientHistoryLoading.value = true;
+            showClientHistoryModal.value = true;
+            try {
+                const snap = await getDocs(query(collection(db, 'appointments'), where('clientId', '==', client.id)));
+                clientHistoryApps.value = snap.docs.map(sanitizeApp).sort((a, b) => b.date.localeCompare(a.date));
+            } catch(e) { console.error(e); }
+            finally { clientHistoryLoading.value = false; }
+        };
+        const clientHistoryTotal = computed(() => clientHistoryApps.value.filter(a => a.status !== 'budget').reduce((acc, a) => acc + toNum(a.totalServices), 0));
+
+        // ─── COR DO TEMA ──────────────────────────────────────────
+        watch(() => company.primaryColor, (val) => { if (val) applyThemeColor(val); });
             serviceSearch.value = '';
             serviceMaxPrice.value = '';
             servicesDisplayList.value = [];
@@ -610,8 +729,10 @@ createApp({
             doc.text(`SINAL: ${formatCurrency(app.details?.entryFee || 0)}`, 140, y, {align: "right"}); y += 5; 
             doc.text(`RESTANTE: ${formatCurrency(app.finalBalance)}`, 140, y, {align: "right"}); 
             if (app.status !== 'budget') { 
-                y += 15; doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.text("CLÁUSULAS E CONDIÇÕES:", 20, y); y += 5; doc.setFont("helvetica", "normal"); 
-                const clauses = [ "1. RESERVA: O pagamento do sinal garante a reserva da data.", "2. DESISTÊNCIA: Em caso de cancelamento com menos de 15 dias, o sinal não será devolvido.", "3. DANOS: O CONTRATANTE responsabiliza-se pela conservação dos materiais.", "4. PAGAMENTO: O restante deve ser pago até a data do evento.", "5. MONTAGEM: O local deve estar liberado no horário combinado." ]; 
+                y += 15; doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.text("CLÁUSULAS E CONDIÇÕES:", 20, y); y += 5; doc.setFont("helvetica", "normal");
+                const defaultClauses = ["1. RESERVA: O pagamento do sinal garante a reserva da data.", "2. DESISTÊNCIA: Em caso de cancelamento com menos de 15 dias, o sinal não será devolvido.", "3. DANOS: O CONTRATANTE responsabiliza-se pela conservação dos materiais.", "4. PAGAMENTO: O restante deve ser pago até a data do evento.", "5. MONTAGEM: O local deve estar liberado no horário combinado."];
+                const customClauses = company.contractClauses ? company.contractClauses.split('\n').filter(l => l.trim()) : null;
+                const clauses = customClauses && customClauses.length ? customClauses : defaultClauses; 
                 clauses.forEach(clause => { const lines = doc.splitTextToSize(clause, 170); doc.text(lines, 20, y); y += (lines.length * 4) + 2; if (y > 230) { doc.addPage(); y = 20; } }); 
                 if (y > 230) { doc.addPage(); y = 40; } else { y += 20; } 
                 if (app.clientSignature) { doc.addImage(app.clientSignature, 'PNG', 115, y - 15, 60, 20); } 
@@ -708,7 +829,17 @@ createApp({
             generateMonthlyReport, exportBackupJSON,
             showAuditModal, auditLog, loadAuditLog,
             installmentValue,
-            showEmailJSModal
+            showEmailJSModal,
+            // Checklist
+            addChecklistItem, removeChecklistItem, toggleChecklistItem, checklistProgress, newChecklistItem, saveChecklistInline,
+            // Ranking clientes
+            clientRankingData, clientRankingLoading, loadClientRanking,
+            // Comparativo mensal
+            monthlyChartData, monthlyChartLoading, loadMonthlyChart,
+            // Histórico cliente
+            showClientHistoryModal, clientHistoryData, clientHistoryApps, clientHistoryLoading, openClientHistory, clientHistoryTotal,
+            // Tema
+            applyThemeColor
         };
     }
 }).mount('#app');

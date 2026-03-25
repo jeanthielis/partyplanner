@@ -352,7 +352,7 @@ createApp({
             doc.setFont("helvetica", "bold"); doc.text("CLÁUSULAS E CONDIÇÕES:", 20, y); y += 7;
             doc.setFont("helvetica", "normal");
 
-            const clauses = [
+            const defaultClauses = [
                 "1. DO OBJETO: O presente contrato tem como objeto a prestação de serviços de decoração conforme itens descritos acima.",
                 "2. DA RESERVA: A data somente será reservada mediante o pagamento do sinal estipulado. Em caso de cancelamento por parte do CONTRATANTE com menos de 30 dias, o valor do sinal não será devolvido, servindo como multa contratual.",
                 "3. DO PAGAMENTO: O valor restante deverá ser quitado até a data do evento, antes do início da montagem.",
@@ -360,6 +360,9 @@ createApp({
                 "5. DA MONTAGEM E DESMONTAGEM: O local deve estar disponível e limpo no horário combinado para montagem. A desmontagem ocorrerá conforme horário pré-agendado.",
                 "6. DE FORÇA MAIOR: A CONTRATADA não se responsabiliza por falhas decorrentes de casos fortuitos ou força maior (tempestades, falta de energia no local, etc)."
             ];
+            const customRaw = company.contractClauses || '';
+            const customClauses = customRaw ? customRaw.split('\n').filter(l => l.trim()) : null;
+            const clauses = customClauses && customClauses.length ? customClauses : defaultClauses;
 
             clauses.forEach(clause => {
                 const splitText = doc.splitTextToSize(clause, 170);
