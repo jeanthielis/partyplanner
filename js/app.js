@@ -51,6 +51,14 @@ createApp({
         const isSelectingClient = ref(false);
         const selectedClientNameLock = ref('');
         const catalogClientSearch = ref('');
+        const catalogClientsDisplayList = ref([]);
+        const catalogSearched = ref(false);
+        const clientFilter = reactive({ name: '', cpf: '', email: '', eventDateStart: '', eventDateEnd: '' });
+
+        const serviceSearch = ref('');
+        const serviceMaxPrice = ref('');
+        const servicesDisplayList = ref([]);
+        const servicesSearched = ref(false);
         const appointmentViewMode = ref('list');
         const calendarCursor = ref(new Date());
         const selectedCalendarDate = ref(null);
@@ -288,11 +296,73 @@ createApp({
             isExtractLoaded.value = true; 
         };
         
-        const searchCatalogClients = async () => { 
-            const term = catalogClientSearch.value.toLowerCase().trim();
-            const q = query(collection(db, "clients"), where("userId", "==", user.value.uid)); 
-            const snap = await getDocs(q); 
-            catalogClientsList.value = snap.docs.map(d => ({id: d.id, ...d.data()})).filter(c => c.name.toLowerCase().includes(term)); 
+        const searchCatalogClients = async () => {
+            const q = query(collection(db, "clients"), where("userId", "==", user.value.uid));
+            const snap = await getDocs(q);
+            let list = snap.docs.map(d => ({id: d.id, ...d.data()}));
+
+            // Filtro por nome
+            if (clientFilter.name.trim()) {
+                const t = clientFilter.name.toLowerCase();
+                list = list.filter(c => c.name?.toLowerCase().includes(t));
+            }
+            // Filtro por CPF
+            if (clientFilter.cpf.trim()) {
+                const t = clientFilter.cpf.replace(/\D/g, '');
+                list = list.filter(c => (c.cpf || '').replace(/\D/g, '').includes(t));
+            }
+            // Filtro por e-mail
+            if (clientFilter.email.trim()) {
+                const t = clientFilter.email.toLowerCase();
+                list = list.filter(c => (c.email || '').toLowerCase().includes(t));
+            }
+            // Filtro por data do evento
+            if (clientFilter.eventDateStart || clientFilter.eventDateEnd) {
+                const clientIds = list.map(c => c.id);
+                if (clientIds.length > 0) {
+                    let appQ = query(collection(db, "appointments"), where("userId", "==", user.value.uid));
+                    const appSnap = await getDocs(appQ);
+                    const appsInRange = appSnap.docs.map(d => ({...d.data()})).filter(a => {
+                        if (clientFilter.eventDateStart && a.date < clientFilter.eventDateStart) return false;
+                        if (clientFilter.eventDateEnd && a.date > clientFilter.eventDateEnd) return false;
+                        return clientIds.includes(a.clientId);
+                    });
+                    const matchedIds = new Set(appsInRange.map(a => a.clientId));
+                    list = list.filter(c => matchedIds.has(c.id));
+                }
+            }
+
+            catalogClientsDisplayList.value = list;
+            catalogClientsList.value = list;
+            catalogSearched.value = true;
+        };
+
+        const clearClientFilter = () => {
+            clientFilter.name = ''; clientFilter.cpf = ''; clientFilter.email = '';
+            clientFilter.eventDateStart = ''; clientFilter.eventDateEnd = '';
+            catalogClientsDisplayList.value = [];
+            catalogSearched.value = false;
+        };
+
+        const searchServices = () => {
+            let list = services.value;
+            if (serviceSearch.value.trim()) {
+                const t = serviceSearch.value.toLowerCase();
+                list = list.filter(s => s.description?.toLowerCase().includes(t));
+            }
+            if (serviceMaxPrice.value !== '' && serviceMaxPrice.value !== null) {
+                const max = toNum(serviceMaxPrice.value);
+                if (max > 0) list = list.filter(s => toNum(s.price) <= max);
+            }
+            servicesDisplayList.value = list;
+            servicesSearched.value = true;
+        };
+
+        const clearServiceFilter = () => {
+            serviceSearch.value = '';
+            serviceMaxPrice.value = '';
+            servicesDisplayList.value = [];
+            servicesSearched.value = false;
         };
 
         // --- ACTIONS ---
@@ -624,6 +694,8 @@ createApp({
             newClient, saveClient, tempApp, tempServiceSelect, services, totalServices, finalBalance, isEditing, clientSearchTerm, filteredClientsSearch, selectClient,
             addServiceToApp, removeServiceFromApp, appointmentViewMode, calendarGrid, calendarTitle, changeCalendarMonth, selectCalendarDay, selectedCalendarDate, appointmentsOnSelectedDate, filteredListAppointments,
             catalogClientsList, catalogClientSearch, searchCatalogClients, openClientModal, openEditClient, editingClientId, deleteClient, currentReceipt, showReceipt, showReceiptModal,
+            catalogClientsDisplayList, catalogSearched, clientFilter, clearClientFilter,
+            serviceSearch, serviceMaxPrice, servicesDisplayList, servicesSearched, searchServices, clearServiceFilter,
             company, handleLogoUpload, saveCompany, downloadReceiptImage, generateContractPDF, openWhatsApp, formatCurrency, formatDate, getDay, getMonth, statusText, getClientName,
             toggleDarkMode, expenseCategories, expensesByCategoryStats, agendaTab, agendaFilter, searchHistory, changeStatus, registrationTab, kpiPendingReceivables, totalAppointmentsCount, topExpenseCategory, getCategoryIcon, maskPhone, maskCPF,
             copyClientLink, budgetList, saveAsBudget, approveBudget, pendingAppointments,
