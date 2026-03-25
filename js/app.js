@@ -478,11 +478,7 @@ createApp({
 
         // ─── COR DO TEMA ──────────────────────────────────────────
         watch(() => company.primaryColor, (val) => { if (val) applyThemeColor(val); });
-            serviceSearch.value = '';
-            serviceMaxPrice.value = '';
-            servicesDisplayList.value = [];
-            servicesSearched.value = false;
-        };
+
 
         // --- ACTIONS ---
         const handleAuth = async () => { authLoading.value = true; try { if (isRegistering.value) { const res = await createUserWithEmailAndPassword(auth, authForm.email, authForm.password); await setDoc(doc(db, "users", res.user.uid), { email: authForm.email, role: 'user', createdAt: new Date().toISOString(), companyConfig: { fantasia: authForm.name || 'Minha Empresa', email: authForm.email } }); } else { await signInWithEmailAndPassword(auth, authForm.email, authForm.password); } } catch (e) { Swal.fire('Ops', 'Erro no login.', 'error'); } finally { authLoading.value = false; } };
