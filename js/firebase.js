@@ -4,12 +4,13 @@ import { getAuth } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth
 
 // COLE AQUI AS SUAS CREDENCIAIS DO FIREBASE
 const firebaseConfig = {
-    apiKey: "SUA_API_KEY",
-    authDomain: "SEU_DOMINIO.firebaseapp.com",
-    projectId: "SEU_PROJECT_ID",
-    storageBucket: "SEU_BUCKET.appspot.com",
-    messagingSenderId: "SEU_SENDER_ID",
-    appId: "SEU_APP_ID"
+  apiKey: "AIzaSyAhHRcZwrzD36oEFaeQzD1Fd-685YRAxBA",
+  authDomain: "partyplanner-3f352.firebaseapp.com",
+  projectId: "partyplanner-3f352",
+  storageBucket: "partyplanner-3f352.firebasestorage.app",
+  messagingSenderId: "748641483081",
+  appId: "1:748641483081:web:dec19c31c9e58d9040c298",
+  measurementId: "G-YVYD6MEXC1"
 };
 
 // Inicializa os serviços
