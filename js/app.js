@@ -792,7 +792,6 @@ createApp({
         const saveService = async () => { if(!newService.description || !newService.price) return; await addDoc(collection(db, "services"), { description: newService.description, price: toNum(newService.price), userId: user.value.uid }); newService.description = ''; newService.price = ''; showServiceModal.value = false; };
         const saveExpenseLogic = async () => { const data = { ...newExpense, value: toNum(newExpense.value), userId: user.value.uid }; if (editingExpenseId.value) { await updateDoc(doc(db, "expenses", editingExpenseId.value), data); } else { await addDoc(collection(db, "expenses"), data); } showExpenseModal.value = false; Swal.fire('Salvo','','success'); if (expensesFilter.start && expensesFilter.end) searchExpenses(); loadDashboardData(); };
         const saveCompany = () => { updateDoc(doc(db, "users", user.value.uid), { companyConfig: company }); Swal.fire('Salvo', '', 'success'); };
-        const deleteClient = async (id) => { const cli = catalogClientsList.value.find(c => c.id === id); if((await Swal.fire({title:'Excluir?',showCancelButton:true})).isConfirmed) { await deleteDoc(doc(db,"clients",id)); await logAudit('delete_client', `Excluiu cliente: ${cli?.name || id}`); searchCatalogClients(); }};
         const deleteService = async (id) => { await deleteDoc(doc(db, "services", id)); };
         const deleteExpense = async (id) => { const { isConfirmed } = await Swal.fire({ title: 'Excluir?', text: 'Não pode desfazer.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33' }); if (isConfirmed) { await deleteDoc(doc(db, "expenses", id)); if (expensesFilter.start && expensesFilter.end) searchExpenses(); loadDashboardData(); Swal.fire('Excluído!', '', 'success'); } };
         const changeStatus = async (app, status) => { const {isConfirmed} = await Swal.fire({title: 'Alterar Status?', icon:'question', showCancelButton:true}); if(isConfirmed) { await updateDoc(doc(db,"appointments",app.id), {status:status}); await logAudit('change_status', `Status de agendamento de ${getClientName(app.clientId)} (${formatDate(app.date)}) alterado para ${statusText(status)}`); Swal.fire('Feito','','success'); loadDashboardData(); } };
@@ -800,6 +799,51 @@ createApp({
         const toggleDarkMode = () => { isDark.value=!isDark.value; document.documentElement.classList.toggle('dark'); };
         const changeCalendarMonth = (off) => { const d = new Date(calendarCursor.value); d.setMonth(d.getMonth() + off); calendarCursor.value = d; };
         const selectCalendarDay = (d) => { if(d.day) selectedCalendarDate.value = d.date; };
+        const deleteClient = async (id) => { 
+    const cli = catalogClientsList.value.find(c => c.id === id); 
+    
+    const { isConfirmed } = await Swal.fire({
+        title: 'Excluir Cliente?',
+        text: 'ATENÇÃO: Isto apagará também TODOS os orçamentos e agendamentos vinculados a este cliente. Esta ação não pode ser desfeita!',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonText: 'Cancelar',
+        confirmButtonText: 'Sim, excluir tudo'
+    }); 
+
+    if (isConfirmed) { 
+        try {
+            // 1. Busca todas as festas e orçamentos associados a este cliente
+            const qApps = query(collection(db, "appointments"), where("clientId", "==", id));
+            const snapApps = await getDocs(qApps);
+            
+            // 2. Apaga todas as festas ligadas a ele (Limpeza de Órfãos) em simultâneo
+            const deletePromises = snapApps.docs.map(docSnap => deleteDoc(doc(db, "appointments", docSnap.id)));
+            await Promise.all(deletePromises);
+
+            // 3. Finalmente, apaga o registo do cliente
+            await deleteDoc(doc(db, "clients", id)); 
+            await logAudit('delete_client', `Excluiu cliente (${cli?.name || id}) e ${snapApps.docs.length} evento(s) associado(s)`); 
+            
+            // 4. Sincroniza todas as listas no ecrã
+            searchCatalogClients(); 
+            loadDashboardData(); 
+            
+            Swal.fire('Excluído!', 'O cliente e o seu histórico de eventos foram removidos com sucesso.', 'success');
+        } catch (error) {
+            console.error("Erro na exclusão em cascata:", error);
+            
+            // Se o documento já não existir (o tal fantasma), ignora o erro e limpa o ecrã
+            if (error.code === 'not-found') {
+                searchCatalogClients();
+                loadDashboardData();
+            } else {
+                Swal.fire('Erro', 'Ocorreu um problema ao tentar excluir os dados.', 'error');
+            }
+        }
+    }
+};
 
         return {
             user, view, isDark, authForm, authLoading, isRegistering, handleAuth, logout, isGlobalLoading,
