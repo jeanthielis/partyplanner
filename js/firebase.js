@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
 import { 
     getFirestore, 
-    enableIndexedDbPersistence, // <-- Adicionado para o PWA (Modo Offline)
+    enableIndexedDbPersistence,
     collection, addDoc, getDocs, onSnapshot, doc, updateDoc, deleteDoc, query, where, setDoc, getDoc, orderBy, limit 
 } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 import { 
@@ -11,9 +11,9 @@ import {
     getFunctions, httpsCallable 
 } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-functions.js";
 
-// COLE AQUI AS SUAS CREDENCIAIS DO FIREBASE
+// Configuração original restaurada
 const firebaseConfig = {
-  apiKey: "SUA_API_KEY",
+  apiKey: "AIzaSyAhHRcZwrzD36oEFaeQzD1Fd-685YRAxBA",
   authDomain: "partyplanner-3f352.firebaseapp.com",
   projectId: "partyplanner-3f352",
   storageBucket: "partyplanner-3f352.firebasestorage.app",
@@ -46,7 +46,6 @@ try {
     console.warn("Firebase já inicializado.");
 }
 
-// Exporta tudo que os arquivos app.js, admin.js e client.js precisam
 export { 
     db, auth, functions, firebaseConfig,
     collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDocs, query, where, setDoc, getDoc, orderBy, limit,
