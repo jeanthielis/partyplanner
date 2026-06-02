@@ -48,7 +48,7 @@
             <div class="w-16 h-16 bg-brand-600 rounded-2xl flex items-center justify-center shadow-neon mb-4 animate-bounce">
                 <i class="fa-solid fa-wand-magic-sparkles text-2xl"></i>
             </div>
-            <h2 class="text-xl font-bold animate-pulse">Carregando Painel...</h2>
+            <h2 class="text-xl font-bold animate-pulse">A carregar Painel...</h2>
         </div>
 
         <div v-if="!isGlobalLoading && !user" class="absolute inset-0 z-50 flex items-center justify-center p-6 bg-[#0F172A]">
@@ -76,7 +76,7 @@
                         <i v-if="authLoading" class="fa-solid fa-circle-notch fa-spin"></i> {{ isRegistering ? 'Criar Conta' : 'Entrar' }}
                     </button>
                     <div class="mt-4 text-center border-t border-slate-700 pt-4">
-                        <button type="button" @click="isRegistering = !isRegistering" class="text-xs font-bold text-brand-500 hover:text-brand-400 transition">{{ isRegistering ? 'Já tenho conta? Fazer Login' : 'Não tem conta? Criar agora' }}</button>
+                        <button type="button" @click="isRegistering = !isRegistering" class="text-xs font-bold text-brand-500 hover:text-brand-400 transition">{{ isRegistering ? 'Já tem conta? Fazer Login' : 'Não tem conta? Criar agora' }}</button>
                     </div>
                 </form>
             </div>
@@ -104,11 +104,11 @@
                     <button @click="view='dashboard'" :class="view==='dashboard'?'bg-slate-100 dark:bg-slate-800 text-brand-600 dark:text-white font-bold':'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50'" class="w-full text-left p-3 rounded-xl transition flex items-center gap-3 text-sm"><i class="fa-solid fa-chart-pie w-5 text-center"></i> Dashboard</button>
                     <button @click="view='schedule'" :class="view==='schedule'?'bg-slate-100 dark:bg-slate-800 text-brand-600 dark:text-white font-bold':'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50'" class="w-full text-left p-3 rounded-xl transition flex items-center justify-between text-sm group">
                         <div class="flex items-center gap-3"><i class="fa-solid fa-calendar w-5 text-center"></i> Agenda</div>
-                        <span v-if="pendingAppointments.length > 0" class="bg-brand-100 text-brand-600 dark:bg-brand-900/30 px-2 py-0.5 rounded-lg text-[10px] font-bold shadow-sm">{{ pendingAppointments.length }}</span>
+                        <span v-if="pendingAppointments.length > 0" class="bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400 px-2 py-0.5 rounded-lg text-xs font-bold shadow-sm">{{ pendingAppointments.length }}</span>
                     </button>
                     <button @click="view='budgets'" :class="view==='budgets'?'bg-slate-100 dark:bg-slate-800 text-brand-600 dark:text-white font-bold':'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50'" class="w-full text-left p-3 rounded-xl transition flex items-center justify-between text-sm group">
                         <div class="flex items-center gap-3"><i class="fa-solid fa-file-invoice-dollar w-5 text-center"></i> Orçamentos</div>
-                        <span v-if="budgetList.length > 0" class="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 px-2 py-0.5 rounded-lg text-[10px] font-bold shadow-sm">{{ budgetList.length }}</span>
+                        <span v-if="budgetList.length > 0" class="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 px-2 py-0.5 rounded-lg text-xs font-bold shadow-sm">{{ budgetList.length }}</span>
                     </button>
                     <button @click="view='finance'" :class="view==='finance'?'bg-slate-100 dark:bg-slate-800 text-brand-600 dark:text-white font-bold':'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50'" class="w-full text-left p-3 rounded-xl transition flex items-center gap-3 text-sm"><i class="fa-solid fa-wallet w-5 text-center"></i> Financeiro</button>
                     <button @click="view='registrations'" :class="view==='registrations'?'bg-slate-100 dark:bg-slate-800 text-brand-600 dark:text-white font-bold':'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50'" class="w-full text-left p-3 rounded-xl transition flex items-center gap-3 text-sm"><i class="fa-solid fa-folder w-5 text-center"></i> Cadastros</button>
@@ -116,7 +116,7 @@
                 <div class="p-4 border-t border-slate-200 dark:border-slate-800 flex gap-2">
                     <button @click="toggleDarkMode" class="h-10 w-10 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition"><i class="fa-solid fa-moon"></i></button>
                     <button id="btn-instala-app" style="display:none;" class="h-10 w-10 rounded-xl border border-brand-500/40 text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20 flex items-center justify-center transition" title="Instalar App"><i class="fa-solid fa-download"></i></button>
-                    <button @click="logout" class="h-10 flex-1 rounded-xl border border-red-200 dark:border-red-900/30 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition flex items-center justify-center gap-2 font-bold text-sm"><i class="fa-solid fa-right-from-bracket"></i> Sair</button>
+                    <button @click="logout" class="h-10 flex-1 rounded-xl border border-red-200 dark:border-red-900/30 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition flex items-center justify-center gap-2 font-bold text-sm"><i class="fa-solid fa-right-from-bracket"></i> Sair</button>
                 </div>
             </aside>
 
@@ -126,14 +126,14 @@
                         <div class="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center text-white shadow-md text-sm"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
                         <div>
                             <div class="font-bold text-lg text-slate-800 dark:text-white leading-none">PartyPlanner</div>
-                            <div class="text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate max-w-[120px]">
+                            <div class="text-xs text-slate-500 dark:text-slate-400 font-medium truncate max-w-[120px]">
                                 {{ company.fantasia || user.displayName || 'Organizador' }}
                             </div>
                         </div>
                     </div>
                     <div class="flex gap-3">
                         <button @click="toggleDarkMode" class="w-9 h-9 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-500"><i class="fa-solid fa-moon"></i></button>
-                        <button @click="logout" class="w-9 h-9 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-red-500"><i class="fa-solid fa-power-off"></i></button>
+                        <button @click="logout" class="w-9 h-9 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-red-500 dark:text-red-400"><i class="fa-solid fa-power-off"></i></button>
                     </div>
                 </header>
 
@@ -152,54 +152,54 @@
                         <div v-if="urgentEvents.length > 0 || overdueEvents.length > 0" class="space-y-2">
                             <div v-if="urgentEvents.length > 0" class="flex items-center gap-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl px-4 py-3">
                                 <div class="w-8 h-8 bg-red-100 dark:bg-red-900/40 rounded-xl flex items-center justify-center flex-shrink-0">
-                                    <i class="fa-solid fa-triangle-exclamation text-red-500 text-sm animate-pulse"></i>
+                                    <i class="fa-solid fa-triangle-exclamation text-red-600 dark:text-red-400 text-sm animate-pulse"></i>
                                 </div>
                                 <div class="flex-1 min-w-0">
-                                    <p class="text-xs font-black text-red-600 uppercase tracking-wide">{{ urgentEvents.length }} evento(s) nos próximos 3 dias</p>
-                                    <p class="text-xs text-red-500/80 truncate">{{ urgentEvents.map(a => getClientName(a.clientId)).join(', ') }}</p>
+                                    <p class="text-xs font-black text-red-700 dark:text-red-400 uppercase tracking-wide">{{ urgentEvents.length }} evento(s) nos próximos 3 dias</p>
+                                    <p class="text-xs text-red-600/80 dark:text-red-400/80 truncate">{{ urgentEvents.map(a => getClientName(a.clientId)).join(', ') }}</p>
                                 </div>
-                                <button @click="view='schedule'" class="text-xs font-bold text-red-600 bg-red-100 dark:bg-red-900/40 px-3 py-1.5 rounded-lg hover:bg-red-200 transition flex-shrink-0">Ver</button>
+                                <button @click="view='schedule'" class="text-xs font-bold text-red-700 dark:text-red-400 bg-red-100 dark:bg-red-900/40 px-3 py-1.5 rounded-lg hover:bg-red-200 transition flex-shrink-0">Ver</button>
                             </div>
                             <div v-if="overdueEvents.length > 0" class="flex items-center gap-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-2xl px-4 py-3">
                                 <div class="w-8 h-8 bg-orange-100 dark:bg-orange-900/40 rounded-xl flex items-center justify-center flex-shrink-0">
-                                    <i class="fa-solid fa-circle-dollar-to-slot text-orange-500 text-sm"></i>
+                                    <i class="fa-solid fa-circle-dollar-to-slot text-orange-600 dark:text-orange-400 text-sm"></i>
                                 </div>
                                 <div class="flex-1 min-w-0">
-                                    <p class="text-xs font-black text-orange-600 uppercase tracking-wide">{{ overdueEvents.length }} pagamento(s) em atraso</p>
-                                    <p class="text-xs text-orange-500/80 truncate">{{ overdueEvents.map(a => getClientName(a.clientId)).join(', ') }}</p>
+                                    <p class="text-xs font-black text-orange-700 dark:text-orange-400 uppercase tracking-wide">{{ overdueEvents.length }} pagamento(s) em atraso</p>
+                                    <p class="text-xs text-orange-600/80 dark:text-orange-400/80 truncate">{{ overdueEvents.map(a => getClientName(a.clientId)).join(', ') }}</p>
                                 </div>
-                                <button @click="view='schedule'" class="text-xs font-bold text-orange-600 bg-orange-100 dark:bg-orange-900/40 px-3 py-1.5 rounded-lg hover:bg-orange-200 transition flex-shrink-0">Ver</button>
+                                <button @click="view='schedule'" class="text-xs font-bold text-orange-700 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/40 px-3 py-1.5 rounded-lg hover:bg-orange-200 transition flex-shrink-0">Ver</button>
                             </div>
                         </div>
 
                         <div class="grid grid-cols-2 gap-3">
                             <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
                                 <div class="flex items-center justify-between mb-3">
-                                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Receita</p>
-                                    <div class="w-7 h-7 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center"><i class="fa-solid fa-arrow-trend-up text-green-600 text-xs"></i></div>
+                                    <p class="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Receita</p>
+                                    <div class="w-7 h-7 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center"><i class="fa-solid fa-arrow-trend-up text-green-600 dark:text-green-400 text-xs"></i></div>
                                 </div>
                                 <p class="text-xl font-black text-green-600 dark:text-green-400 leading-none">{{ formatCurrency(financeData.revenue) }}</p>
                             </div>
                             <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
                                 <div class="flex items-center justify-between mb-3">
-                                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Despesas</p>
-                                    <div class="w-7 h-7 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center"><i class="fa-solid fa-arrow-trend-down text-red-500 text-xs"></i></div>
+                                    <p class="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Despesas</p>
+                                    <div class="w-7 h-7 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center"><i class="fa-solid fa-arrow-trend-down text-red-600 dark:text-red-400 text-xs"></i></div>
                                 </div>
-                                <p class="text-xl font-black text-red-500 dark:text-red-400 leading-none">{{ formatCurrency(financeData.expenses) }}</p>
+                                <p class="text-xl font-black text-red-600 dark:text-red-400 leading-none">{{ formatCurrency(financeData.expenses) }}</p>
                             </div>
                             <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
                                 <div class="flex items-center justify-between mb-3">
-                                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Lucro</p>
-                                    <div class="w-7 h-7 bg-brand-100 dark:bg-brand-900/30 rounded-lg flex items-center justify-center"><i class="fa-solid fa-wallet text-brand-600 text-xs"></i></div>
+                                    <p class="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Lucro</p>
+                                    <div class="w-7 h-7 bg-brand-100 dark:bg-brand-900/30 rounded-lg flex items-center justify-center"><i class="fa-solid fa-wallet text-brand-600 dark:text-brand-400 text-xs"></i></div>
                                 </div>
-                                <p class="text-xl font-black leading-none" :class="financeData.profit >= 0 ? 'text-brand-600 dark:text-brand-400' : 'text-red-500'">{{ formatCurrency(financeData.profit) }}</p>
+                                <p class="text-xl font-black leading-none" :class="financeData.profit >= 0 ? 'text-brand-600 dark:text-brand-400' : 'text-red-500 dark:text-red-400'">{{ formatCurrency(financeData.profit) }}</p>
                             </div>
                             <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
                                 <div class="flex items-center justify-between mb-3">
-                                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">A Receber</p>
-                                    <div class="w-7 h-7 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center"><i class="fa-solid fa-hourglass-half text-orange-500 text-xs"></i></div>
+                                    <p class="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">A Receber</p>
+                                    <div class="w-7 h-7 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center"><i class="fa-solid fa-hourglass-half text-orange-600 dark:text-orange-400 text-xs"></i></div>
                                 </div>
-                                <p class="text-xl font-black text-orange-500 dark:text-orange-400 leading-none">{{ formatCurrency(kpiPendingReceivables) }}</p>
+                                <p class="text-xl font-black text-orange-600 dark:text-orange-400 leading-none">{{ formatCurrency(kpiPendingReceivables) }}</p>
                             </div>
                         </div>
 
@@ -207,11 +207,11 @@
                             <div class="flex items-center justify-between mb-4">
                                 <div class="flex items-center gap-2.5">
                                     <div class="w-8 h-8 bg-brand-100 dark:bg-brand-900/30 rounded-xl flex items-center justify-center">
-                                        <i class="fa-solid fa-bullseye text-brand-600 text-sm"></i>
+                                        <i class="fa-solid fa-bullseye text-brand-600 dark:text-brand-400 text-sm"></i>
                                     </div>
-                                    <p class="text-sm font-black text-slate-800 dark:text-white">Meta de Faturamento</p>
+                                    <p class="text-sm font-black text-slate-800 dark:text-white">Meta de Faturação</p>
                                 </div>
-                                <button @click="tempGoal = monthlyGoal; showGoalModal = true" class="text-xs font-bold text-brand-600 hover:text-brand-500 transition">
+                                <button @click="tempGoal = monthlyGoal; showGoalModal = true" class="text-xs font-bold text-brand-600 dark:text-brand-400 hover:text-brand-500 transition">
                                     {{ monthlyGoal > 0 ? 'Alterar' : 'Definir meta' }} →
                                 </button>
                             </div>
@@ -230,8 +230,8 @@
                                     <div class="h-2.5 rounded-full transition-all duration-700" :class="goalProgress >= 100 ? 'bg-green-500' : goalProgress >= 70 ? 'bg-brand-500' : 'bg-orange-400'" :style="{ width: Math.min(goalProgress, 100) + '%' }"></div>
                                 </div>
                                 <p class="text-xs text-slate-500">
-                                    <span v-if="goalProgress >= 100" class="text-green-600 font-bold">🎉 Meta atingida!</span>
-                                    <span v-else>Faltam {{ formatCurrency(monthlyGoal - financeData.revenue) }} para bater a meta</span>
+                                    <span v-if="goalProgress >= 100" class="text-green-600 dark:text-green-400 font-bold">🎉 Meta atingida!</span>
+                                    <span v-else>Faltam {{ formatCurrency(monthlyGoal - financeData.revenue) }} para atingir a meta</span>
                                 </p>
                             </div>
                         </div>
@@ -240,20 +240,20 @@
                             <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800">
                                 <div class="flex items-center gap-2.5">
                                     <div class="w-8 h-8 bg-brand-100 dark:bg-brand-900/30 rounded-xl flex items-center justify-center">
-                                        <i class="fa-solid fa-calendar-week text-brand-600 text-sm"></i>
+                                        <i class="fa-solid fa-calendar-week text-brand-600 dark:text-brand-400 text-sm"></i>
                                     </div>
                                     <p class="text-sm font-black text-slate-800 dark:text-white">Próximos 7 Dias</p>
                                 </div>
-                                <span class="text-xs font-bold text-brand-600 bg-brand-50 dark:bg-brand-900/30 px-2.5 py-1 rounded-lg">{{ next7DaysApps.length }} evento(s)</span>
+                                <span class="text-xs font-bold text-brand-700 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/30 px-2.5 py-1 rounded-lg">{{ next7DaysApps.length }} evento(s)</span>
                             </div>
                             <div v-if="next7DaysApps.length === 0" class="text-center py-10 text-slate-400">
-                                <i class="fa-solid fa-calendar-xmark text-2xl mb-2 opacity-30 block"></i>
-                                <p class="text-sm">Sem eventos nos próximos 7 dias.</p>
+                                <i class="fa-solid fa-calendar-xmark text-3xl mb-3 opacity-30 block"></i>
+                                <p class="text-sm font-medium">Sem eventos nos próximos 7 dias.</p>
                             </div>
                             <div v-else class="divide-y divide-slate-100 dark:divide-slate-800">
                                 <div v-for="app in next7DaysApps" :key="app.id" @click="showReceipt(app)" class="flex items-center gap-4 px-5 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition group">
                                     <div class="w-11 h-11 bg-brand-600 rounded-xl flex flex-col items-center justify-center text-white flex-shrink-0 shadow-sm">
-                                        <span class="text-[10px] font-bold uppercase leading-none opacity-80">{{ getMonth(app.date) }}</span>
+                                        <span class="text-xs font-bold uppercase leading-none opacity-80">{{ getMonth(app.date) }}</span>
                                         <span class="text-lg font-black leading-tight">{{ getDay(app.date) }}</span>
                                     </div>
                                     <div class="flex-1 min-w-0">
@@ -265,9 +265,9 @@
                                         </div>
                                     </div>
                                     <div class="flex flex-col items-end gap-1 flex-shrink-0">
-                                        <span class="text-sm font-black text-brand-600">{{ formatCurrency(app.totalServices) }}</span>
-                                        <span v-if="app.clientSignature" class="text-[10px] font-bold text-green-600 bg-green-50 dark:bg-green-900/30 px-2 py-0.5 rounded-full">✓ Assinado</span>
-                                        <span v-else class="text-[10px] font-bold text-orange-500 bg-orange-50 dark:bg-orange-900/30 px-2 py-0.5 rounded-full">Pendente</span>
+                                        <span class="text-sm font-black text-brand-600 dark:text-brand-400">{{ formatCurrency(app.totalServices) }}</span>
+                                        <span v-if="app.clientSignature" class="text-xs font-bold text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-0.5 rounded-full">✓ Assinado</span>
+                                        <span v-else class="text-xs font-bold text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/30 px-2 py-0.5 rounded-full">Pendente</span>
                                     </div>
                                     <i class="fa-solid fa-chevron-right text-slate-300 dark:text-slate-700 text-xs group-hover:text-brand-500 transition"></i>
                                 </div>
@@ -284,12 +284,21 @@
                             
                             <div v-if="agendaTab === 'pending'" class="relative w-full"><i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="clientSearchTerm" placeholder="Buscar cliente..." class="w-full h-14 pl-12 pr-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-900 dark:text-white placeholder-slate-400"></div>
                             <div v-else class="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm flex flex-wrap gap-3 items-end border border-slate-200 dark:border-slate-800">
-                                <div class="flex-1 min-w-[130px]"><label class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block ml-1">De</label><input type="date" v-model="agendaFilter.start" class="w-full h-12 px-4 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 transition-all"></div>
-                                <div class="flex-1 min-w-[130px]"><label class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block ml-1">Até</label><input type="date" v-model="agendaFilter.end" class="w-full h-12 px-4 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 transition-all"></div>
+                                <div class="flex-1 min-w-[130px]"><label class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block ml-1">De</label><input type="date" v-model="agendaFilter.start" class="w-full h-12 px-4 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 transition-all"></div>
+                                <div class="flex-1 min-w-[130px]"><label class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block ml-1">Até</label><input type="date" v-model="agendaFilter.end" class="w-full h-12 px-4 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 transition-all"></div>
                                 <button @click="searchHistory" class="h-12 bg-slate-800 text-white px-6 rounded-xl font-bold hover:bg-slate-700 shadow-lg"><i class="fa-solid fa-search"></i></button>
                             </div>
 
-                            <div v-if="filteredListAppointments.length === 0" class="text-center py-16 text-slate-400">Nenhum registro encontrado.</div>
+                            <div v-if="filteredListAppointments.length === 0" class="text-center py-16 flex flex-col items-center justify-center">
+                                <div class="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
+                                    <i class="fa-solid fa-calendar-xmark text-3xl text-slate-300 dark:text-slate-600"></i>
+                                </div>
+                                <h3 class="text-lg font-bold text-slate-700 dark:text-slate-200 mb-1">Sem eventos</h3>
+                                <p class="text-sm text-slate-400 mb-6">Nenhum evento encontrado nesta secção.</p>
+                                <button v-if="agendaTab === 'pending'" @click="startNewSchedule" class="bg-brand-600 text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow hover:bg-brand-500 transition flex items-center gap-2">
+                                    <i class="fa-solid fa-plus"></i> Novo Evento
+                                </button>
+                            </div>
                             
                             <div v-for="app in filteredListAppointments" :key="app.id" class="bg-white dark:bg-slate-900 p-3 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 relative overflow-hidden group border-l-4" :class="app.status==='concluded'?'border-l-green-500':(app.status==='cancelled'?'border-l-red-500':'border-l-brand-600')">
                                 <div class="flex justify-between items-start pl-2">
@@ -300,13 +309,13 @@
                                             <span class="w-1 h-1 rounded-full bg-slate-300"></span>
                                             <span>{{ app.time }}</span>
                                         </div>
-                                        <div v-if="app.clientSignature" class="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[9px] font-bold uppercase border border-green-100 dark:border-green-800">
+                                        <div v-if="app.clientSignature" class="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-bold uppercase border border-green-100 dark:border-green-800 tracking-wider">
                                             <i class="fa-solid fa-signature"></i> Assinado
                                         </div>
                                     </div>
                                     <div class="text-right">
                                         <p class="text-sm font-bold text-slate-900 dark:text-white">{{ formatCurrency(app.totalServices) }}</p>
-                                        <p class="text-[9px] font-bold text-red-500" v-if="app.finalBalance > 0">Falta: {{ formatCurrency(app.finalBalance) }}</p>
+                                        <p class="text-xs font-bold text-red-600 dark:text-red-400" v-if="app.finalBalance > 0">Falta: {{ formatCurrency(app.finalBalance) }}</p>
                                     </div>
                                 </div>
                                 
@@ -317,14 +326,14 @@
                                         <button v-if="app.status === 'pending'" @click="editAppointment(app)" class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center hover:bg-slate-200 transition" title="Editar"><i class="fa-solid fa-pen"></i></button>
                                     </div>
                                     <div v-if="app.status === 'pending'" class="flex gap-2">
-                                        <button @click="changeStatus(app, 'cancelled')" class="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/20 text-red-500 flex items-center justify-center hover:bg-red-200 transition" title="Cancelar"><i class="fa-solid fa-xmark"></i></button>
-                                        <button @click="changeStatus(app, 'concluded')" class="w-8 h-8 rounded-lg bg-green-100 dark:bg-green-900/20 text-green-600 flex items-center justify-center hover:bg-green-200 transition" title="Concluir"><i class="fa-solid fa-check"></i></button>
+                                        <button @click="changeStatus(app, 'cancelled')" class="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 flex items-center justify-center hover:bg-red-200 transition" title="Cancelar"><i class="fa-solid fa-xmark"></i></button>
+                                        <button @click="changeStatus(app, 'concluded')" class="w-8 h-8 rounded-lg bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 flex items-center justify-center hover:bg-green-200 transition" title="Concluir"><i class="fa-solid fa-check"></i></button>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         
-                         <div v-if="appointmentViewMode === 'calendar'" class="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800"><div class="flex justify-between items-center mb-6"><button @click="changeCalendarMonth(-1)"><i class="fa-solid fa-chevron-left text-slate-400"></i></button><h3 class="font-bold text-lg capitalize text-slate-800 dark:text-white">{{ calendarTitle }}</h3><button @click="changeCalendarMonth(1)"><i class="fa-solid fa-chevron-right text-slate-400"></i></button></div><div class="grid grid-cols-7 gap-1 text-center text-xs font-bold text-slate-400 mb-2 uppercase"><div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div></div><div class="grid grid-cols-7 gap-2"><div v-for="d in calendarGrid" @click="selectCalendarDay(d)" class="h-10 md:h-14 border rounded-xl flex flex-col items-center justify-center cursor-pointer transition" :class="d.date===selectedCalendarDate?'bg-brand-600 border-brand-600 text-white shadow-lg':(d.day?'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-brand-300':'border-transparent')"><span v-if="d.day" class="text-sm font-bold">{{ d.day }}</span><div v-if="d.hasEvent" class="w-1.5 h-1.5 rounded-full mt-1" :class="d.date===selectedCalendarDate?'bg-white':'bg-brand-500'"></div></div></div><div v-if="selectedCalendarDate" class="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800"><h4 class="text-xs font-bold text-slate-400 uppercase mb-3">{{ formatDate(selectedCalendarDate) }}</h4><div v-if="appointmentsOnSelectedDate.length===0" class="text-sm text-slate-400">Vazio.</div><div v-for="app in appointmentsOnSelectedDate" @click="showReceipt(app)" class="flex justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-xl mb-2 cursor-pointer border border-slate-200 dark:border-slate-700 hover:border-brand-500 transition"><div class="text-sm font-bold text-slate-800 dark:text-white">{{ getClientName(app.clientId) }}</div><div class="text-sm font-bold text-brand-600">{{ formatCurrency(app.totalServices) }}</div></div></div></div>
+                         <div v-if="appointmentViewMode === 'calendar'" class="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800"><div class="flex justify-between items-center mb-6"><button @click="changeCalendarMonth(-1)"><i class="fa-solid fa-chevron-left text-slate-400"></i></button><h3 class="font-bold text-lg capitalize text-slate-800 dark:text-white">{{ calendarTitle }}</h3><button @click="changeCalendarMonth(1)"><i class="fa-solid fa-chevron-right text-slate-400"></i></button></div><div class="grid grid-cols-7 gap-1 text-center text-xs font-bold text-slate-400 mb-2 uppercase"><div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div></div><div class="grid grid-cols-7 gap-2"><div v-for="d in calendarGrid" @click="selectCalendarDay(d)" class="h-10 md:h-14 border rounded-xl flex flex-col items-center justify-center cursor-pointer transition" :class="d.date===selectedCalendarDate?'bg-brand-600 border-brand-600 text-white shadow-lg':(d.day?'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-brand-300':'border-transparent')"><span v-if="d.day" class="text-sm font-bold">{{ d.day }}</span><div v-if="d.hasEvent" class="w-1.5 h-1.5 rounded-full mt-1" :class="d.date===selectedCalendarDate?'bg-white':'bg-brand-500'"></div></div></div><div v-if="selectedCalendarDate" class="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800"><h4 class="text-xs font-bold text-slate-400 uppercase mb-3">{{ formatDate(selectedCalendarDate) }}</h4><div v-if="appointmentsOnSelectedDate.length===0" class="text-sm text-slate-400">Vazio.</div><div v-for="app in appointmentsOnSelectedDate" @click="showReceipt(app)" class="flex justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-xl mb-2 cursor-pointer border border-slate-200 dark:border-slate-700 hover:border-brand-500 transition"><div class="text-sm font-bold text-slate-800 dark:text-white">{{ getClientName(app.clientId) }}</div><div class="text-sm font-bold text-brand-600 dark:text-brand-400">{{ formatCurrency(app.totalServices) }}</div></div></div></div>
                     </div>
 
                     <div v-if="view === 'budgets'" class="space-y-6 animate-fade-in">
@@ -334,23 +343,31 @@
                                 <i class="fa-solid fa-plus"></i> Novo
                             </button>
                         </div>
-                        <div v-if="budgetList.length === 0" class="text-center py-16 text-slate-400 flex flex-col items-center justify-center">
-                            <i class="fa-solid fa-clipboard-list text-5xl mb-4 opacity-30"></i>
-                            <p>Nenhum orçamento em aberto.</p>
+                        
+                        <div v-if="budgetList.length === 0" class="text-center py-16 flex flex-col items-center justify-center">
+                            <div class="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
+                                <i class="fa-solid fa-file-invoice-dollar text-3xl text-slate-300 dark:text-slate-600"></i>
+                            </div>
+                            <h3 class="text-lg font-bold text-slate-700 dark:text-slate-200 mb-1">Nenhum orçamento</h3>
+                            <p class="text-sm text-slate-400 mb-6">Ainda não criou nenhum orçamento em aberto para os seus clientes.</p>
+                            <button @click="startNewSchedule" class="bg-brand-600 text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow hover:bg-brand-500 transition flex items-center gap-2">
+                                <i class="fa-solid fa-plus"></i> Criar Orçamento
+                            </button>
                         </div>
+                        
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div v-for="b in budgetList" :key="b.id" class="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 relative group hover:border-brand-300 transition">
                                 <div class="flex justify-between items-start mb-3">
-                                    <span class="bg-yellow-100 text-yellow-700 text-[10px] font-bold px-2 py-1 rounded-lg uppercase">Em Aberto</span>
+                                    <span class="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 text-xs font-bold px-2 py-1 rounded-lg uppercase tracking-wider">Em Aberto</span>
                                     <button @click="editAppointment(b)" class="text-slate-400 hover:text-brand-600"><i class="fa-solid fa-pen"></i></button>
                                 </div>
                                 <h3 class="font-bold text-lg text-slate-800 dark:text-white">{{ getClientName(b.clientId) }}</h3>
                                 <p class="text-sm text-slate-500 mb-4 flex items-center gap-2"><i class="fa-solid fa-calendar-day text-xs"></i> {{ formatDate(b.date) }}</p>
                                 <div class="space-y-2 mb-4 border-t border-b border-slate-100 dark:border-slate-800 py-3 min-h-[60px]">
                                     <div v-for="s in b.selectedServices.slice(0, 3)" class="flex justify-between text-xs text-slate-600 dark:text-slate-400"><span>{{ s.description }}</span><span>{{ formatCurrency(s.price) }}</span></div>
-                                    <div v-if="b.selectedServices.length > 3" class="text-[10px] text-slate-400 italic text-center">+ {{ b.selectedServices.length - 3 }} itens...</div>
+                                    <div v-if="b.selectedServices.length > 3" class="text-xs text-slate-400 italic text-center mt-2">+ {{ b.selectedServices.length - 3 }} itens...</div>
                                 </div>
-                                <div class="flex justify-between items-center mb-4"><span class="text-xs font-bold text-slate-400">TOTAL</span><span class="text-xl font-bold text-brand-600">{{ formatCurrency(b.totalServices) }}</span></div>
+                                <div class="flex justify-between items-center mb-4"><span class="text-xs font-bold text-slate-400">TOTAL</span><span class="text-xl font-bold text-brand-600 dark:text-brand-400">{{ formatCurrency(b.totalServices) }}</span></div>
                                 <div class="flex gap-2">
                                     <button @click="showReceipt(b)" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition"><i class="fa-solid fa-print"></i> PDF</button>
                                     <button @click="approveBudget(b)" class="flex-1 bg-green-500 text-white py-2.5 rounded-xl text-xs font-bold shadow hover:bg-green-600 hover:scale-105 transition flex items-center justify-center gap-1"><i class="fa-solid fa-check"></i> Aprovar</button>
@@ -374,15 +391,16 @@
                             <button @click="financeTab='clients'; loadClientRanking()" :class="financeTab==='clients' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'" class="flex-1 py-2.5 text-xs font-bold transition rounded-lg mx-0.5">Clientes</button>
                             <button @click="financeTab='chart'; loadMonthlyChart()" :class="financeTab==='chart' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'" class="flex-1 py-2.5 text-xs font-bold transition rounded-lg mx-0.5">Mensal</button>
                         </div>
-                        <div class="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm flex flex-wrap gap-3 items-end border border-slate-200 dark:border-slate-800"><div class="flex-1 min-w-[130px]"><label class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block ml-1">De</label><input type="date" v-model="expensesFilter.start" class="w-full h-12 px-4 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 transition-all"></div><div class="flex-1 min-w-[130px]"><label class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block ml-1">Até</label><input type="date" v-model="expensesFilter.end" class="w-full h-12 px-4 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 transition-all"></div><button @click="searchExpenses" class="h-12 bg-slate-800 text-white px-6 rounded-xl font-bold hover:bg-slate-700 shadow-lg"><i class="fa-solid fa-search"></i></button></div>
+                        
+                        <div class="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm flex flex-wrap gap-3 items-end border border-slate-200 dark:border-slate-800"><div class="flex-1 min-w-[130px]"><label class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block ml-1">De</label><input type="date" v-model="expensesFilter.start" class="w-full h-12 px-4 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 transition-all"></div><div class="flex-1 min-w-[130px]"><label class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block ml-1">Até</label><input type="date" v-model="expensesFilter.end" class="w-full h-12 px-4 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 transition-all"></div><button @click="searchExpenses" class="h-12 bg-slate-800 text-white px-6 rounded-xl font-bold hover:bg-slate-700 shadow-lg"><i class="fa-solid fa-search"></i></button></div>
                         
                         <div v-if="financeTab === 'extract'" class="space-y-6">
-                            <div class="grid grid-cols-3 gap-2"><div class="bg-green-100 dark:bg-green-900/30 p-3 rounded-2xl text-center"><p class="text-[10px] text-green-600 font-bold uppercase">Entrada</p><p class="text-sm font-bold text-green-700">{{ formatCurrency(filteredSummary.income) }}</p></div><div class="bg-red-100 dark:bg-red-900/30 p-3 rounded-2xl text-center"><p class="text-[10px] text-red-600 font-bold uppercase">Saída</p><p class="text-sm font-bold text-red-700">{{ formatCurrency(filteredSummary.expense) }}</p></div><div class="bg-slate-100 dark:bg-slate-800 p-3 rounded-2xl text-center"><p class="text-[10px] text-slate-500 font-bold uppercase">Saldo</p><p class="text-sm font-bold" :class="filteredSummary.balance >= 0 ? 'text-slate-800 dark:text-white' : 'text-red-500'">{{ formatCurrency(filteredSummary.balance) }}</p></div></div>
+                            <div class="grid grid-cols-3 gap-2"><div class="bg-green-100 dark:bg-green-900/30 p-3 rounded-2xl text-center"><p class="text-xs text-green-700 dark:text-green-400 font-bold uppercase tracking-wider">Entrada</p><p class="text-sm font-bold text-green-700 dark:text-green-400">{{ formatCurrency(filteredSummary.income) }}</p></div><div class="bg-red-100 dark:bg-red-900/30 p-3 rounded-2xl text-center"><p class="text-xs text-red-700 dark:text-red-400 font-bold uppercase tracking-wider">Saída</p><p class="text-sm font-bold text-red-700 dark:text-red-400">{{ formatCurrency(filteredSummary.expense) }}</p></div><div class="bg-slate-100 dark:bg-slate-800 p-3 rounded-2xl text-center"><p class="text-xs text-slate-500 font-bold uppercase tracking-wider">Saldo</p><p class="text-sm font-bold" :class="filteredSummary.balance >= 0 ? 'text-slate-800 dark:text-white' : 'text-red-600 dark:text-red-400'">{{ formatCurrency(filteredSummary.balance) }}</p></div></div>
                             <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800 max-h-[400px] overflow-y-auto">
-                                <div v-if="statementList.length===0" class="text-center py-12 text-slate-400 text-sm">Sem registros no período.</div>
+                                <div v-if="statementList.length===0" class="text-center py-12 text-slate-400 text-sm">Sem registos no período.</div>
                                 <div v-for="item in statementList" :key="item.id" class="flex justify-between items-center p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition group">
-                                    <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full flex items-center justify-center text-lg" :class="item.type==='income'?'bg-green-100 text-green-600':'bg-red-100 text-red-500'"><i :class="'fa-solid '+item.icon"></i></div><div><div class="font-bold text-sm text-slate-800 dark:text-white">{{ item.description }}</div><div class="text-[10px] text-slate-400">{{ formatDate(item.date) }}</div></div></div>
-                                    <div class="text-right"><div class="font-mono font-bold text-sm" :class="item.type==='income'?'text-green-600':'text-red-500'">{{ item.type==='income'?'+':'-' }} {{ formatCurrency(item.value) }}</div><div v-if="item.type === 'expense'" class="flex justify-end gap-2 mt-1 opacity-0 group-hover:opacity-100 transition"><button @click="openEditExpense(item)" class="text-blue-500 hover:text-blue-700 text-xs"><i class="fa-solid fa-pen"></i></button><button @click="deleteExpense(item.id)" class="text-red-500 hover:text-red-700 text-xs"><i class="fa-solid fa-trash"></i></button></div></div>
+                                    <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full flex items-center justify-center text-lg" :class="item.type==='income'?'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400':'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'"><i :class="'fa-solid '+item.icon"></i></div><div><div class="font-bold text-sm text-slate-800 dark:text-white">{{ item.description }}</div><div class="text-xs text-slate-400">{{ formatDate(item.date) }}</div></div></div>
+                                    <div class="text-right"><div class="font-mono font-bold text-sm" :class="item.type==='income'?'text-green-600 dark:text-green-400':'text-red-600 dark:text-red-400'">{{ item.type==='income'?'+':'-' }} {{ formatCurrency(item.value) }}</div><div v-if="item.type === 'expense'" class="flex justify-end gap-2 mt-1 opacity-0 group-hover:opacity-100 transition"><button @click="openEditExpense(item)" class="text-blue-500 hover:text-blue-700 text-xs"><i class="fa-solid fa-pen"></i></button><button @click="deleteExpense(item.id)" class="text-red-500 hover:text-red-700 text-xs"><i class="fa-solid fa-trash"></i></button></div></div>
                                 </div>
                             </div>
                         </div>
@@ -396,14 +414,23 @@
                         </div>
 
                         <div v-if="financeTab === 'clients'" class="space-y-3">
-                            <div v-if="clientRankingLoading" class="text-center py-12 text-slate-400"><i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2 block"></i>Carregando...</div>
+                            <div v-if="clientRankingLoading" class="space-y-3">
+                                <div v-for="i in 3" :key="i" class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 flex items-center gap-4 animate-pulse">
+                                    <div class="w-9 h-9 rounded-xl bg-slate-200 dark:bg-slate-800 flex-shrink-0"></div>
+                                    <div class="flex-1 space-y-2">
+                                        <div class="h-4 bg-slate-200 dark:bg-slate-800 rounded w-1/2"></div>
+                                        <div class="h-3 bg-slate-200 dark:bg-slate-800 rounded w-1/3"></div>
+                                    </div>
+                                    <div class="w-16 h-6 bg-slate-200 dark:bg-slate-800 rounded-lg flex-shrink-0"></div>
+                                </div>
+                            </div>
                             <div v-else-if="clientRankingData.length === 0" class="text-center py-12 text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
                                 <i class="fa-solid fa-trophy text-3xl mb-2 opacity-30 block"></i><p class="text-sm">Nenhum dado disponível.</p>
                             </div>
                             <div v-else>
-                                <div v-for="(item, i) in clientRankingData" :key="item.id" class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 flex items-center gap-4">
+                                <div v-for="(item, i) in clientRankingData" :key="item.id" class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 flex items-center gap-4 mb-3">
                                     <div class="w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm flex-shrink-0"
-                                         :class="i===0?'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30':i===1?'bg-slate-100 text-slate-600 dark:bg-slate-800':i===2?'bg-orange-100 text-orange-600 dark:bg-orange-900/30':'bg-slate-50 text-slate-500 dark:bg-slate-800'">
+                                         :class="i===0?'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400':i===1?'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300':i===2?'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400':'bg-slate-50 text-slate-500 dark:bg-slate-800'">
                                         {{ i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '#' + (i+1) }}
                                     </div>
                                     <div class="flex-1 min-w-0">
@@ -411,25 +438,31 @@
                                         <p class="text-xs text-slate-400">{{ item.count }} evento(s) · último em {{ formatDate(item.lastDate) }}</p>
                                     </div>
                                     <div class="text-right flex-shrink-0">
-                                        <p class="font-black text-brand-600 text-sm">{{ formatCurrency(item.total) }}</p>
-                                        <p class="text-[10px] text-slate-400">total investido</p>
+                                        <p class="font-black text-brand-600 dark:text-brand-400 text-sm">{{ formatCurrency(item.total) }}</p>
+                                        <p class="text-xs text-slate-400">total investido</p>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
                         <div v-if="financeTab === 'chart'" class="space-y-4">
-                            <div v-if="monthlyChartLoading" class="text-center py-12 text-slate-400"><i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2 block"></i>Carregando...</div>
+                            <div v-if="monthlyChartLoading" class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 h-64 flex flex-col justify-between animate-pulse">
+                                <div class="h-3 w-1/3 bg-slate-200 dark:bg-slate-800 rounded mb-5"></div>
+                                <div class="flex items-end justify-between gap-2 h-40">
+                                    <div v-for="i in 6" :key="i" class="w-full bg-slate-200 dark:bg-slate-800 rounded-t-lg" :style="{height: Math.floor(Math.random() * 60 + 20) + '%'}"></div>
+                                </div>
+                                <div class="h-4 w-full bg-slate-200 dark:bg-slate-800 rounded mt-4"></div>
+                            </div>
                             <div v-else class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5">
-                                <p class="text-xs font-black text-slate-400 uppercase tracking-wider mb-5">Receita — Últimos 6 Meses</p>
+                                <p class="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-5">Receita — Últimos 6 Meses</p>
                                 <div class="flex items-end justify-between gap-2 h-40">
                                     <div v-for="m in monthlyChartData" :key="m.label + m.year" class="flex flex-col items-center flex-1 h-full justify-end gap-2">
-                                        <p class="text-[9px] font-bold text-brand-600 truncate w-full text-center">{{ m.value > 0 ? formatCurrency(m.value).replace('R$\u00a0','').replace(',00','') : '' }}</p>
+                                        <p class="text-xs font-bold text-brand-600 dark:text-brand-400 truncate w-full text-center">{{ m.value > 0 ? formatCurrency(m.value).replace('R$\u00a0','').replace(',00','') : '' }}</p>
                                         <div class="w-full rounded-t-lg transition-all duration-700 min-h-[4px]"
                                              :style="{ height: monthlyChartData.length ? (Math.max(...monthlyChartData.map(x=>x.value)) > 0 ? (m.value / Math.max(...monthlyChartData.map(x=>x.value)) * 100) : 4) + '%' : '4%', background: 'linear-gradient(180deg, #6366F1, #4F46E5)' }"
                                              :class="m.value === 0 ? 'opacity-20' : ''">
                                         </div>
-                                        <p class="text-[10px] font-bold text-slate-400">{{ m.label }}</p>
+                                        <p class="text-xs font-bold text-slate-400">{{ m.label }}</p>
                                     </div>
                                 </div>
                                 <div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-between text-xs text-slate-500">
@@ -443,12 +476,12 @@
                     <div v-if="view === 'registrations'" class="space-y-6 animate-fade-in">
                         <div class="flex bg-white dark:bg-slate-900 p-1.5 rounded-2xl w-fit border border-slate-200 dark:border-slate-800 shadow-sm"><button v-for="t in ['clients','services','company']" @click="registrationTab=t" :class="registrationTab===t?'bg-brand-600 text-white shadow-md':'text-slate-500 hover:text-slate-800 dark:hover:text-white'" class="px-5 py-2 rounded-xl text-sm font-bold capitalize transition">{{ t==='clients'?'Clientes':(t==='services'?'Serviços':'Empresa') }}</button></div>
                         <div v-if="registrationTab === 'clients'" class="space-y-4">
-                            <div class="bg-brand-50 dark:bg-brand-900/20 border border-brand-100 dark:border-brand-800 p-4 rounded-2xl flex justify-between items-center"><div><h4 class="font-bold text-brand-700 dark:text-brand-300 text-sm">Link de Acesso do Cliente</h4><p class="text-xs text-brand-600/80">Envie este link para seu cliente.</p></div><button @click="copyClientLink" class="bg-brand-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow hover:bg-brand-500 transition"><i class="fa-solid fa-copy"></i> Copiar Link</button></div>
+                            <div class="bg-brand-50 dark:bg-brand-900/20 border border-brand-100 dark:border-brand-800 p-4 rounded-2xl flex justify-between items-center"><div><h4 class="font-bold text-brand-700 dark:text-brand-300 text-sm">Link de Acesso do Cliente</h4><p class="text-xs text-brand-600/80 mt-0.5">Envie este link para o seu cliente.</p></div><button @click="copyClientLink" class="bg-brand-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow hover:bg-brand-500 transition flex items-center gap-2"><i class="fa-solid fa-copy"></i> Copiar Link</button></div>
 
                             <div class="flex justify-end"><button @click="openClientModal" class="bg-brand-600 hover:bg-brand-500 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg flex items-center gap-2"><i class="fa-solid fa-plus"></i> Novo Cliente</button></div>
 
                             <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 space-y-3">
-                                <p class="text-[11px] font-black text-slate-400 uppercase tracking-wider">Filtrar Clientes</p>
+                                <p class="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Filtrar Clientes</p>
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                                     <div class="relative">
                                         <i class="fa-solid fa-user absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10"></i>
@@ -464,11 +497,11 @@
                                     </div>
                                     <div></div>
                                     <div>
-                                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">Data do Evento — De</label>
+                                        <label class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ml-1 mb-1 block">Data do Evento — De</label>
                                         <input v-model="clientFilter.eventDateStart" type="date" class="w-full h-12 px-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-500 text-slate-800 dark:text-white">
                                     </div>
                                     <div>
-                                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">Data do Evento — Até</label>
+                                        <label class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ml-1 mb-1 block">Data do Evento — Até</label>
                                         <input v-model="clientFilter.eventDateEnd" type="date" class="w-full h-12 px-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-500 text-slate-800 dark:text-white">
                                     </div>
                                 </div>
@@ -480,11 +513,12 @@
 
                             <div v-if="!catalogSearched" class="text-center py-12 text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
                                 <i class="fa-solid fa-magnifying-glass text-3xl mb-3 opacity-30 block"></i>
-                                <p class="text-sm font-medium">Use os filtros acima para buscar clientes.</p>
+                                <p class="text-sm font-medium">Use os filtros acima para pesquisar clientes.</p>
                             </div>
                             <div v-else-if="catalogClientsDisplayList.length === 0" class="text-center py-12 text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
                                 <i class="fa-solid fa-user-slash text-3xl mb-3 opacity-30 block"></i>
-                                <p class="text-sm font-medium">Nenhum cliente encontrado.</p>
+                                <p class="text-sm font-medium mb-4">Nenhum cliente encontrado.</p>
+                                <button @click="openClientModal" class="bg-brand-600 text-white px-5 py-2 rounded-xl text-xs font-bold shadow hover:bg-brand-500 transition">Adicionar Cliente</button>
                             </div>
                             <div v-else class="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800">
                                 <div class="px-4 py-2.5 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 rounded-t-2xl">
@@ -494,9 +528,9 @@
                                     <div>
                                         <div class="font-bold text-slate-900 dark:text-white">{{ c.name }}</div>
                                         <div class="text-xs text-slate-500 mt-0.5 space-x-2">
-                                            <span v-if="c.phone"><i class="fa-solid fa-phone text-[9px]"></i> {{ c.phone }}</span>
-                                            <span v-if="c.cpf"><i class="fa-solid fa-id-card text-[9px]"></i> {{ c.cpf }}</span>
-                                            <span v-if="c.email"><i class="fa-solid fa-envelope text-[9px]"></i> {{ c.email }}</span>
+                                            <span v-if="c.phone"><i class="fa-solid fa-phone text-xs"></i> {{ c.phone }}</span>
+                                            <span v-if="c.cpf"><i class="fa-solid fa-id-card text-xs"></i> {{ c.cpf }}</span>
+                                            <span v-if="c.email"><i class="fa-solid fa-envelope text-xs"></i> {{ c.email }}</span>
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-1">
@@ -511,7 +545,7 @@
                             <div class="flex justify-end"><button @click="showServiceModal=true" class="bg-brand-600 hover:bg-brand-500 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg flex items-center gap-2"><i class="fa-solid fa-plus"></i> Novo Serviço</button></div>
 
                             <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 space-y-3">
-                                <p class="text-[11px] font-black text-slate-400 uppercase tracking-wider">Filtrar Serviços</p>
+                                <p class="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Filtrar Serviços</p>
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                                     <div class="relative">
                                         <i class="fa-solid fa-tag absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10"></i>
@@ -530,11 +564,12 @@
 
                             <div v-if="!servicesSearched" class="text-center py-12 text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
                                 <i class="fa-solid fa-magnifying-glass text-3xl mb-3 opacity-30 block"></i>
-                                <p class="text-sm font-medium">Use os filtros acima para buscar serviços.</p>
+                                <p class="text-sm font-medium">Use os filtros acima para pesquisar serviços.</p>
                             </div>
                             <div v-else-if="servicesDisplayList.length === 0" class="text-center py-12 text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
                                 <i class="fa-solid fa-box-open text-3xl mb-3 opacity-30 block"></i>
-                                <p class="text-sm font-medium">Nenhum serviço encontrado.</p>
+                                <p class="text-sm font-medium mb-4">Nenhum serviço encontrado.</p>
+                                <button @click="showServiceModal=true" class="bg-brand-600 text-white px-5 py-2 rounded-xl text-xs font-bold shadow hover:bg-brand-500 transition">Criar Serviço</button>
                             </div>
                             <div v-else class="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800">
                                 <div class="px-4 py-2.5 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 rounded-t-2xl">
@@ -543,14 +578,14 @@
                                 <div v-for="s in servicesDisplayList" :key="s.id" class="p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/50">
                                     <span class="font-medium text-slate-700 dark:text-slate-300">{{ s.description }}</span>
                                     <div class="flex items-center gap-4">
-                                        <span class="text-sm font-bold text-brand-600 bg-brand-50 dark:bg-brand-900/30 px-3 py-1 rounded-lg">{{ formatCurrency(s.price) }}</span>
+                                        <span class="text-sm font-bold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/30 px-3 py-1 rounded-lg">{{ formatCurrency(s.price) }}</span>
                                         <button @click="deleteService(s.id)" class="text-slate-400 hover:text-red-500 p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition"><i class="fa-solid fa-trash"></i></button>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         
-                        <div v-if="registrationTab === 'company'" class="bg-white dark:bg-slate-900 p-8 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 space-y-5 max-w-lg">
+                        <div v-if="registrationTab === 'company'" class="bg-white dark:bg-slate-900 p-8 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 space-y-5 max-w-lg mx-auto md:mx-0">
                             <div class="flex justify-center gap-6 mb-6">
                                 <div class="relative group cursor-pointer text-center">
                                     <p class="text-xs text-slate-400 mb-2 font-bold uppercase">Logo</p>
@@ -560,7 +595,7 @@
                                 </div>
                                 <div class="relative group cursor-pointer text-center">
                                     <p class="text-xs text-slate-400 mb-2 font-bold uppercase">Assinatura</p>
-                                    <div @click="openSignatureModal(company, 'company')" class="h-24 w-40 rounded-xl bg-slate-50 dark:bg-slate-800 border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center hover:bg-slate-100 transition overflow-hidden">
+                                    <div @click="openSignatureModal(company, 'company')" class="h-24 w-40 rounded-xl bg-slate-50 dark:bg-slate-800 border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition overflow-hidden">
                                         <img v-if="company.signature" :src="company.signature" class="h-full object-contain p-2">
                                         <span v-else class="text-xs text-slate-400 font-bold">Criar</span>
                                     </div>
@@ -589,7 +624,7 @@
                                         <p class="font-bold text-slate-800 dark:text-white text-sm">E-mail Automático (EmailJS)</p>
                                         <p class="text-xs text-slate-500 mt-0.5">Envia e-mail ao cliente ao criar agendamento.</p>
                                     </div>
-                                    <a href="https://www.emailjs.com" target="_blank" class="text-xs text-brand-600 font-bold hover:underline">Criar conta</a>
+                                    <a href="https://www.emailjs.com" target="_blank" class="text-xs text-brand-600 dark:text-brand-400 font-bold hover:underline">Criar conta</a>
                                 </div>
                                 <input v-model="company.emailjs_service_id" placeholder="Service ID" class="w-full h-12 px-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-500 text-slate-800 dark:text-white placeholder-slate-400">
                                 <input v-model="company.emailjs_template_id" placeholder="Template ID" class="w-full h-12 px-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-500 text-slate-800 dark:text-white placeholder-slate-400">
@@ -608,7 +643,7 @@
                                             @click="company.primaryColor = c"
                                             class="w-8 h-8 rounded-xl border-2 transition-all"
                                             :style="{ backgroundColor: c }"
-                                            :class="company.primaryColor === c ? 'border-white scale-110 shadow-lg' : 'border-transparent opacity-70 hover:opacity-100'">
+                                            :class="company.primaryColor === c ? 'border-white dark:border-slate-800 scale-110 shadow-lg' : 'border-transparent opacity-70 hover:opacity-100'">
                                         </button>
                                     </div>
                                     <div class="flex items-center gap-2">
@@ -642,13 +677,13 @@
                 <i class="fa-solid fa-plus text-2xl"></i>
             </button>
 
-            <div class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 shadow-2xl flex justify-around items-center px-2 py-2">
-                <button @click="view='dashboard'" :class="view==='dashboard'?'text-brand-600 dark:text-white':'text-slate-400'" class="flex flex-col items-center justify-center w-16 h-14 rounded-xl transition gap-1">
+            <div class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 shadow-2xl flex justify-around items-center px-2 py-2 pb-safe">
+                <button @click="view='dashboard'" :class="view==='dashboard'?'text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20':'text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'" class="flex flex-col items-center justify-center w-16 h-14 rounded-xl transition gap-1">
                     <i class="fa-solid fa-chart-pie text-lg"></i>
                     <span class="text-[10px] font-bold">Painel</span>
                 </button>
                 
-                <button @click="view='schedule'" class="relative flex flex-col items-center justify-center w-16 h-14 rounded-xl transition gap-1" :class="view==='schedule'?'text-brand-600 dark:text-white':'text-slate-400'">
+                <button @click="view='schedule'" class="relative flex flex-col items-center justify-center w-16 h-14 rounded-xl transition gap-1" :class="view==='schedule'?'text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20':'text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'">
                     <div class="relative">
                         <i class="fa-solid fa-calendar text-lg"></i>
                         <span v-if="pendingAppointments.length > 0" class="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-red-500 text-white text-[8px] font-bold flex items-center justify-center rounded-full border border-white dark:border-slate-900">{{ pendingAppointments.length }}</span>
@@ -656,7 +691,7 @@
                     <span class="text-[10px] font-bold">Agenda</span>
                 </button>
                 
-                <button @click="view='budgets'" class="relative flex flex-col items-center justify-center w-16 h-14 rounded-xl transition gap-1" :class="view==='budgets'?'text-brand-600 dark:text-white':'text-slate-400'">
+                <button @click="view='budgets'" class="relative flex flex-col items-center justify-center w-16 h-14 rounded-xl transition gap-1" :class="view==='budgets'?'text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20':'text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'">
                     <div class="relative">
                         <i class="fa-solid fa-file-invoice-dollar text-lg"></i>
                         <span v-if="budgetList.length > 0" class="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-yellow-500 text-white text-[8px] font-bold flex items-center justify-center rounded-full border border-white dark:border-slate-900">{{ budgetList.length }}</span>
@@ -664,12 +699,12 @@
                     <span class="text-[10px] font-bold">Orçamento</span>
                 </button>
 
-                <button @click="view='finance'" :class="view==='finance'?'text-brand-600 dark:text-white':'text-slate-400'" class="flex flex-col items-center justify-center w-16 h-14 rounded-xl transition gap-1">
+                <button @click="view='finance'" :class="view==='finance'?'text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20':'text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'" class="flex flex-col items-center justify-center w-16 h-14 rounded-xl transition gap-1">
                     <i class="fa-solid fa-wallet text-lg"></i>
-                    <span class="text-[10px] font-bold">Financeiro</span>
+                    <span class="text-[10px] font-bold">Finanças</span>
                 </button>
                 
-                <button @click="view='registrations'" :class="view==='registrations'?'text-brand-600 dark:text-white':'text-slate-400'" class="flex flex-col items-center justify-center w-16 h-14 rounded-xl transition gap-1">
+                <button @click="view='registrations'" :class="view==='registrations'?'text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20':'text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'" class="flex flex-col items-center justify-center w-16 h-14 rounded-xl transition gap-1">
                     <i class="fa-solid fa-folder text-lg"></i>
                     <span class="text-[10px] font-bold">Cadastros</span>
                 </button>
@@ -677,20 +712,20 @@
         </div>
 
         <div v-if="showSignatureModal" class="fixed inset-0 z-[70] bg-black/90 flex items-center justify-center p-4 backdrop-blur-sm">
-            <div class="bg-white dark:bg-slate-900 p-4 rounded-3xl w-full max-w-md shadow-2xl border border-slate-200 dark:border-slate-700">
+            <div class="bg-white dark:bg-slate-900 p-4 w-full max-w-md shadow-2xl border border-slate-200 dark:border-slate-700 mt-auto md:mt-0 rounded-t-3xl md:rounded-3xl pb-safe">
                 <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-lg text-slate-800 dark:text-white">Assinar</h3><button @click="showSignatureModal=false" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-xmark text-xl"></i></button></div>
-                <div class="bg-slate-100 dark:bg-slate-800 rounded-2xl overflow-hidden border-2 border-dashed border-slate-300 dark:border-slate-600 relative touch-none"><canvas id="signature-pad" class="w-full h-48 bg-white cursor-crosshair"></canvas><div class="absolute bottom-2 right-2 text-[10px] text-slate-400 pointer-events-none">Desenhe acima</div></div>
+                <div class="bg-slate-100 dark:bg-slate-800 rounded-2xl overflow-hidden border-2 border-dashed border-slate-300 dark:border-slate-600 relative touch-none"><canvas id="signature-pad" class="w-full h-48 bg-white cursor-crosshair"></canvas><div class="absolute bottom-2 right-2 text-xs text-slate-400 pointer-events-none">Desenhe acima</div></div>
                 <div class="flex gap-3 mt-4"><button @click="clearSignature" class="h-12 px-4 rounded-xl font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200">Limpar</button><button @click="saveSignature" class="flex-1 h-12 bg-brand-600 hover:bg-brand-500 text-white rounded-xl font-bold shadow-lg flex items-center justify-center gap-2"><i v-if="authLoading" class="fa-solid fa-circle-notch fa-spin"></i> Confirmar</button></div>
             </div>
         </div>
 
-        <div v-if="showReceiptModal && currentReceipt" class="fixed inset-0 z-[80] bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm">
-            <div class="bg-white w-full max-w-md shadow-2xl relative text-slate-800 rounded-3xl overflow-hidden" id="receipt-capture-area">
+        <div v-if="showReceiptModal && currentReceipt" class="fixed inset-0 z-[80] bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm overflow-y-auto">
+            <div class="bg-white w-full max-w-md shadow-2xl relative text-slate-800 rounded-3xl overflow-hidden my-auto" id="receipt-capture-area">
                 <div class="bg-slate-900 text-white p-8 text-center"><h2 class="text-2xl font-bold">{{ company.fantasia }}</h2><p class="text-xs uppercase opacity-60 mt-1 tracking-widest">Recibo / Detalhes</p></div>
                 <div class="p-8 space-y-5 text-sm bg-slate-50">
-                    <div class="flex justify-between border-b pb-2"><span class="text-slate-500 font-bold uppercase text-[10px]">Cliente</span><span class="font-bold">{{ getClientName(currentReceipt.clientId) }}</span></div>
-                    <div class="flex justify-between border-b pb-2"><span class="text-slate-500 font-bold uppercase text-[10px]">Data e Hora</span><span class="font-bold">{{ formatDate(currentReceipt.date) }} às {{ currentReceipt.time }}</span></div>
-                    <div class="flex justify-between border-b pb-2"><span class="text-slate-500 font-bold uppercase text-[10px]">Local</span><span class="font-bold text-right">{{ currentReceipt.location.bairro }}</span></div>
+                    <div class="flex justify-between border-b pb-2"><span class="text-slate-500 font-bold uppercase text-xs">Cliente</span><span class="font-bold">{{ getClientName(currentReceipt.clientId) }}</span></div>
+                    <div class="flex justify-between border-b pb-2"><span class="text-slate-500 font-bold uppercase text-xs">Data e Hora</span><span class="font-bold">{{ formatDate(currentReceipt.date) }} às {{ currentReceipt.time }}</span></div>
+                    <div class="flex justify-between border-b pb-2"><span class="text-slate-500 font-bold uppercase text-xs">Local</span><span class="font-bold text-right">{{ currentReceipt.location.bairro }}</span></div>
                     <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm"><div v-for="s in currentReceipt.selectedServices" class="flex justify-between mb-2 text-slate-600"><span>{{ s.description }}</span><span class="font-mono font-bold text-slate-900">{{ formatCurrency(s.price) }}</span></div><div class="border-t border-slate-100 my-3 pt-3 flex justify-between font-bold text-lg text-slate-900"><span>Total</span><span>{{ formatCurrency(currentReceipt.totalServices) }}</span></div><div class="flex justify-between text-green-600 text-xs font-bold mb-1"><span>Entrada</span><span>- {{ formatCurrency(currentReceipt.entryFee) }}</span></div><div class="flex justify-between font-bold text-brand-600 text-lg border-t border-dashed border-slate-300 pt-3 mt-3"><span>A Pagar</span><span>{{ formatCurrency(currentReceipt.finalBalance) }}</span></div></div>
                     <div v-if="currentReceipt.notes" class="text-xs bg-yellow-50 text-yellow-800 p-3 rounded-lg border border-yellow-200 italic">Obs: {{ currentReceipt.notes }}</div>
                     <div v-if="currentReceipt.details?.balloonColors" class="text-xs bg-purple-50 text-purple-800 p-3 rounded-lg border border-purple-200"><strong>Cores:</strong> {{ currentReceipt.details.balloonColors }}</div>
@@ -698,13 +733,13 @@
                     <div v-if="currentReceipt.installments > 1" class="text-xs bg-brand-50 text-brand-800 p-3 rounded-lg border border-brand-200"><strong>Parcelamento:</strong> {{ currentReceipt.installments }}x de {{ formatCurrency(currentReceipt.finalBalance / currentReceipt.installments) }}</div>
                     
                     <div v-if="currentReceipt.status === 'budget'" class="text-center mt-2">
-                         <span class="bg-yellow-100 text-yellow-700 text-[10px] font-bold px-3 py-1 rounded-full uppercase border border-yellow-200">Este documento é um Orçamento</span>
+                         <span class="bg-yellow-100 text-yellow-700 text-xs font-bold px-3 py-1 rounded-full uppercase border border-yellow-200 tracking-wider">Este documento é um Orçamento</span>
                     </div>
 
                 </div>
                 <div class="bg-slate-100 p-3 text-center text-[10px] text-slate-400">Gerado via PartyPlanner Pro</div>
             </div>
-            <div class="absolute bottom-8 right-6 flex flex-col gap-4 z-50">
+            <div class="fixed bottom-8 right-6 flex flex-col gap-4 z-[90]">
                 <button @click="openWhatsApp(currentReceipt)" class="w-14 h-14 bg-green-500 text-white rounded-full shadow-xl flex items-center justify-center text-2xl hover:scale-110 transition border-2 border-white dark:border-slate-800"><i class="fa-brands fa-whatsapp"></i></button>
                 <button @click="downloadReceiptImage" class="w-14 h-14 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center text-xl hover:scale-110 transition border-2 border-white dark:border-slate-800"><i class="fa-solid fa-image"></i></button>
                 <button @click="generateContractPDF" class="w-14 h-14 bg-red-600 text-white rounded-full shadow-xl flex items-center justify-center text-xl hover:scale-110 transition border-2 border-white dark:border-slate-800"><i class="fa-solid fa-file-pdf"></i></button>
@@ -712,20 +747,20 @@
             </div>
         </div>
 
-        <div v-if="user && showAppointmentModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div class="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto border border-slate-200 dark:border-slate-800">
+        <div v-if="user && showAppointmentModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 md:p-4">
+            <div class="bg-white dark:bg-slate-900 w-full max-w-xl max-h-[90vh] overflow-y-auto border border-slate-200 dark:border-slate-800 shadow-2xl relative mt-auto md:mt-0 rounded-t-3xl md:rounded-3xl pb-10 md:pb-0">
                 <div class="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center sticky top-0 bg-white dark:bg-slate-900 z-10"><h2 class="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2"><i class="fa-solid fa-calendar-check text-brand-600"></i> {{ isEditing ? 'Editar' : 'Novo' }} Agendamento</h2><button @click="showAppointmentModal=false" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center hover:text-red-500 transition"><i class="fa-solid fa-xmark"></i></button></div>
                 <div class="p-6 space-y-5">
-                    <div class="relative group"><label class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block ml-1">Cliente</label><div class="relative w-full"><i class="fa-solid fa-user absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="clientSearchTerm" placeholder="Buscar cliente..." class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 dark:text-white placeholder-slate-400"></div><div v-if="filteredClientsSearch.length" class="absolute w-full bg-white dark:bg-slate-800 border dark:border-slate-700 shadow-xl max-h-40 overflow-y-auto z-20 mt-2 rounded-xl p-1"><div v-for="c in filteredClientsSearch" @click="selectClient(c)" class="p-3 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer rounded-lg text-sm font-medium transition text-slate-700 dark:text-slate-200">{{ c.name }}</div></div><button v-if="!tempApp.clientId" @click="showClientModal=true" class="text-xs text-brand-600 font-bold mt-2 hover:underline inline-flex items-center gap-1 ml-1"><i class="fa-solid fa-user-plus"></i> Cadastrar Novo</button></div>
-                    <div class="grid grid-cols-2 gap-4"><div><label class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block ml-1">Data</label><div class="relative w-full"><i class="fa-solid fa-calendar absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="tempApp.date" type="date" class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 dark:text-white"></div></div><div><label class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block ml-1">Hora</label><div class="relative w-full"><i class="fa-solid fa-clock absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="tempApp.time" type="time" class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 dark:text-white"></div></div></div>
-                    <div><label class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block ml-1">Local</label><div class="relative w-full"><i class="fa-solid fa-map-pin absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="tempApp.location.bairro" placeholder="Endereço / Bairro" class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 dark:text-white placeholder-slate-400"></div></div>
-                    <div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700"><div class="flex justify-between items-center mb-3"><label class="text-xs font-bold text-slate-500 uppercase">Itens do Evento</label><button @click="showServiceModal=true" class="text-xs text-brand-600 font-bold hover:underline">+ Catálogo</button></div><div class="flex gap-3 mb-3"><div class="relative w-full flex-1"><i class="fa-solid fa-tag absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><select v-model="tempServiceSelect" class="w-full h-14 pl-12 pr-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-brand-500 text-sm appearance-none truncate text-slate-800 dark:text-white"><option :value="''">Selecione...</option><option v-for="s in services" :value="s">{{ s.description }} - {{ formatCurrency(s.price) }}</option></select></div><button @click="addServiceToApp" class="w-14 h-14 bg-green-500 hover:bg-green-600 text-white rounded-2xl shadow-lg flex items-center justify-center font-bold text-xl transition"><i class="fa-solid fa-plus"></i></button></div><div class="space-y-2"><div v-for="(s,i) in tempApp.selectedServices" class="flex justify-between items-center text-sm bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm"><span class="truncate pr-2 font-medium text-slate-700 dark:text-slate-300">{{ s.description }}</span><div class="flex gap-3 whitespace-nowrap items-center"><span class="font-bold text-brand-600">{{ formatCurrency(s.price) }}</span><button @click="removeServiceFromApp(i)" class="text-red-400 hover:text-red-600 transition"><i class="fa-solid fa-trash-can"></i></button></div></div></div></div>
-                    <div><label class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block ml-1">Cores dos Balões</label><div class="relative w-full"><i class="fa-solid fa-palette absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="tempApp.details.balloonColors" placeholder="Ex: Azul Royal e Prata" class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 dark:text-white placeholder-slate-400"></div></div>
+                    <div class="relative group"><label class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block ml-1">Cliente</label><div class="relative w-full"><i class="fa-solid fa-user absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="clientSearchTerm" placeholder="Procurar cliente..." class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 dark:text-white placeholder-slate-400"></div><div v-if="filteredClientsSearch.length" class="absolute w-full bg-white dark:bg-slate-800 border dark:border-slate-700 shadow-xl max-h-40 overflow-y-auto z-20 mt-2 rounded-xl p-1"><div v-for="c in filteredClientsSearch" @click="selectClient(c)" class="p-3 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer rounded-lg text-sm font-medium transition text-slate-700 dark:text-slate-200">{{ c.name }}</div></div><button v-if="!tempApp.clientId" @click="showClientModal=true" class="text-xs text-brand-600 font-bold mt-2 hover:underline inline-flex items-center gap-1 ml-1"><i class="fa-solid fa-user-plus"></i> Registar Novo</button></div>
+                    <div class="grid grid-cols-2 gap-4"><div><label class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block ml-1">Data</label><div class="relative w-full"><i class="fa-solid fa-calendar absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="tempApp.date" type="date" class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 dark:text-white"></div></div><div><label class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block ml-1">Hora</label><div class="relative w-full"><i class="fa-solid fa-clock absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="tempApp.time" type="time" class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 dark:text-white"></div></div></div>
+                    <div><label class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block ml-1">Local</label><div class="relative w-full"><i class="fa-solid fa-map-pin absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="tempApp.location.bairro" placeholder="Morada / Bairro" class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 dark:text-white placeholder-slate-400"></div></div>
+                    <div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700"><div class="flex justify-between items-center mb-3"><label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Itens do Evento</label><button @click="showServiceModal=true" class="text-xs text-brand-600 font-bold hover:underline">+ Catálogo</button></div><div class="flex gap-3 mb-3"><div class="relative w-full flex-1"><i class="fa-solid fa-tag absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><select v-model="tempServiceSelect" class="w-full h-14 pl-12 pr-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-brand-500 text-sm appearance-none truncate text-slate-800 dark:text-white"><option :value="''">Selecione...</option><option v-for="s in services" :value="s">{{ s.description }} - {{ formatCurrency(s.price) }}</option></select></div><button @click="addServiceToApp" class="w-14 h-14 bg-green-500 hover:bg-green-600 text-white rounded-2xl shadow-lg flex items-center justify-center font-bold text-xl transition"><i class="fa-solid fa-plus"></i></button></div><div class="space-y-2"><div v-for="(s,i) in tempApp.selectedServices" class="flex justify-between items-center text-sm bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm"><span class="truncate pr-2 font-medium text-slate-700 dark:text-slate-300">{{ s.description }}</span><div class="flex gap-3 whitespace-nowrap items-center"><span class="font-bold text-brand-600 dark:text-brand-400">{{ formatCurrency(s.price) }}</span><button @click="removeServiceFromApp(i)" class="text-red-400 hover:text-red-600 transition"><i class="fa-solid fa-trash-can"></i></button></div></div></div></div>
+                    <div><label class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block ml-1">Cores dos Balões</label><div class="relative w-full"><i class="fa-solid fa-palette absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="tempApp.details.balloonColors" placeholder="Ex: Azul Royal e Prata" class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 dark:text-white placeholder-slate-400"></div></div>
 
                     <div class="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 space-y-3">
                         <div class="flex items-center justify-between">
-                            <label class="text-xs font-bold text-slate-500 uppercase">Checklist do Evento</label>
-                            <span v-if="tempApp.checklist?.length" class="text-xs font-bold text-brand-600">{{ checklistProgress }}% concluído</span>
+                            <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Checklist do Evento</label>
+                            <span v-if="tempApp.checklist?.length" class="text-xs font-bold text-brand-600 dark:text-brand-400">{{ checklistProgress }}% concluído</span>
                         </div>
                         <div v-if="tempApp.checklist?.length" class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
                             <div class="h-1.5 bg-brand-500 rounded-full transition-all duration-500" :style="{ width: checklistProgress + '%' }"></div>
@@ -744,8 +779,8 @@
                             <button @click="addChecklistItem" class="w-10 h-10 bg-brand-600 hover:bg-brand-500 text-white rounded-xl flex items-center justify-center transition"><i class="fa-solid fa-plus text-sm"></i></button>
                         </div>
                     </div>
-                    <div><label class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block ml-1">Observações para o Cliente</label><textarea v-model="tempApp.notes" placeholder="Detalhes visíveis no recibo..." class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 dark:text-white placeholder-slate-400 resize-none h-24"></textarea></div>
-                    <div><label class="text-[11px] font-bold text-orange-500 uppercase tracking-wider mb-1.5 block ml-1 flex items-center gap-1.5"><i class="fa-solid fa-lock text-[10px]"></i> Notas Internas (visível só para você)</label><textarea v-model="tempApp.internalNotes" placeholder="Anotações privadas sobre o evento..." class="w-full bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-800 rounded-2xl p-4 text-sm font-medium outline-none focus:ring-2 focus:ring-orange-400 transition-all text-slate-800 dark:text-white placeholder-slate-400 resize-none h-20"></textarea></div>
+                    <div><label class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block ml-1">Observações para o Cliente</label><textarea v-model="tempApp.notes" placeholder="Detalhes visíveis no recibo..." class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 dark:text-white placeholder-slate-400 resize-none h-24"></textarea></div>
+                    <div><label class="text-xs font-bold text-orange-500 uppercase tracking-wider mb-1.5 block ml-1 flex items-center gap-1.5"><i class="fa-solid fa-lock text-xs"></i> Notas Internas (visível apenas para si)</label><textarea v-model="tempApp.internalNotes" placeholder="Anotações privadas sobre o evento..." class="w-full bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-800 rounded-2xl p-4 text-sm font-medium outline-none focus:ring-2 focus:ring-orange-400 transition-all text-slate-800 dark:text-white placeholder-slate-400 resize-none h-20"></textarea></div>
                     <div class="bg-brand-50 dark:bg-slate-800 p-5 rounded-2xl border border-brand-100 dark:border-slate-700 space-y-3">
                         <div class="flex justify-between text-sm text-slate-600 dark:text-slate-300"><span>Valor Total:</span> <strong class="text-lg text-slate-900 dark:text-white">{{ formatCurrency(totalServices) }}</strong></div>
                         <div class="flex justify-between items-center"><span class="text-sm font-medium text-slate-500">Sinal (Entrada):</span> <input v-model="tempApp.details.entryFee" type="number" class="w-32 h-10 p-2 rounded-lg text-right border-none ring-1 ring-slate-300 focus:ring-brand-500 text-slate-900 font-bold bg-white shadow-inner"></div>
@@ -757,14 +792,14 @@
                                     <select v-model="tempApp.installments" class="h-10 px-3 rounded-lg ring-1 ring-slate-300 focus:ring-brand-500 text-slate-900 dark:text-white dark:bg-slate-700 font-bold bg-white text-sm outline-none">
                                         <option v-for="n in [1,2,3,4,5,6,10,12]" :value="n">{{ n }}x</option>
                                     </select>
-                                    <span class="font-bold text-brand-600 text-sm whitespace-nowrap">{{ formatCurrency(installmentValue) }}/parcela</span>
+                                    <span class="font-bold text-brand-600 dark:text-brand-400 text-sm whitespace-nowrap">{{ formatCurrency(installmentValue) }}/parcela</span>
                                 </div>
                             </div>
                         </div>
                     </div>
                     
                     <div class="grid grid-cols-2 gap-3 mt-4">
-                        <button @click="saveAsBudget" class="h-14 bg-yellow-100 text-yellow-700 hover:bg-yellow-200 font-bold rounded-2xl transition flex items-center justify-center gap-2">
+                        <button @click="saveAsBudget" class="h-14 bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 hover:bg-yellow-200 dark:hover:bg-yellow-900/50 font-bold rounded-2xl transition flex items-center justify-center gap-2">
                             <i class="fa-solid fa-file-invoice-dollar"></i> Orçamento
                         </button>
                         <button @click="saveAppointment" :disabled="authLoading" class="h-14 bg-brand-600 text-white hover:bg-brand-500 font-bold rounded-2xl transition shadow-lg flex items-center justify-center gap-2">
