@@ -136,21 +136,35 @@ createApp({
 
         // --- INICIALIZAÇÃO ---
         onMounted(async () => {
-            onAuthStateChanged(auth, async (u) => {
-                user.value = u;
-                if (u) {
-                    if (u.isAnonymous) { isGlobalLoading.value = false; return; }
-                    await loadDashboardData();
-                    searchExpenses();
-                    syncData();
-                    const uDoc = await getDoc(doc(db, "users", u.uid));
-                    if (uDoc.exists() && uDoc.data().companyConfig) {
-                        Object.assign(company, uDoc.data().companyConfig);
-                        applyThemeColor(company.primaryColor);
-                    }
-                    if (uDoc.exists() && uDoc.data().monthlyGoal) monthlyGoal.value = uDoc.data().monthlyGoal;
+            // Segurança: libera o loading após 8s mesmo que algo falhe silenciosamente
+            const safetyTimer = setTimeout(() => {
+                if (isGlobalLoading.value) {
+                    console.warn("PartyPlanner: timeout de segurança atingido, liberando loading.");
+                    isGlobalLoading.value = false;
                 }
-                setTimeout(() => { isGlobalLoading.value = false; }, 800);
+            }, 8000);
+
+            onAuthStateChanged(auth, async (u) => {
+                try {
+                    user.value = u;
+                    if (u) {
+                        if (u.isAnonymous) { isGlobalLoading.value = false; return; }
+                        await loadDashboardData();
+                        searchExpenses();
+                        syncData();
+                        const uDoc = await getDoc(doc(db, "users", u.uid));
+                        if (uDoc.exists() && uDoc.data().companyConfig) {
+                            Object.assign(company, uDoc.data().companyConfig);
+                            applyThemeColor(company.primaryColor);
+                        }
+                        if (uDoc.exists() && uDoc.data().monthlyGoal) monthlyGoal.value = uDoc.data().monthlyGoal;
+                    }
+                } catch(e) {
+                    console.error("PartyPlanner: erro na inicialização:", e);
+                } finally {
+                    clearTimeout(safetyTimer);
+                    setTimeout(() => { isGlobalLoading.value = false; }, 800);
+                }
             });
         });
 
