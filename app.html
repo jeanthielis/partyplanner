@@ -4,6 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>PartyPlanner Pro | Painel</title>
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#6366F1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="PartyPlanner">
+    <link rel="apple-touch-icon" href="icon-192.png">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -108,6 +116,7 @@
                 </nav>
                 <div class="p-4 border-t border-slate-200 dark:border-slate-800 flex gap-2">
                     <button @click="toggleDarkMode" class="h-10 w-10 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition"><i class="fa-solid fa-moon"></i></button>
+                    <button id="btn-instala-app" style="display:none;" class="h-10 w-10 rounded-xl border border-brand-500/40 text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20 flex items-center justify-center transition" title="Instalar App"><i class="fa-solid fa-download"></i></button>
                     <button @click="logout" class="h-10 flex-1 rounded-xl border border-red-200 dark:border-red-900/30 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition flex items-center justify-center gap-2 font-bold text-sm"><i class="fa-solid fa-right-from-bracket"></i> Sair</button>
                 </div>
             </aside>
@@ -776,157 +785,4 @@
                     </div>
                     
                     <div class="grid grid-cols-2 gap-3 mt-4">
-                        <button @click="saveAsBudget" class="h-14 bg-yellow-100 text-yellow-700 hover:bg-yellow-200 font-bold rounded-2xl transition flex items-center justify-center gap-2">
-                            <i class="fa-solid fa-file-invoice"></i> Orçamento
-                        </button>
-                        <button @click="saveAppointment" class="h-14 bg-brand-600 hover:bg-brand-500 text-white font-bold rounded-2xl shadow-lg shadow-brand-500/20 transition active:scale-95 flex items-center justify-center gap-2">
-                            <i class="fa-solid fa-check"></i> Agendar
-                        </button>
-                    </div>
-
-                </div>
-            </div>
-        </div>
-        
-        <div v-if="user && showClientModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
-             <div class="bg-white dark:bg-slate-900 p-8 rounded-3xl w-full max-w-sm border border-slate-200 dark:border-slate-700 shadow-2xl"><h3 class="font-bold text-slate-800 dark:text-white text-xl mb-6 text-center">{{ editingClientId ? 'Editar Cliente' : 'Novo Cliente' }}</h3><div class="space-y-4"><div class="relative w-full"><i class="fa-solid fa-user absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="newClient.name" placeholder="Nome Completo" class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 dark:text-white placeholder-slate-400"></div><div class="relative w-full"><i class="fa-solid fa-phone absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="newClient.phone" @input="e => newClient.phone = maskPhone(e.target.value)" placeholder="Telefone" maxlength="15" class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 dark:text-white placeholder-slate-400"></div><div class="relative w-full"><i class="fa-solid fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="newClient.email" placeholder="E-mail" class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 dark:text-white placeholder-slate-400"></div><div class="relative w-full"><i class="fa-solid fa-id-card absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="newClient.cpf" @input="e => newClient.cpf = maskCPF(e.target.value)" placeholder="CPF" maxlength="14" class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 dark:text-white placeholder-slate-400"></div></div><div class="flex gap-3 mt-8"><button @click="showClientModal=false" class="flex-1 h-14 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-2xl font-bold transition">Cancelar</button><button @click="saveClient" class="flex-1 h-14 bg-green-500 hover:bg-green-600 text-white rounded-2xl font-bold shadow-lg transition flex items-center justify-center gap-2"><i :class="editingClientId ? 'fa-solid fa-floppy-disk' : 'fa-solid fa-plus'"></i> {{ editingClientId ? 'Salvar Alterações' : 'Cadastrar' }}</button></div></div>
-        </div>
-
-        <div v-if=" user && showServiceModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
-             <div class="bg-white dark:bg-slate-900 p-8 rounded-3xl w-full max-w-sm border border-slate-200 dark:border-slate-700 shadow-2xl"><h3 class="font-bold text-slate-800 dark:text-white text-xl mb-6 text-center">Novo Serviço</h3><div class="space-y-4"><div><label class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block ml-1">Descrição</label><input v-model="newService.description" placeholder="Ex: Arco de Balões" class="w-full h-14 px-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 dark:text-white placeholder-slate-400"></div><div><label class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block ml-1">Valor (R$)</label><input v-model="newService.price" type="number" placeholder="0,00" class="w-full h-14 px-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 dark:text-white placeholder-slate-400"></div></div><div class="flex gap-3 mt-8"><button @click="showServiceModal=false" class="flex-1 h-14 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-2xl font-bold transition">Cancelar</button><button @click="saveService" class="flex-1 h-14 bg-brand-600 hover:bg-brand-500 text-white rounded-2xl font-bold shadow-lg transition">Cadastrar</button></div></div>
-        </div>
-
-        <div v-if="user && showExpenseModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-             <div class="bg-white dark:bg-slate-900 p-8 rounded-3xl w-full max-w-sm shadow-2xl border border-slate-200 dark:border-slate-700"><h3 class="font-bold text-slate-800 dark:text-white text-lg mb-6 text-center">{{ editingExpenseId ? 'Editar Despesa' : 'Nova Despesa' }}</h3><div class="space-y-4"><div class="relative w-full"><i class="fa-solid fa-tag absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="newExpense.description" placeholder="Descrição" class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 dark:text-white placeholder-slate-400"></div><div class="relative w-full"><i class="fa-solid fa-dollar-sign absolute left-4 top-1/2 -translate-y-1/2 text-red-400 z-10 pointer-events-none"></i><input v-model="newExpense.value" type="number" placeholder="Valor" class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-red-500 font-bold placeholder-slate-400"></div><div class="relative w-full"><i class="fa-solid fa-layer-group absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><select v-model="newExpense.category" class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 dark:text-white appearance-none"><option v-for="c in expenseCategories" :value="c.id">{{ c.label }}</option></select></div><div class="relative w-full"><i class="fa-solid fa-calendar absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="newExpense.date" type="date" class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 dark:text-white placeholder-slate-400"></div></div><div class="flex gap-3 mt-8"><button @click="showExpenseModal=false" class="flex-1 h-14 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-2xl font-bold transition">Cancelar</button><button @click="saveExpenseLogic" class="flex-1 h-14 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-bold shadow-lg transition">Salvar</button></div></div>
-        </div>
-
-        <!-- MODAL: HISTÓRICO DO CLIENTE -->
-        <div v-if="showClientHistoryModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
-            <div class="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-lg border border-slate-200 dark:border-slate-700 shadow-2xl flex flex-col" style="max-height:88vh;">
-                <div class="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center flex-shrink-0">
-                    <div>
-                        <h3 class="font-bold text-slate-800 dark:text-white text-lg flex items-center gap-2">
-                            <i class="fa-solid fa-clock-rotate-left text-brand-600"></i> Histórico
-                        </h3>
-                        <p class="text-xs text-slate-500 mt-0.5">{{ clientHistoryData?.name }}</p>
-                    </div>
-                    <button @click="showClientHistoryModal=false" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center hover:text-red-500 transition"><i class="fa-solid fa-xmark"></i></button>
-                </div>
-
-                <!-- Resumo do cliente -->
-                <div v-if="!clientHistoryLoading" class="px-5 pt-4 pb-3 flex gap-3 flex-shrink-0">
-                    <div class="flex-1 bg-brand-50 dark:bg-brand-900/20 rounded-xl p-3 text-center border border-brand-100 dark:border-brand-800">
-                        <p class="text-[10px] font-black text-brand-500 uppercase tracking-wider">Eventos</p>
-                        <p class="text-xl font-black text-brand-600 mt-0.5">{{ clientHistoryApps.filter(a=>a.status!=='budget').length }}</p>
-                    </div>
-                    <div class="flex-1 bg-green-50 dark:bg-green-900/20 rounded-xl p-3 text-center border border-green-100 dark:border-green-800">
-                        <p class="text-[10px] font-black text-green-600 uppercase tracking-wider">Total Gasto</p>
-                        <p class="text-sm font-black text-green-700 dark:text-green-400 mt-0.5">{{ formatCurrency(clientHistoryTotal) }}</p>
-                    </div>
-                    <div class="flex-1 bg-slate-50 dark:bg-slate-800 rounded-xl p-3 text-center border border-slate-200 dark:border-slate-700">
-                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Orçamentos</p>
-                        <p class="text-xl font-black text-slate-700 dark:text-white mt-0.5">{{ clientHistoryApps.filter(a=>a.status==='budget').length }}</p>
-                    </div>
-                </div>
-
-                <!-- Lista de eventos -->
-                <div class="overflow-y-auto flex-1 divide-y divide-slate-100 dark:divide-slate-800">
-                    <div v-if="clientHistoryLoading" class="text-center py-12 text-slate-400">
-                        <i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2 block"></i>Carregando...
-                    </div>
-                    <div v-else-if="clientHistoryApps.length === 0" class="text-center py-12 text-slate-400">
-                        <i class="fa-solid fa-calendar-xmark text-3xl mb-2 opacity-30 block"></i>
-                        <p class="text-sm">Nenhum evento encontrado para este cliente.</p>
-                    </div>
-                    <div v-else v-for="app in clientHistoryApps" :key="app.id" class="px-5 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
-                        <div class="flex items-start gap-3">
-                            <div class="w-10 h-10 rounded-xl flex flex-col items-center justify-center flex-shrink-0 text-white text-xs font-black"
-                                 :class="app.status==='concluded'?'bg-green-500':app.status==='cancelled'?'bg-red-400':app.status==='budget'?'bg-yellow-400':'bg-brand-600'">
-                                <span class="text-[8px] leading-none opacity-80">{{ getMonth(app.date) }}</span>
-                                <span class="text-base leading-tight">{{ getDay(app.date) }}</span>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <div class="flex items-center gap-2 mb-0.5">
-                                    <span class="text-[10px] font-black uppercase px-1.5 py-0.5 rounded-full"
-                                          :class="app.status==='concluded'?'bg-green-100 text-green-700':app.status==='cancelled'?'bg-red-100 text-red-600':app.status==='budget'?'bg-yellow-100 text-yellow-700':'bg-brand-100 text-brand-700'">
-                                        {{ statusText(app.status) }}
-                                    </span>
-                                    <span v-if="app.clientSignature" class="text-[10px] font-bold text-green-600">✓ Assinado</span>
-                                </div>
-                                <p class="text-xs text-slate-500">{{ app.time }} · {{ app.location?.bairro }}</p>
-                                <div v-if="app.selectedServices?.length" class="mt-1">
-                                    <p class="text-[10px] text-slate-400 truncate">{{ app.selectedServices.map(s=>s.description).join(', ') }}</p>
-                                </div>
-                            </div>
-                            <div class="text-right flex-shrink-0">
-                                <p class="font-black text-brand-600 text-sm">{{ formatCurrency(app.totalServices) }}</p>
-                                <p v-if="app.finalBalance > 0 && app.status==='pending'" class="text-[10px] text-red-500 font-bold">Falta: {{ formatCurrency(app.finalBalance) }}</p>
-                            </div>
-                        </div>
-                        <!-- Checklist resumo -->
-                        <div v-if="app.checklist?.length" class="mt-2 ml-13">
-                            <div class="flex items-center gap-2 ml-13">
-                                <div class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1 overflow-hidden ml-13">
-                                    <div class="h-1 bg-brand-500 rounded-full" :style="{ width: Math.round(app.checklist.filter(i=>i.done).length/app.checklist.length*100) + '%' }"></div>
-                                </div>
-                                <span class="text-[10px] text-slate-400 font-bold flex-shrink-0">{{ app.checklist.filter(i=>i.done).length }}/{{ app.checklist.length }}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="p-4 border-t border-slate-100 dark:border-slate-800 flex-shrink-0">
-                    <button @click="showClientHistoryModal=false" class="w-full h-12 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-bold transition">Fechar</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- MODAL: META MENSAL -->
-        <div v-if="showGoalModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
-            <div class="bg-white dark:bg-slate-900 p-8 rounded-3xl w-full max-w-sm border border-slate-200 dark:border-slate-700 shadow-2xl">
-                <h3 class="font-bold text-slate-800 dark:text-white text-xl mb-2 text-center flex items-center justify-center gap-2"><i class="fa-solid fa-bullseye text-brand-600"></i> Meta de Faturamento</h3>
-                <p class="text-xs text-slate-500 text-center mb-6">Defina quanto deseja faturar este mês.</p>
-                <div class="relative w-full mb-6">
-                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">R$</span>
-                    <input v-model="tempGoal" type="number" placeholder="0,00" class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 dark:text-white placeholder-slate-400">
-                </div>
-                <div class="flex gap-3">
-                    <button @click="showGoalModal=false" class="flex-1 h-14 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-2xl font-bold transition">Cancelar</button>
-                    <button @click="saveMonthlyGoal" class="flex-1 h-14 bg-brand-600 hover:bg-brand-500 text-white rounded-2xl font-bold shadow-lg transition flex items-center justify-center gap-2"><i class="fa-solid fa-check"></i> Confirmar</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- MODAL: LOG DE AUDITORIA -->
-        <div v-if="showAuditModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
-            <div class="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-lg border border-slate-200 dark:border-slate-700 shadow-2xl flex flex-col" style="max-height:85vh;">
-                <div class="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center flex-shrink-0">
-                    <h3 class="font-bold text-slate-800 dark:text-white text-lg flex items-center gap-2"><i class="fa-solid fa-clock-rotate-left text-brand-600"></i> Log de Auditoria</h3>
-                    <button @click="showAuditModal=false" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center hover:text-red-500 transition"><i class="fa-solid fa-xmark"></i></button>
-                </div>
-                <div class="overflow-y-auto flex-1 divide-y divide-slate-100 dark:divide-slate-800">
-                    <div v-if="auditLog.length === 0" class="text-center py-12 text-slate-400"><i class="fa-solid fa-inbox text-3xl mb-2 opacity-40 block"></i>Nenhuma ação registrada.</div>
-                    <div v-for="log in auditLog" :key="log.id" class="px-6 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
-                        <div class="flex justify-between items-start gap-4">
-                            <div>
-                                <p class="text-sm font-medium text-slate-800 dark:text-white">{{ log.details }}</p>
-                                <p class="text-xs text-slate-400 mt-0.5">{{ new Date(log.timestamp).toLocaleString('pt-BR') }}</p>
-                            </div>
-                            <span class="text-[10px] font-bold px-2 py-1 rounded-lg flex-shrink-0" :class="log.action.includes('delete') ? 'bg-red-50 text-red-600 dark:bg-red-900/30' : log.action.includes('create') ? 'bg-green-50 text-green-600 dark:bg-green-900/30' : 'bg-blue-50 text-blue-600 dark:bg-blue-900/30'">
-                                {{ log.action.includes('delete') ? 'Exclusão' : log.action.includes('create') ? 'Criação' : 'Edição' }}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-                <div class="p-4 border-t border-slate-100 dark:border-slate-800 flex-shrink-0">
-                    <button @click="showAuditModal=false" class="w-full h-12 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-bold transition">Fechar</button>
-                </div>
-            </div>
-        </div>
-
-    </div>
-
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script type="module" src="js/app.js"></script>
-</body>
-</html>
+                        <button @click="saveAsBudget" class="h-14 bg-yellow-100 text-yellow-700 hover:bg-yellow-200 font-bold rounded-2xl transition flex 
