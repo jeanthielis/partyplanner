@@ -1,5 +1,6 @@
-const CACHE_NAME = 'partyplanner-cache-v4';
+const CACHE_NAME = 'partyplanner-cache-v5';
 
+// Apenas arquivos locais do projeto
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -16,76 +17,91 @@ const ASSETS_TO_CACHE = [
     './icon-512.png'
 ];
 
-// Instalação: pré-cacheia os assets estáticos
+// Domínios externos que o SW NÃO deve interceptar
+// (CDNs, Firebase, Google Fonts - deixa o browser resolver direto)
+const PASSTHROUGH_HOSTS = [
+    'firestore.googleapis.com',
+    'firebaseio.com',
+    'identitytoolkit.googleapis.com',
+    'securetoken.googleapis.com',
+    'googleapis.com',
+    'gstatic.com',
+    'unpkg.com',
+    'cdn.tailwindcss.com',
+    'cdnjs.cloudflare.com',
+    'cdn.jsdelivr.net',
+    'fonts.googleapis.com',
+    'fonts.gstatic.com',
+];
+
 self.addEventListener('install', (event) => {
-    // Ativa imediatamente sem esperar abas antigas fecharem
     self.skipWaiting();
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
-            return cache.addAll(ASSETS_TO_CACHE);
+            // Usa individual adds com try/catch para não abortar tudo se um arquivo falhar
+            return Promise.allSettled(
+                ASSETS_TO_CACHE.map(url =>
+                    cache.add(url).catch(err => console.warn('SW: falha ao cachear', url, err))
+                )
+            );
         })
     );
 });
 
-// Ativação: limpa caches antigos
 self.addEventListener('activate', (event) => {
     event.waitUntil(
-        caches.keys().then((cacheNames) => {
-            return Promise.all(
-                cacheNames.map((cacheName) => {
-                    if (cacheName !== CACHE_NAME) {
-                        return caches.delete(cacheName);
-                    }
-                })
-            );
-        })
+        caches.keys().then((cacheNames) =>
+            Promise.all(
+                cacheNames
+                    .filter(name => name !== CACHE_NAME)
+                    .map(name => caches.delete(name))
+            )
+        )
     );
     self.clients.claim();
 });
 
-// Mensagem do cliente para ativar novo SW imediatamente (após confirmação do usuário)
 self.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'SKIP_WAITING') {
         self.skipWaiting();
     }
 });
 
-// Estratégia: Network First para HTML, Cache First para assets estáticos
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
-    // Ignora requisições do Firebase (SDK cuida do offline nativo)
-    if (
-        url.hostname.includes('firestore.googleapis.com') ||
-        url.hostname.includes('firebaseio.com') ||
-        url.hostname.includes('identitytoolkit') ||
-        url.hostname.includes('googleapis.com') ||
-        url.hostname.includes('gstatic.com')
-    ) {
+    // Passa CDNs e Firebase direto pro browser, sem interceptar
+    if (PASSTHROUGH_HOSTS.some(host => url.hostname.includes(host))) {
         return;
     }
 
-    // Para navegação (HTML), tenta rede primeiro para garantir auth redirect funcione
+    // Apenas arquivos locais (mesmo origem)
+    if (url.origin !== self.location.origin) {
+        return;
+    }
+
+    // Navegação (HTML): rede primeiro, fallback para app.html em cache
     if (event.request.mode === 'navigate') {
         event.respondWith(
-            fetch(event.request).catch(() => caches.match('./app.html'))
+            fetch(event.request)
+                .catch(() => caches.match('./app.html'))
         );
         return;
     }
 
-    // Para assets estáticos: Stale-While-Revalidate
+    // Assets locais: Stale-While-Revalidate
     event.respondWith(
         caches.match(event.request).then((cachedResponse) => {
-            const fetchPromise = fetch(event.request).then((networkResponse) => {
-                if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-                    caches.open(CACHE_NAME).then((cache) => {
+            const networkFetch = fetch(event.request).then((networkResponse) => {
+                if (networkResponse && networkResponse.status === 200) {
+                    caches.open(CACHE_NAME).then(cache => {
                         cache.put(event.request, networkResponse.clone());
                     });
                 }
                 return networkResponse;
-            }).catch(() => {});
+            }).catch(() => cachedResponse); // Se rede falha, retorna cache (não undefined)
 
-            return cachedResponse || fetchPromise;
+            return cachedResponse || networkFetch;
         })
     );
 });
