@@ -18,12 +18,13 @@ const ASSETS_TO_CACHE = [
 
 // Instalação: pré-cacheia os assets estáticos
 self.addEventListener('install', (event) => {
+    // Ativa imediatamente sem esperar abas antigas fecharem
+    self.skipWaiting();
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
             return cache.addAll(ASSETS_TO_CACHE);
         })
     );
-    // Não chama skipWaiting automaticamente — aguarda mensagem explícita
 });
 
 // Ativação: limpa caches antigos
