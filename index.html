@@ -5,6 +5,42 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PartyPlanner Pro - O Sistema do Decorador Profissional</title>
     
+    <!-- Auth redirect: se já logado, vai direto para o app -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAhHRcZwrzD36oEFaeQzD1Fd-685YRAxBA",
+            authDomain: "partyplanner-3f352.firebaseapp.com",
+            projectId: "partyplanner-3f352",
+            storageBucket: "partyplanner-3f352.firebasestorage.app",
+            messagingSenderId: "748641483081",
+            appId: "1:748641483081:web:dec19c31c9e58d9040c298"
+        };
+
+        try {
+            const app = initializeApp(firebaseConfig, 'landing-check');
+            const auth = getAuth(app);
+
+            // Oculta a página enquanto verifica auth (evita flash da landing)
+            document.documentElement.style.visibility = 'hidden';
+
+            onAuthStateChanged(auth, (user) => {
+                if (user && !user.isAnonymous) {
+                    // Usuário autenticado → vai direto para o app
+                    window.location.replace('app.html');
+                } else {
+                    // Não logado → exibe a landing normalmente
+                    document.documentElement.style.visibility = 'visible';
+                }
+            });
+        } catch(e) {
+            // Fallback: mostra a página se algo der errado
+            document.documentElement.style.visibility = 'visible';
+        }
+    </script>
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
