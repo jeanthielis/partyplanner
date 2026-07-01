@@ -13,7 +13,7 @@ body, button, input, select, textarea { transition: background-color 0.2s ease, 
 /* ── Scrollbar global ── */
 ::-webkit-scrollbar          { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track    { background: transparent; }
-::-webkit-scrollbar-thumb    { background: rgba(255,92,53,0.25); border-radius: 99px; }
+::-webkit-scrollbar-thumb    { background: rgba(15,76,129,0.25); border-radius: 99px; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
 /* ── Canvas touch ── */
@@ -75,7 +75,7 @@ canvas { touch-action: none; }
 }
 .hover-lift:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 28px rgba(26,16,24,0.12);
+  box-shadow: 0 8px 28px rgba(16,42,67,0.12);
 }
 .hover-scale:hover  { transform: scale(1.03); }
 .hover-bright:hover { filter: brightness(1.06); }
@@ -83,17 +83,17 @@ canvas { touch-action: none; }
 /* ══════════════════════════════════
    SOMBRAS (shadow system)
    ══════════════════════════════════ */
-.shadow-xs  { box-shadow: 0 1px 3px rgba(26,16,24,0.06); }
-.shadow-card{ box-shadow: 0 1px 4px rgba(26,16,24,0.06), 0 4px 16px rgba(26,16,24,0.05); }
-.shadow-pop { box-shadow: 0 4px 16px rgba(26,16,24,0.08), 0 12px 36px rgba(26,16,24,0.08); }
-.shadow-modal{ box-shadow: 0 8px 32px rgba(26,16,24,0.10), 0 24px 64px rgba(26,16,24,0.12); }
-.shadow-brand{ box-shadow: 0 4px 16px rgba(255,92,53,0.25), 0 8px 32px rgba(255,92,53,0.15); }
+.shadow-xs  { box-shadow: 0 1px 3px rgba(16,42,67,0.06); }
+.shadow-card{ box-shadow: 0 1px 4px rgba(16,42,67,0.06), 0 4px 16px rgba(16,42,67,0.05); }
+.shadow-pop { box-shadow: 0 4px 16px rgba(16,42,67,0.08), 0 12px 36px rgba(16,42,67,0.08); }
+.shadow-modal{ box-shadow: 0 8px 32px rgba(16,42,67,0.10), 0 24px 64px rgba(16,42,67,0.12); }
+.shadow-brand{ box-shadow: 0 4px 16px rgba(15,76,129,0.25), 0 8px 32px rgba(15,76,129,0.15); }
 
 /* ══════════════════════════════════
    SKELETON / LOADING
    ══════════════════════════════════ */
 .skeleton {
-  background: linear-gradient(90deg, #f0ede9 25%, #e8e4e0 50%, #f0ede9 75%);
+  background: linear-gradient(90deg, #eef2f6 25%, #e3eaf1 50%, #eef2f6 75%);
   background-size: 200% auto;
   animation: shimmer 1.4s linear infinite;
   border-radius: 8px;
@@ -113,7 +113,7 @@ canvas { touch-action: none; }
   gap: 12px;
 }
 .moodboard-card {
-  border: 2px solid var(--border, rgba(26,16,24,0.08));
+  border: 2px solid var(--border, rgba(16,42,67,0.08));
   border-radius: 16px;
   padding: 16px 12px;
   cursor: pointer;
@@ -124,14 +124,14 @@ canvas { touch-action: none; }
   overflow: hidden;
 }
 .moodboard-card:hover {
-  border-color: var(--brand, #ff5c35);
-  box-shadow: 0 4px 20px rgba(255,92,53,0.14);
+  border-color: var(--brand, #0f4c81);
+  box-shadow: 0 4px 20px rgba(15,76,129,0.14);
   transform: translateY(-2px);
 }
 .moodboard-card.selected {
-  border-color: var(--brand, #ff5c35);
-  background: var(--brand-pale, #fff4f1);
-  box-shadow: 0 0 0 3px rgba(255,92,53,0.15), 0 4px 20px rgba(255,92,53,0.18);
+  border-color: var(--brand, #0f4c81);
+  background: var(--brand-pale, #edf4fa);
+  box-shadow: 0 0 0 3px rgba(15,76,129,0.15), 0 4px 20px rgba(15,76,129,0.18);
 }
 .moodboard-card.selected::after {
   content: '✓';
@@ -139,7 +139,7 @@ canvas { touch-action: none; }
   top: 6px; right: 8px;
   font-size: 11px;
   font-weight: 900;
-  color: var(--brand, #ff5c35);
+  color: var(--brand, #0f4c81);
 }
 
 /* ══════════════════════════════════
@@ -159,7 +159,7 @@ canvas { touch-action: none; }
   flex-direction: column;
   border-radius: 16px;
   overflow: hidden;
-  background: #f7f4f2;
+  background: #f2f6fa;
 }
 .kanban-col-header {
   padding: 14px 16px;
@@ -182,17 +182,17 @@ canvas { touch-action: none; }
   background: white;
   border-radius: 12px;
   padding: 12px 14px;
-  box-shadow: 0 1px 4px rgba(26,16,24,0.07);
-  border: 1px solid rgba(26,16,24,0.07);
+  box-shadow: 0 1px 4px rgba(16,42,67,0.07);
+  border: 1px solid rgba(16,42,67,0.07);
   transition: all 0.18s ease;
   cursor: grab;
 }
 .kanban-card:hover {
-  box-shadow: 0 4px 16px rgba(26,16,24,0.10);
+  box-shadow: 0 4px 16px rgba(16,42,67,0.10);
   transform: translateY(-1px);
 }
 .kanban-card:active { cursor: grabbing; opacity: 0.85; }
-.kanban-drag-over { outline: 2px dashed rgba(255,92,53,0.5); outline-offset: 4px; }
+.kanban-drag-over { outline: 2px dashed rgba(15,76,129,0.5); outline-offset: 4px; }
 
 /* ══════════════════════════════════
    INVENTÁRIO / ACERVO
@@ -205,13 +205,13 @@ canvas { touch-action: none; }
 .inventory-card {
   border-radius: 16px;
   background: white;
-  border: 1px solid rgba(26,16,24,0.08);
-  box-shadow: 0 1px 4px rgba(26,16,24,0.05);
+  border: 1px solid rgba(16,42,67,0.08);
+  box-shadow: 0 1px 4px rgba(16,42,67,0.05);
   overflow: hidden;
   transition: all 0.18s ease;
 }
 .inventory-card:hover {
-  box-shadow: 0 4px 20px rgba(26,16,24,0.10);
+  box-shadow: 0 4px 20px rgba(16,42,67,0.10);
   transform: translateY(-2px);
 }
 .inventory-badge {
@@ -237,14 +237,14 @@ canvas { touch-action: none; }
   border-radius: 16px;
   padding: 12px 10px 8px;
   min-width: 64px;
-  box-shadow: 0 2px 8px rgba(26,16,24,0.08);
+  box-shadow: 0 2px 8px rgba(16,42,67,0.08);
   animation: countdown-tick 1s ease-in-out infinite;
 }
 .countdown-num {
   font-size: 28px;
   font-weight: 900;
   line-height: 1;
-  background: linear-gradient(135deg, #ff8f6b, #e8431c);
+  background: linear-gradient(135deg, #34d399, #10b981);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -254,7 +254,7 @@ canvas { touch-action: none; }
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #9b8f97;
+  color: #8ba3b8;
   margin-top: 2px;
 }
 
