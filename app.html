@@ -3,1355 +3,377 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PartyPlanner Pro | Painel</title>
+    <title>Área do Cliente | PartyPlanner</title>
 
-    <!-- PWA -->
-    <link rel="manifest" href="manifest.json">
+    <meta property="og:type"        content="website">
+    <meta property="og:title"       content="🎉 Seu evento está confirmado!">
+    <meta property="og:description" content="Acesse sua área exclusiva para ver os detalhes do evento e assinar o contrato digital.">
     <meta name="theme-color" content="#0f4c81">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="PartyPlanner">
-    <link rel="apple-touch-icon" href="icon-192.png">
-    
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Syne:wght@700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <link rel="stylesheet" href="css/style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-    
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+
     <script>
         tailwind.config = {
-            darkMode: 'class',
             theme: {
                 extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                        display: ['Syne', 'sans-serif']
-                    },
+                    fontFamily: { sans: ['Inter','sans-serif'], display: ['Syne','sans-serif'] },
                     colors: {
-                        brand: { 50: '#edf4fa', 100: '#d8e8f5', 200: '#ffbfad', 300: '#2d6da8', 400: '#ff6a42', 500: '#0f4c81', 600: '#0a3a63', 700: '#c23010', 800: '#9e2810', 900: '#821f0f' },
-                    },
+                        brand: { 50:'#edf4fa', 100:'#d8e8f5', 300:'#2d6da8', 500:'#0f4c81', 600:'#0a3a63', 700:'#082d4d' }
+                    }
                 }
             }
         }
     </script>
     <style>
         :root {
-            --brand:       #0f4c81;
-            --brand-mid:   #0a3a63;
-            --brand-light: #2d6da8;
-            --brand-pale:  #edf4fa;
-            --ink:         #102a43;
-            --ink-mid:     #3d5975;
-            --ink-soft:    #8ba3b8;
-            --surface:     #ffffff;
-            --surface-2:   #f7fafc;
-            --surface-3:   #eef4f8;
-            --border:      rgba(16,42,67,0.09);
-            --border-mid:  rgba(16,42,67,0.15);
-            --shadow-sm:   0 1px 4px rgba(16,42,67,0.06), 0 4px 16px rgba(16,42,67,0.05);
-            --shadow-md:   0 2px 8px rgba(16,42,67,0.06), 0 8px 28px rgba(16,42,67,0.08);
-            --shadow-lg:   0 4px 16px rgba(16,42,67,0.07), 0 20px 48px rgba(16,42,67,0.10);
-            --shadow-brand: 0 4px 16px rgba(15,76,129,0.25), 0 8px 32px rgba(15,76,129,0.15);
+            --brand:#0f4c81; --brand-mid:#0a3a63; --brand-light:#2d6da8;
+            --brand-pale:#edf4fa;
+            --ink:#102a43; --ink-soft:#8ba3b8;
+            --surface:#ffffff; --surface-2:#f7fafc; --surface-3:#eef4f8;
+            --border:rgba(16,42,67,0.09);
         }
-
-        [v-cloak] { display: none; }
-        * { box-sizing: border-box; }
-
-        ::-webkit-scrollbar { width: 4px; height: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(15,76,129,0.25); border-radius: 99px; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        canvas { touch-action: none; }
-
-        /* ── PAGE ── */
-        .page-bg { background: var(--surface-2); }
-
-        /* ── SIDEBAR ── */
-        .sidebar-bg {
-            background: var(--surface);
-            border-right: 1px solid var(--border);
-            box-shadow: var(--shadow-sm);
-        }
-
-        /* ── NAV ITEM ── */
-        .nav-item {
-            position: relative;
-            border-radius: 12px;
-            transition: all 0.18s ease;
-            overflow: hidden;
-        }
-        .nav-item::before {
-            content: '';
-            position: absolute;
-            left: 0; top: 6px; bottom: 6px;
-            width: 3px;
-            background: var(--brand);
-            border-radius: 0 3px 3px 0;
-            transform: scaleY(0);
-            transition: transform 0.2s ease;
-        }
-        .nav-item.active::before { transform: scaleY(1); }
-        .nav-item.active { background: var(--brand-pale); }
-        .nav-item:not(.active):hover { background: var(--surface-3); }
-
-        /* ── CARDS ── */
-        .card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 20px;
-            box-shadow: var(--shadow-sm);
-            transition: box-shadow 0.2s ease, transform 0.2s ease;
-        }
-        .card:hover { box-shadow: var(--shadow-md); }
-
-        .kpi-card {
-            border-radius: 20px;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-            position: relative;
-            overflow: hidden;
-        }
-        .kpi-card:hover { transform: translateY(-2px); }
-
-        .event-card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            box-shadow: var(--shadow-sm);
-            transition: all 0.18s ease;
-        }
-        .event-card:hover {
-            border-color: rgba(15,76,129,0.25);
-            box-shadow: var(--shadow-md);
-            transform: translateY(-1px);
-        }
-
-        .section-card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 20px;
-            box-shadow: var(--shadow-sm);
-        }
-
-        /* ── BUTTONS ── */
-        .btn-primary {
-            background: linear-gradient(135deg, var(--brand-light), var(--brand-mid));
-            color: white;
-            font-weight: 700;
-            border: none;
-            border-radius: 12px;
-            box-shadow: var(--shadow-brand);
-            transition: all 0.18s ease;
-        }
-        .btn-primary:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 6px 24px rgba(15,76,129,0.35), 0 10px 40px rgba(15,76,129,0.18);
-        }
-        .btn-primary:active { transform: scale(0.98); }
-
-        /* ── INPUTS ── */
-        .input-light {
-            background: var(--surface-3);
-            border: 1px solid var(--border-mid);
-            color: var(--ink);
-            border-radius: 12px;
-            transition: all 0.18s ease;
-            width: 100%;
-        }
-        .input-light:focus {
-            border-color: var(--brand);
-            box-shadow: 0 0 0 3px rgba(15,76,129,0.12);
-            outline: none;
-            background: white;
-        }
-        .input-light::placeholder { color: var(--ink-soft); }
-
-        /* ── TABS ── */
-        .tab-switcher {
-            background: var(--surface-3);
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            padding: 4px;
-        }
-        .tab-btn {
-            border-radius: 10px;
-            transition: all 0.18s ease;
-            font-size: 12px;
-            font-weight: 700;
-            color: var(--ink-soft);
-        }
-        .tab-btn.active {
-            background: linear-gradient(135deg, var(--brand-light), var(--brand-mid));
-            color: white;
-            box-shadow: var(--shadow-brand);
-        }
-
-        /* ── MOBILE NAV ── */
-        .mobile-nav {
-            background: rgba(255,255,255,0.97);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-top: 1px solid var(--border);
-            box-shadow: 0 -4px 24px rgba(26,16,24,0.07);
-        }
-
-        /* ── PILL BADGE ── */
-        .pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 3px 10px;
-            border-radius: 99px;
-            font-size: 10px;
-            font-weight: 700;
-        }
-
-        /* ── GRADIENT TEXT ── */
-        .grad-text {
-            background: linear-gradient(135deg, #2d6da8, #10b981);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        /* ── GLASS (login) ── */
-        .glass {
-            background: white;
-            border: 1px solid var(--border);
-            border-radius: 24px;
-            box-shadow: var(--shadow-lg);
-        }
-
-        /* ── GLOW ── */
-        .glow-brand { box-shadow: var(--shadow-brand); }
-
-        /* ── PROGRESS ── */
-        .progress-bar {
-            height: 6px;
-            background: var(--surface-3);
-            border-radius: 99px;
-            overflow: hidden;
-        }
-        .progress-fill {
-            height: 100%;
-            border-radius: 99px;
-            background: linear-gradient(90deg, #34d399, #10b981);
-            transition: width 0.7s ease;
-        }
-
-        /* ── ANIMATION ── */
-        .animate-fade-in { animation: fadeIn 0.28s ease; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-
-        /* ── AMBIENT decorative blobs ── */
-        .ambient-tl {
-            position: fixed; top: -120px; left: -120px;
-            width: 400px; height: 400px;
-            background: radial-gradient(circle, rgba(255,92,53,0.07) 0%, transparent 70%);
-            pointer-events: none; z-index: 0;
-        }
-        .ambient-br {
-            position: fixed; bottom: -100px; right: -100px;
-            width: 350px; height: 350px;
-            background: radial-gradient(circle, rgba(255,143,107,0.06) 0%, transparent 70%);
-            pointer-events: none; z-index: 0;
-        }
-
-        /* ── DECORATIVE orb on login ── */
-        .login-orb {
-            position: absolute; top: -80px; right: -80px;
-            width: 240px; height: 240px; border-radius: 50%;
-            background: radial-gradient(circle, rgba(15,76,129,0.12) 0%, transparent 70%);
-            pointer-events: none;
-        }
-        .login-orb2 {
-            position: absolute; bottom: -60px; left: -60px;
-            width: 200px; height: 200px; border-radius: 50%;
-            background: radial-gradient(circle, rgba(255,143,107,0.10) 0%, transparent 70%);
-            pointer-events: none;
-        }
+        [v-cloak]{display:none}
+        body{background:var(--surface-2);font-family:Inter,sans-serif;color:var(--ink)}
+        .input-client{background:var(--surface-3);border:1.5px solid var(--border);border-radius:16px;width:100%;padding:0 1.25rem;height:56px;font-size:15px;font-weight:500;outline:none;transition:all .18s ease;color:var(--ink)}
+        .input-client:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(15,76,129,.12);background:white}
+        .input-client::placeholder{color:var(--ink-soft)}
+        .btn-cta{background:linear-gradient(135deg,#34d399,#10b981);color:white;font-weight:800;font-size:17px;border:none;border-radius:20px;width:100%;height:60px;cursor:pointer;transition:all .18s ease;box-shadow:0 4px 20px rgba(16,185,129,.35);display:flex;align-items:center;justify-content:center;gap:10px;letter-spacing:-.01em}
+        .btn-cta:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(16,185,129,.45)}
+        .btn-cta:active{transform:scale(.98)}
+        .btn-cta:disabled{opacity:.55;transform:none;box-shadow:none;cursor:not-allowed}
+        .pill-status{display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border-radius:99px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+        .sticky-footer{position:fixed;bottom:0;left:0;right:0;padding:12px 20px 20px;background:rgba(253,248,246,.97);backdrop-filter:blur(16px);border-top:1px solid var(--border);z-index:50;display:flex;flex-direction:column;gap:8px}
+        @supports(padding:max(0px)){.sticky-footer{padding-bottom:max(20px,env(safe-area-inset-bottom))}}
     </style>
 </head>
-<body class="page-bg font-sans h-screen overflow-hidden" style="color:var(--ink)">
-    
-    <!-- Ambient light blobs -->
-    <div class="ambient-tl"></div>
-    <div class="ambient-br"></div>
+<body class="min-h-screen">
 
-    <div id="app" v-cloak class="h-full flex flex-col relative">
-        
-        <div v-if="isGlobalLoading" class="absolute inset-0 z-[100] flex flex-col items-center justify-center" style="background:var(--surface-2)">
-            <div class="w-20 h-20 rounded-3xl flex items-center justify-center mb-6 glow-brand relative" style="background:linear-gradient(135deg,var(--brand-light),var(--brand-mid))">
-                <i class="fa-solid fa-wand-magic-sparkles text-3xl"></i>
-                <div class="absolute inset-0 rounded-3xl animate-ping opacity-20" style="background:linear-gradient(135deg,var(--brand-light),var(--brand-mid))"></div>
+    <div id="client-app" v-cloak>
+
+        <!-- ═══ LOADING ═══ -->
+        <div v-if="loadingState === 'global'" class="fixed inset-0 z-[100] flex flex-col items-center justify-center" style="background:var(--surface-2)">
+            <div class="w-20 h-20 rounded-3xl flex items-center justify-center mb-5 shadow-brand" style="background:linear-gradient(135deg,#2d6da8,#0f4c81)">
+                <i class="fa-solid fa-wand-magic-sparkles text-3xl text-white animate-pulse-soft"></i>
             </div>
-            <p class="font-display text-xl font-bold grad-text" style="margin-top:0">Carregando...</p>
+            <p class="font-display text-lg font-bold" style="color:var(--ink)">Buscando seu evento...</p>
         </div>
 
-        <div v-if="!isGlobalLoading && !user" class="absolute inset-0 z-50 flex items-center justify-center p-6" style="background:var(--surface-2)">
-            <div class="w-full max-w-sm">
-                <div class="text-center mb-10">
-                    <div class="w-20 h-20 rounded-3xl mx-auto flex items-center justify-center mb-5 glow-brand" style="background:linear-gradient(135deg,var(--brand-light),var(--brand-mid))">
-                        <i class="fa-solid fa-wand-magic-sparkles text-3xl text-white"></i>
-                    </div>
-                    <h1 class="font-display text-4xl font-bold mb-1" style="color:var(--ink)">PartyPlanner</h1>
-                    <p class="text-sm" style="color:var(--ink-soft)">Painel do Organizador</p>
+        <!-- ═══ LOGIN ═══ -->
+        <div v-if="loadingState === 'login'" class="min-h-screen flex flex-col items-center justify-center px-5 py-10">
+            <!-- Logo da empresa -->
+            <div class="mb-8 text-center animate-slide-up">
+                <div v-if="company.logo" class="w-24 h-24 rounded-3xl overflow-hidden mx-auto mb-4 shadow-pop border-4" style="border-color:white">
+                    <img :src="company.logo" class="w-full h-full object-cover">
                 </div>
+                <div v-else class="w-20 h-20 rounded-3xl mx-auto flex items-center justify-center mb-4 shadow-brand" style="background:linear-gradient(135deg,#2d6da8,#0f4c81)">
+                    <i class="fa-solid fa-wand-magic-sparkles text-3xl text-white"></i>
+                </div>
+                <h1 class="font-display text-3xl font-bold" style="color:var(--ink)">{{ company.fantasia || 'Área do Cliente' }}</h1>
+                <p class="text-sm mt-2" style="color:var(--ink-soft)">Digite seu CPF ou e-mail para acessar</p>
+            </div>
 
-                <div class="glass p-8">
-                    <form @submit.prevent="handleAuth" class="space-y-3">
-                        <div v-if="isRegistering" class="relative">
-                            <i class="fa-solid fa-building absolute left-4 top-1/2 -translate-y-1/2 text-xs" style="color:var(--ink-soft)"></i>
-                            <input v-model="authForm.name" type="text" placeholder="Nome da Empresa" class="input-light h-12 pl-11 pr-4 rounded-xl text-sm font-medium" style="padding-left:2.75rem" required>
-                        </div>
+            <div class="w-full max-w-sm animate-slide-up delay-1">
+                <div class="rounded-3xl p-8" style="background:white;border:1px solid var(--border);box-shadow:0 4px 24px rgba(26,16,24,0.08)">
+                    <form @submit.prevent="handleAccess" class="space-y-4">
                         <div class="relative">
-                            <i class="fa-solid fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-xs" style="color:var(--ink-soft)"></i>
-                            <input v-model="authForm.email" type="email" placeholder="E-mail" class="input-light h-12 pl-11 pr-4 rounded-xl text-sm font-medium" style="padding-left:2.75rem" required>
+                            <i class="fa-solid fa-id-card absolute left-4 top-1/2 -translate-y-1/2 text-sm" style="color:var(--ink-soft)"></i>
+                            <input v-model="accessInput" @input="handleInputMask" placeholder="CPF ou E-mail" class="input-client" style="padding-left:3rem" required>
                         </div>
-                        <div class="relative">
-                            <i class="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-xs" style="color:var(--ink-soft)"></i>
-                            <input v-model="authForm.password" type="password" placeholder="Senha" class="input-light h-12 pl-11 pr-4 rounded-xl text-sm font-medium" style="padding-left:2.75rem" required>
-                        </div>
-                        <button type="submit" :disabled="authLoading" class="btn-primary w-full h-13 rounded-xl flex items-center justify-center gap-2 text-sm mt-2" style="height:52px">
-                            <i v-if="authLoading" class="fa-solid fa-circle-notch fa-spin"></i>
-                            {{ isRegistering ? 'Criar Conta' : 'Entrar' }}
+                        <button type="submit" :disabled="authLoading" class="btn-cta mt-2" style="font-size:15px;height:56px">
+                            <i v-if="authLoading" class="fa-solid fa-circle-notch animate-spin"></i>
+                            <i v-else class="fa-solid fa-arrow-right-to-bracket"></i>
+                            Acessar Meus Eventos
                         </button>
                     </form>
-                    <div class="mt-5 text-center" style="border-top:1px solid var(--border);padding-top:1.25rem">
-                        <button type="button" @click="isRegistering = !isRegistering" class="text-xs font-bold" style="color:var(--brand)">
-                            {{ isRegistering ? 'Já tenho conta? Fazer Login' : 'Não tem conta? Criar agora' }}
-                        </button>
-                    </div>
                 </div>
+                <p class="text-center text-xs mt-5" style="color:var(--ink-soft)">Seus dados são protegidos por criptografia de ponta a ponta.</p>
             </div>
         </div>
 
-        <div v-if="!isGlobalLoading && user" class="flex h-full w-full">
-            
-            <aside class="w-64 hidden md:flex flex-col sidebar-bg z-20 relative">
-                <!-- Logo -->
-                <div class="p-6 pb-4">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 glow-brand" style="background:linear-gradient(135deg,var(--brand-light),var(--brand-mid))">
-                            <i class="fa-solid fa-wand-magic-sparkles text-white text-sm"></i>
-                        </div>
-                        <div>
-                            <div class="font-display text-lg font-bold leading-none" style="color:var(--ink)">PartyPlanner</div>
-                            <div class="text-xs mt-0.5 truncate w-32" style="color:var(--ink-soft)">
-                                {{ company.fantasia || 'Organizador' }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
+        <!-- ═══ PORTAL DO CLIENTE ═══ -->
+        <div v-if="loadingState === 'portal'" class="flex flex-col min-h-screen">
 
-                <!-- Nav -->
-                <nav class="flex-1 px-3 space-y-1 mt-2">
-                    <button @click="view='dashboard'" :class="view==='dashboard'?'nav-item active':'nav-item'" class="w-full text-left px-4 py-3 flex items-center gap-3 text-sm">
-                        <i class="fa-solid fa-chart-pie w-4 text-center" :style="view==='dashboard'?'color:var(--brand)':'color:var(--ink-soft)'"></i>
-                        <span :class="view==='dashboard'?'font-bold':'font-medium'" :style="view!=='dashboard'?'color:var(--ink-soft)':'color:var(--ink)'">Dashboard</span>
-                    </button>
-                    <button @click="view='schedule'" :class="view==='schedule'?'nav-item active':'nav-item'" class="w-full text-left px-4 py-3 flex items-center justify-between text-sm">
-                        <div class="flex items-center gap-3">
-                            <i class="fa-solid fa-calendar w-4 text-center" :style="view==='schedule'?'color:var(--brand)':'color:var(--ink-soft)'"></i>
-                            <span :class="view==='schedule'?'font-bold':'font-medium'" :style="view!=='schedule'?'color:var(--ink-soft)':'color:var(--ink)'">Agenda</span>
-                        </div>
-                        <span v-if="pendingAppointments.length > 0" class="text-[10px] font-bold px-2 py-0.5 rounded-full" style="background:rgba(15,76,129,0.12);color:var(--brand)">{{ pendingAppointments.length }}</span>
-                    </button>
-                    <button @click="view='budgets'" :class="view==='budgets'?'nav-item active':'nav-item'" class="w-full text-left px-4 py-3 flex items-center justify-between text-sm">
-                        <div class="flex items-center gap-3">
-                            <i class="fa-solid fa-file-invoice-dollar w-4 text-center" :style="view==='budgets'?'color:var(--brand)':'color:var(--ink-soft)'"></i>
-                            <span :class="view==='budgets'?'font-bold':'font-medium'" :style="view!=='budgets'?'color:var(--ink-soft)':'color:var(--ink)'">Orçamentos</span>
-                        </div>
-                        <span v-if="budgetList.length > 0" class="text-[10px] font-bold px-2 py-0.5 rounded-full" style="background:rgba(234,179,8,0.12);color:#b45309">{{ budgetList.length }}</span>
-                    </button>
-                    <button @click="view='finance'" :class="view==='finance'?'nav-item active':'nav-item'" class="w-full text-left px-4 py-3 flex items-center gap-3 text-sm">
-                        <i class="fa-solid fa-wallet w-4 text-center" :style="view==='finance'?'color:var(--brand)':'color:var(--ink-soft)'"></i>
-                        <span :class="view==='finance'?'font-bold':'font-medium'" :style="view!=='finance'?'color:var(--ink-soft)':'color:var(--ink)'">Financeiro</span>
-                    </button>
-                    <button @click="view='registrations'" :class="view==='registrations'?'nav-item active':'nav-item'" class="w-full text-left px-4 py-3 flex items-center gap-3 text-sm">
-                        <i class="fa-solid fa-folder w-4 text-center" :style="view==='registrations'?'color:var(--brand)':'color:var(--ink-soft)'"></i>
-                        <span :class="view==='registrations'?'font-bold':'font-medium'" :style="view!=='registrations'?'color:var(--ink-soft)':'color:var(--ink)'">Cadastros</span>
-                    </button>
-                </nav>
-
-                <!-- Footer -->
-                <div class="p-4 flex gap-2" style="border-top:1px solid var(--border)">
-                    <button id="btn-instala-app" style="display:none;" class="h-10 w-10 rounded-xl flex items-center justify-center transition text-sm" style="border:1px solid rgba(167,139,250,0.3);color:#2d6da8" title="Instalar App"><i class="fa-solid fa-download"></i></button>
-                    <button @click="logout" class="h-10 flex-1 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2" style="border:1px solid rgba(220,38,38,0.2);color:#dc2626" onmouseover="this.style.background='rgba(220,38,38,0.06)'" onmouseout="this.style.background='transparent'"><i class="fa-solid fa-right-from-bracket"></i> Sair</button>
-                </div>
-            </aside>
-
-            <main class="flex-1 h-full overflow-y-auto relative page-bg pb-28 md:pb-8 relative z-10">
-                <!-- Mobile header -->
-                <header class="md:hidden flex justify-between items-center px-5 py-4 sticky top-0 z-30" style="background:rgba(253,248,246,0.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--border)">
-                    <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-xl flex items-center justify-center text-white text-sm" style="background:linear-gradient(135deg,var(--brand-light),var(--brand-mid))"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
-                        <div>
-                            <div class="font-display font-bold leading-none text-base" style="color:var(--ink)">PartyPlanner</div>
-                            <div class="text-[10px] truncate max-w-[120px]" style="color:var(--ink-soft)">{{ company.fantasia || 'Organizador' }}</div>
-                        </div>
-                    </div>
-                    <div class="flex gap-2">
-                        <button @click="logout" class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:rgba(220,38,38,0.07);border:1px solid rgba(220,38,38,0.2);color:#dc2626"><i class="fa-solid fa-power-off text-sm"></i></button>
-                    </div>
-                </header>
-
-                <div class="p-5 md:p-8 max-w-5xl mx-auto space-y-6 relative z-10">
-                    
-                    <div v-if="view === 'dashboard'" class="space-y-5">
-                        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-                            <div>
-                                <h2 class="font-display text-3xl font-bold tracking-tight" style="color:var(--ink)">Visão <span class="grad-text">Geral</span></h2>
-                                <p class="text-sm mt-1" style="color:var(--ink-soft)">Resumo do mês selecionado</p>
-                            </div>
-                            <input type="month" v-model="dashboardMonth" class="input-light h-11 px-4 rounded-xl text-sm font-bold cursor-pointer" style="width:auto">
-                        </div>
-
-                        <div v-if="urgentEvents.length > 0 || overdueEvents.length > 0" class="space-y-2">
-                            <div v-if="urgentEvents.length > 0" class="flex items-center gap-3 rounded-2xl px-4 py-3" style="background:#fef2f2;border:1px solid rgba(220,38,38,0.2)">
-                                <i class="fa-solid fa-triangle-exclamation text-red-400 animate-pulse flex-shrink-0"></i>
-                                <div class="flex-1 min-w-0">
-                                    <p class="text-xs font-bold text-red-600 uppercase tracking-wide">{{ urgentEvents.length }} evento(s) nos próximos 3 dias</p>
-                                    <p class="text-xs truncate" style="color:rgba(220,38,38,0.6)">{{ urgentEvents.map(a => getClientName(a.clientId)).join(', ') }}</p>
-                                </div>
-                                <button @click="view='schedule'" class="text-xs font-bold px-3 py-1.5 rounded-lg flex-shrink-0" style="background:rgba(220,38,38,0.08);color:#dc2626">Ver</button>
-                            </div>
-                            <div v-if="overdueEvents.length > 0" class="flex items-center gap-3 rounded-2xl px-4 py-3" style="background:#fff7ed;border:1px solid rgba(217,119,6,0.2)">
-                                <i class="fa-solid fa-circle-dollar-to-slot text-orange-400 flex-shrink-0"></i>
-                                <div class="flex-1 min-w-0">
-                                    <p class="text-xs font-bold text-amber-700 uppercase tracking-wide">{{ overdueEvents.length }} pagamento(s) em atraso</p>
-                                    <p class="text-xs truncate" style="color:rgba(180,83,9,0.6)">{{ overdueEvents.map(a => getClientName(a.clientId)).join(', ') }}</p>
-                                </div>
-                                <button @click="view='schedule'" class="text-xs font-bold px-3 py-1.5 rounded-lg flex-shrink-0" style="background:rgba(217,119,6,0.08);color:#b45309">Ver</button>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-3">
-                            <div class="kpi-card p-4" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid rgba(34,197,94,0.2)">
-                                <div class="flex items-center justify-between mb-3">
-                                    <p class="text-[10px] font-bold uppercase tracking-widest" style="color:rgba(22,163,74,0.7)">Receita</p>
-                                    <div class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:rgba(34,197,94,0.2)"><i class="fa-solid fa-arrow-trend-up text-green-400 text-xs"></i></div>
-                                </div>
-                                <p class="text-xl font-black text-green-600 leading-none">{{ formatCurrency(financeData.revenue) }}</p>
-                            </div>
-                            <div class="kpi-card p-4" style="background:linear-gradient(135deg,#fef2f2,#fee2e2);border:1px solid rgba(239,68,68,0.2)">
-                                <div class="flex items-center justify-between mb-3">
-                                    <p class="text-[10px] font-bold uppercase tracking-widest" style="color:rgba(220,38,38,0.7)">Despesas</p>
-                                    <div class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:rgba(239,68,68,0.2)"><i class="fa-solid fa-arrow-trend-down text-red-400 text-xs"></i></div>
-                                </div>
-                                <p class="text-xl font-black text-red-600 leading-none">{{ formatCurrency(financeData.expenses) }}</p>
-                            </div>
-                            <div class="kpi-card p-4" style="background:linear-gradient(135deg,#e8faf3,#d1f5e8);border:1px solid rgba(16,185,129,0.25)">
-                                <div class="flex items-center justify-between mb-3">
-                                    <p class="text-[10px] font-bold uppercase tracking-widest" style="color:rgba(16,185,129,0.8)">Lucro</p>
-                                    <div class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:rgba(16,185,129,0.18)"><i class="fa-solid fa-wallet text-emerald-500 text-xs"></i></div>
-                                </div>
-                                <p class="text-xl font-black leading-none" :class="financeData.profit >= 0 ? 'text-emerald-600' : 'text-red-600'">{{ formatCurrency(financeData.profit) }}</p>
-                            </div>
-                            <div class="kpi-card p-4" style="background:linear-gradient(135deg,#fff7ed,#ffedd5);border:1px solid rgba(251,146,60,0.25)">
-                                <div class="flex items-center justify-between mb-3">
-                                    <p class="text-[10px] font-bold uppercase tracking-widest" style="color:rgba(217,119,6,0.7)">A Receber</p>
-                                    <div class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:rgba(251,146,60,0.2)"><i class="fa-solid fa-hourglass-half text-orange-400 text-xs"></i></div>
-                                </div>
-                                <p class="text-xl font-black text-amber-700 leading-none">{{ formatCurrency(kpiPendingReceivables) }}</p>
-                            </div>
-                        </div>
-
-                        <div class="kpi-card p-5" style="">
-                            <div class="flex items-center justify-between mb-4">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-8 h-8 rounded-xl flex items-center justify-center" style="background:rgba(15,76,129,0.1)">
-                                        <i class="fa-solid fa-bullseye text-sm" style="color:var(--brand)"></i>
-                                    </div>
-                                    <p class="text-sm font-bold" style="color:var(--ink)">Meta do Mês</p>
-                                </div>
-                                <button @click="tempGoal = monthlyGoal; showGoalModal = true" class="text-xs font-bold transition" style="color:var(--brand)">
-                                    {{ monthlyGoal > 0 ? 'Alterar' : 'Definir meta' }} →
-                                </button>
-                            </div>
-                            <div v-if="monthlyGoal <= 0" class="text-center py-2">
-                                <p class="text-sm" style="color:var(--ink-soft)">Nenhuma meta definida.</p>
-                            </div>
-                            <div v-else class="space-y-3">
-                                <div class="flex justify-between items-end">
-                                    <div>
-                                        <p class="text-2xl font-black" style="color:var(--ink)">{{ formatCurrency(financeData.revenue) }}</p>
-                                        <p class="text-xs mt-1" style="color:var(--ink-soft)">de {{ formatCurrency(monthlyGoal) }}</p>
-                                    </div>
-                                    <p class="text-2xl font-black" :class="goalProgress >= 100 ? 'text-green-600' : ''" :style="goalProgress < 100 ? 'color:var(--brand)' : ''">{{ goalProgress }}%</p>
-                                </div>
-                                <div class="progress-bar">
-                                    <div class="progress-fill" :style="{ width: Math.min(goalProgress, 100) + '%', background: goalProgress >= 100 ? '#4ade80' : 'linear-gradient(90deg,#2d6da8,#0f4c81)' }"></div>
-                                </div>
-                                <p class="text-xs" style="color:var(--ink-soft)">
-                                    <span v-if="goalProgress >= 100" style="color:#16a34a;font-weight:700">🎉 Meta atingida!</span>
-                                    <span v-else>Faltam {{ formatCurrency(monthlyGoal - financeData.revenue) }} para bater a meta</span>
-                                </p>
-                            </div>
-                        </div>
-
-                        <div class="section-card overflow-hidden">
-                            <div class="flex items-center justify-between px-5 py-4" style="border-bottom:1px solid var(--border)">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-8 h-8 rounded-xl flex items-center justify-center" style="background:rgba(15,76,129,0.2)">
-                                        <i class="fa-solid fa-calendar-week text-brand-500 text-sm"></i>
-                                    </div>
-                                    <p class="text-sm font-bold" style="color:var(--ink)">Próximos 7 Dias</p>
-                                </div>
-                                <span class="pill" style="background:rgba(15,76,129,0.1);color:var(--brand)">{{ next7DaysApps.length }} evento(s)</span>
-                            </div>
-                            <div v-if="next7DaysApps.length === 0" class="text-center py-10" style="color:var(--ink-soft)">
-                                <i class="fa-solid fa-calendar-xmark text-3xl mb-3 block"></i>
-                                <p class="text-sm">Sem eventos nos próximos 7 dias.</p>
-                            </div>
-                            <div v-else>
-                                <div v-for="app in next7DaysApps" :key="app.id" @click="showReceipt(app)" class="flex items-center gap-4 px-5 py-4 cursor-pointer transition group" style="border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--surface-3)'" onmouseout="this.style.background='transparent'">
-                                    <div class="w-11 h-11 rounded-xl flex flex-col items-center justify-center text-white flex-shrink-0" style="background:linear-gradient(135deg,var(--brand-light),var(--brand-mid))">
-                                        <span class="text-[9px] font-bold uppercase leading-none" style="opacity:0.8">{{ getMonth(app.date) }}</span>
-                                        <span class="text-lg font-black leading-tight">{{ getDay(app.date) }}</span>
-                                    </div>
-                                    <div class="flex-1 min-w-0">
-                                        <p class="font-bold text-sm truncate" style="color:var(--ink)">{{ getClientName(app.clientId) }}</p>
-                                        <div class="flex items-center gap-2 mt-0.5">
-                                            <span class="text-xs" style="color:var(--ink-soft)">{{ app.time }}</span>
-                                            <span style="color:var(--border-mid)">•</span>
-                                            <span class="text-xs truncate" style="color:var(--ink-soft)">{{ app.location?.bairro }}</span>
-                                        </div>
-                                    </div>
-                                    <div class="flex flex-col items-end gap-1 flex-shrink-0">
-                                        <span class="text-sm font-black" style="color:var(--brand)">{{ formatCurrency(app.totalServices) }}</span>
-                                        <span v-if="app.clientSignature" class="pill" style="background:rgba(22,163,74,0.1);color:#16a34a">✓ Assinado</span>
-                                        <span v-else class="pill" style="background:rgba(217,119,6,0.1);color:#b45309">Pendente</span>
-                                    </div>
-                                    <i class="fa-solid fa-chevron-right text-xs transition" style="color:var(--border-mid)"></i>
-                                </div>
-                            </div>
-                        </div>
-
-                    </div>
-
-                    <div v-if="view === 'schedule'" class="space-y-5 animate-fade-in">
-                        <div class="flex justify-between items-center">
-                            <h2 class="font-display text-3xl font-bold" style="color:var(--ink)">Agenda</h2>
-                            <div class="flex gap-1 p-1 rounded-xl" style="background:var(--surface-3);border:1px solid var(--border)">
-                                <button @click="appointmentViewMode='list'" :class="appointmentViewMode==='list'?'text-white':''  " class="w-9 h-9 rounded-lg flex items-center justify-center transition" :style="appointmentViewMode==='list'?'background:linear-gradient(135deg,var(--brand-light),var(--brand-mid));color:white':'color:var(--ink-soft)'"><i class="fa-solid fa-list text-sm"></i></button>
-                                <button @click="appointmentViewMode='calendar'" class="w-9 h-9 rounded-lg flex items-center justify-center transition" :style="appointmentViewMode==='calendar'?'background:linear-gradient(135deg,var(--brand-light),var(--brand-mid));color:white':'color:var(--ink-soft)'"><i class="fa-solid fa-calendar text-sm"></i></button>
-                            </div>
-                        </div>
-                        
-                        <div v-if="appointmentViewMode === 'list'" class="space-y-5">
-                            <div class="tab-switcher flex w-full">
-                                <button v-for="st in [{k:'pending',l:'Pendentes'},{k:'concluded',l:'Concluídos'},{k:'cancelled',l:'Cancelados'}]" @click="agendaTab=st.k" :class="agendaTab===st.k ? 'tab-btn active' : 'tab-btn'" class="flex-1 py-2.5 text-center">{{ st.l }}</button>
-                            </div>
-                            
-                            <div v-if="agendaTab === 'pending'" class="relative w-full">
-                                <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-xs pointer-events-none z-10" style="color:var(--ink-soft)"></i>
-                                <input v-model="clientSearchTerm" placeholder="Buscar cliente..." class="input-light w-full h-12 pl-11 pr-4 rounded-2xl text-sm font-medium">
-                            </div>
-                            <div v-else class="section-card p-4 flex flex-wrap gap-3 items-end">
-                                <div class="flex-1 min-w-[130px]"><label class="text-[10px] font-bold uppercase tracking-wider mb-1.5 block" style="color:var(--ink-soft)">De</label><input type="date" v-model="agendaFilter.start" class="input-light w-full h-11 px-4 rounded-xl text-sm font-medium"></div>
-                                <div class="flex-1 min-w-[130px]"><label class="text-[10px] font-bold uppercase tracking-wider mb-1.5 block" style="color:var(--ink-soft)">Até</label><input type="date" v-model="agendaFilter.end" class="input-light w-full h-11 px-4 rounded-xl text-sm font-medium"></div>
-                                <button @click="searchHistory" class="btn-primary h-11 px-6 rounded-xl"><i class="fa-solid fa-search"></i></button>
-                            </div>
-
-                            <div v-if="filteredListAppointments.length === 0" class="text-center py-16" style="color:var(--ink-soft)">
-                                <i class="fa-solid fa-calendar-xmark text-4xl mb-3 block"></i>
-                                <p class="text-sm">Nenhum registro encontrado.</p>
-                            </div>
-                            
-                            <div v-for="app in filteredListAppointments" :key="app.id" class="event-card p-4 relative overflow-hidden">
-                                <!-- Status accent line -->
-                                <div class="absolute left-0 top-0 bottom-0 w-0.5 rounded-r-full" :style="app.status==='concluded'?'background:#16a34a':(app.status==='cancelled'?'background:#dc2626':'background:var(--brand)')"></div>
-                                
-                                <div class="flex justify-between items-start pl-3">
-                                    <div class="flex-1">
-                                        <h3 class="font-bold text-base leading-tight mb-1" style="color:var(--ink)">{{ getClientName(app.clientId) }}</h3>
-                                        <div class="flex items-center gap-2 text-xs" style="color:var(--ink-soft)">
-                                            <span>{{ formatDate(app.date) }}</span>
-                                            <span class="w-1 h-1 rounded-full" style="background:var(--border-mid)"></span>
-                                            <span>{{ app.time }}</span>
-                                        </div>
-                                        <div class="flex flex-wrap gap-1 mt-2">
-                                            <span v-if="app.clientSignature" class="pill" style="background:rgba(22,163,74,0.08);color:#16a34a"><i class="fa-solid fa-signature text-[8px]"></i> Assinado</span>
-                                            <span v-if="app.review?.rating" class="pill" style="background:rgba(217,119,6,0.1);color:#b45309"><i class="fa-solid fa-star text-[8px]"></i> {{ app.review.rating }}/5</span>
-                                        </div>
-                                    </div>
-                                    <div class="text-right pl-3">
-                                        <p class="text-sm font-black" style="color:var(--ink)">{{ formatCurrency(app.totalServices) }}</p>
-                                        <p v-if="app.finalBalance > 0" class="text-[10px] font-bold mt-0.5 text-red-600">Falta: {{ formatCurrency(app.finalBalance) }}</p>
-                                    </div>
-                                </div>
-                                
-                                <div class="pl-3 pt-3 mt-3 flex justify-between items-center" style="border-top:1px solid var(--border)">
-                                    <div class="flex gap-1.5">
-                                        <button @click="showReceipt(app)" class="w-8 h-8 rounded-lg flex items-center justify-center transition text-xs" style="background:rgba(37,99,235,0.08);color:#2563eb" title="Detalhes"><i class="fa-solid fa-circle-info"></i></button>
-                                        <button @click="showReceipt(app)" class="w-8 h-8 rounded-lg flex items-center justify-center transition text-xs" style="background:rgba(15,76,129,0.08);color:var(--brand)" title="Recibo"><i class="fa-solid fa-file-invoice-dollar"></i></button>
-                                        <button v-if="app.status === 'pending'" @click="editAppointment(app)" class="w-8 h-8 rounded-lg flex items-center justify-center transition text-xs" style="background:var(--surface-3);color:var(--ink-soft)" title="Editar"><i class="fa-solid fa-pen"></i></button>
-                                    </div>
-                                    <div v-if="app.status === 'pending'" class="flex gap-1.5">
-                                        <button @click="changeStatus(app, 'cancelled')" class="w-8 h-8 rounded-lg flex items-center justify-center transition text-xs" style="background:rgba(220,38,38,0.08);color:#dc2626" title="Cancelar"><i class="fa-solid fa-xmark"></i></button>
-                                        <button @click="changeStatus(app, 'concluded')" class="w-8 h-8 rounded-lg flex items-center justify-center transition text-xs" style="background:rgba(22,163,74,0.08);color:#16a34a" title="Concluir"><i class="fa-solid fa-check"></i></button>
-                                    </div>
-                                    <div v-if="app.status === 'concluded' && !app.review?.rating" class="flex gap-1.5">
-                                        <button @click="copyReviewLink(app)" class="h-8 px-3 rounded-lg text-[10px] font-bold flex items-center gap-1 transition" style="background:rgba(217,119,6,0.08);color:#b45309;border:1px solid rgba(217,119,6,0.2)"><i class="fa-solid fa-star text-[8px]"></i> Pedir avaliação</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                         <div v-if="appointmentViewMode === 'calendar'" class="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800"><div class="flex justify-between items-center mb-6"><button @click="changeCalendarMonth(-1)"><i class="fa-solid fa-chevron-left text-slate-400"></i></button><h3 class="font-bold text-lg capitalize text-slate-800">{{ calendarTitle }}</h3><button @click="changeCalendarMonth(1)"><i class="fa-solid fa-chevron-right text-slate-400"></i></button></div><div class="grid grid-cols-7 gap-1 text-center text-xs font-bold text-slate-400 mb-2 uppercase"><div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div></div><div class="grid grid-cols-7 gap-2"><div v-for="d in calendarGrid" @click="selectCalendarDay(d)" class="h-10 md:h-14 border rounded-xl flex flex-col items-center justify-center cursor-pointer transition" :class="d.date===selectedCalendarDate?'bg-brand-600 border-brand-600 text-white shadow-lg':(d.day?'bg-slate-50 border-slate-200 text-slate-700 dark:text-slate-300 hover:border-brand-300':'border-transparent')"><span v-if="d.day" class="text-sm font-bold">{{ d.day }}</span><div v-if="d.hasEvent" class="w-1.5 h-1.5 rounded-full mt-1" :class="d.date===selectedCalendarDate?'bg-white':''"></div></div></div><div v-if="selectedCalendarDate" class="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800"><h4 class="text-xs font-bold text-slate-400 uppercase mb-3">{{ formatDate(selectedCalendarDate) }}</h4><div v-if="appointmentsOnSelectedDate.length===0" class="text-sm text-slate-400">Vazio.</div><div v-for="app in appointmentsOnSelectedDate" @click="showReceipt(app)" class="flex justify-between p-3 bg-slate-50 rounded-xl mb-2 cursor-pointer border border-slate-200 hover:border-brand-500 transition"><div class="text-sm font-bold text-slate-800">{{ getClientName(app.clientId) }}</div><div class="text-sm font-bold text-brand-600">{{ formatCurrency(app.totalServices) }}</div></div></div></div>
-                    </div>
-
-                    <div v-if="view === 'budgets'" class="space-y-5 animate-fade-in">
-                        <h2 class="font-display text-3xl font-bold" style="color:var(--ink)">Orçamentos</h2>
-                        <div v-if="budgetList.length === 0" class="text-center py-16 flex flex-col items-center" style="color:var(--ink-soft)">
-                            <i class="fa-solid fa-clipboard-list text-5xl mb-4"></i>
-                            <p class="text-sm">Nenhum orçamento em aberto.</p>
-                        </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div v-for="b in budgetList" :key="b.id" class="event-card p-5 group">
-                                <div class="flex justify-between items-start mb-4">
-                                    <span class="pill" style="background:rgba(217,119,6,0.1);color:#b45309">Em Aberto</span>
-                                    <button @click="editAppointment(b)" style="color:var(--ink-soft)" class="hover:text-gray-700 transition text-sm"><i class="fa-solid fa-pen"></i></button>
-                                </div>
-                                <h3 class="font-bold text-lg mb-1" style="color:var(--ink)">{{ getClientName(b.clientId) }}</h3>
-                                <p class="text-sm mb-4 flex items-center gap-2" style="color:var(--ink-soft)"><i class="fa-solid fa-calendar-day text-xs"></i> {{ formatDate(b.date) }}</p>
-                                <div class="space-y-2 mb-4 py-3 min-h-[60px]" style="border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
-                                    <div v-for="s in b.selectedServices.slice(0, 3)" class="flex justify-between text-xs" style="color:var(--ink-soft)"><span>{{ s.description }}</span><span style="color:var(--ink)">{{ formatCurrency(s.price) }}</span></div>
-                                    <div v-if="b.selectedServices.length > 3" class="text-[10px] italic text-center" style="color:var(--ink-soft)">+ {{ b.selectedServices.length - 3 }} itens...</div>
-                                </div>
-                                <div class="flex justify-between items-center mb-4">
-                                    <span class="text-xs font-bold" style="color:var(--ink-soft)">TOTAL</span>
-                                    <span class="text-xl font-black" style="color:var(--brand)">{{ formatCurrency(b.totalServices) }}</span>
-                                </div>
-                                <div class="flex gap-2">
-                                    <button @click="showReceipt(b)" class="flex-1 py-2.5 rounded-xl text-xs font-bold transition" style="background:var(--surface-3);color:var(--ink-mid);border:1px solid var(--border)"><i class="fa-solid fa-print"></i> PDF</button>
-                                    <button @click="approveBudget(b)" class="flex-1 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1" style="background:rgba(22,163,74,0.1);color:#16a34a;border:1px solid rgba(22,163,74,0.25)"><i class="fa-solid fa-check"></i> Aprovar</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div v-if="view === 'finance'" class="space-y-5 animate-fade-in">
-                        <div class="flex justify-between items-center flex-wrap gap-3">
-                            <h2 class="font-display text-3xl font-bold" style="color:var(--ink)">Financeiro</h2>
-                            <div class="flex gap-2 flex-wrap">
-                                <button @click="generateMonthlyReport" class="btn-primary px-4 py-2.5 text-sm flex items-center gap-2"><i class="fa-solid fa-file-pdf"></i> Relatório</button>
-                                <button @click="exportBackupJSON" class="px-4 py-2.5 rounded-xl font-bold text-sm transition flex items-center gap-2" style="background:var(--surface-3);color:var(--ink-mid);border:1px solid var(--border)"><i class="fa-solid fa-download"></i> Backup</button>
-                                <button @click="openNewExpense" class="px-4 py-2.5 rounded-xl font-bold text-sm transition flex items-center gap-2" style="background:rgba(220,38,38,0.07);color:#dc2626;border:1px solid rgba(220,38,38,0.2)"><i class="fa-solid fa-minus"></i> Nova Despesa</button>
-                            </div>
-                        </div>
-                        <div class="tab-switcher flex w-full">
-                            <button @click="financeTab='extract'" :class="financeTab==='extract' ? 'tab-btn active' : 'tab-btn'" class="flex-1 py-2.5 text-center">Extrato</button>
-                            <button @click="financeTab='ranking'" :class="financeTab==='ranking' ? 'tab-btn active' : 'tab-btn'" class="flex-1 py-2.5 text-center">Despesas</button>
-                            <button @click="financeTab='clients'; loadClientRanking()" :class="financeTab==='clients' ? 'tab-btn active' : 'tab-btn'" class="flex-1 py-2.5 text-center">Clientes</button>
-                            <button @click="financeTab='chart'; loadMonthlyChart()" :class="financeTab==='chart' ? 'tab-btn active' : 'tab-btn'" class="flex-1 py-2.5 text-center">Mensal</button>
-                        </div>
-                        <div class="section-card p-4 flex flex-wrap gap-3 items-end"><div class="flex-1 min-w-[130px]"><label class="text-[10px] font-bold uppercase tracking-wider mb-1.5 block ml-1" style="color:var(--ink-soft)">De</label><input type="date" v-model="expensesFilter.start" class="input-light w-full h-11 px-4 rounded-xl text-sm font-medium"></div><div class="flex-1 min-w-[130px]"><label class="text-[10px] font-bold uppercase tracking-wider mb-1.5 block ml-1" style="color:var(--ink-soft)">Até</label><input type="date" v-model="expensesFilter.end" class="input-light w-full h-11 px-4 rounded-xl text-sm font-medium"></div><button @click="searchExpenses" class="btn-primary h-11 px-6 rounded-xl"><i class="fa-solid fa-search"></i></button></div>
-                        
-                        <div v-if="financeTab === 'extract'" class="space-y-5">
-                            <div class="grid grid-cols-3 gap-3">
-                                <div class="kpi-card p-3 text-center" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid rgba(34,197,94,0.2)"><p class="text-[10px] font-bold uppercase mb-1" style="color:rgba(134,239,172,0.6)">Entrada</p><p class="text-sm font-black text-green-400">{{ formatCurrency(filteredSummary.income) }}</p></div>
-                                <div class="kpi-card p-3 text-center" style="background:linear-gradient(135deg,#fef2f2,#fee2e2);border:1px solid rgba(239,68,68,0.2)"><p class="text-[10px] font-bold uppercase mb-1" style="color:rgba(252,165,165,0.6)">Saída</p><p class="text-sm font-black text-red-400">{{ formatCurrency(filteredSummary.expense) }}</p></div>
-                                <div class="kpi-card p-3 text-center" style="background:linear-gradient(135deg,#e8faf3,#d1f5e8);border:1px solid rgba(16,185,129,0.25)"><p class="text-[10px] font-bold uppercase mb-1" style="color:rgba(16,185,129,0.8)">Saldo</p><p class="text-sm font-black" :class="filteredSummary.balance >= 0 ? 'text-emerald-600' : 'text-red-700'">{{ formatCurrency(filteredSummary.balance) }}</p></div>
-                            </div>
-                            <div class="section-card divide-y max-h-[420px] overflow-y-auto" style="divide-color:rgba(255,255,255,0.04)">
-                                <div v-if="statementList.length===0" class="text-center py-12 text-sm" style="color:var(--ink-soft)">Sem registros no período.</div>
-                                <div v-for="item in statementList" :key="item.id" class="flex justify-between items-center p-4 transition group cursor-default" style="border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--surface-3)'" onmouseout="this.style.background='transparent'">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-9 h-9 rounded-xl flex items-center justify-center text-sm" :style="item.type==='income'?'background:rgba(22,163,74,0.1);color:#16a34a':'background:rgba(220,38,38,0.1);color:#dc2626'"><i :class="'fa-solid '+item.icon"></i></div>
-                                        <div><div class="font-semibold text-sm" style="color:var(--ink)">{{ item.description }}</div><div class="text-[10px]" style="color:var(--ink-soft)">{{ formatDate(item.date) }}</div></div>
-                                    </div>
-                                    <div class="text-right">
-                                        <div class="font-mono font-bold text-sm" :class="item.type==='income'?'text-green-700':'text-red-600'">{{ item.type==='income'?'+':'-' }} {{ formatCurrency(item.value) }}</div>
-                                        <div v-if="item.type === 'expense'" class="flex justify-end gap-2 mt-1 opacity-0 group-hover:opacity-100 transition">
-                                            <button @click="openEditExpense(item)" class="text-xs" style="color:#2563eb"><i class="fa-solid fa-pen"></i></button>
-                                            <button @click="deleteExpense(item.id)" class="text-xs text-red-600"><i class="fa-solid fa-trash"></i></button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div v-if="financeTab === 'ranking'" class="space-y-4">
-                            <div v-if="rankingData.length === 0" class="text-center py-10 text-slate-400">Nenhuma despesa para classificar.</div>
-                            <div v-for="item in rankingData" :key="item.id" class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                                <div class="flex justify-between items-center mb-2"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full flex items-center justify-center text-lg" :class="item.bgClass + ' ' + item.styleClass"><i :class="'fa-solid ' + item.icon"></i></div><span class="font-bold text-slate-800">{{ item.label }}</span></div><div class="text-right"><div class="font-bold text-slate-800">{{ formatCurrency(item.value) }}</div><div class="text-xs text-slate-500">{{ item.percent }}%</div></div></div>
-                                <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden"><div class="h-2 rounded-full" :class="item.bgClass.replace('bg-', 'bg-').replace('100', '500')" :style="{ width: item.percent + '%' }"></div></div>
-                            </div>
-                        </div>
-
-                        <!-- RANKING DE CLIENTES -->
-                        <div v-if="financeTab === 'clients'" class="space-y-3">
-                            <div v-if="clientRankingLoading" class="text-center py-12 text-slate-400"><i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2 block"></i>Carregando...</div>
-                            <div v-else-if="clientRankingData.length === 0" class="text-center py-12 rounded-2xl" style="color:var(--ink-soft);border:1px solid var(--border)">
-                                <i class="fa-solid fa-trophy text-3xl mb-2 opacity-30 block"></i><p class="text-sm">Nenhum dado disponível.</p>
-                            </div>
-                            <div v-else>
-                                <div v-for="(item, i) in clientRankingData" :key="item.id" class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 flex items-center gap-4">
-                                    <div class="w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm flex-shrink-0"
-                                         :class="i===0?'bg-yellow-50 text-yellow-700':i===1?'bg-gray-100 text-gray-600':i===2?'bg-orange-50 text-orange-600':'bg-gray-50 text-gray-500'">
-                                        {{ i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '#' + (i+1) }}
-                                    </div>
-                                    <div class="flex-1 min-w-0">
-                                        <p class="font-bold text-slate-800 text-sm truncate">{{ item.client.name }}</p>
-                                        <p class="text-xs text-slate-400">{{ item.count }} evento(s) · último em {{ formatDate(item.lastDate) }}</p>
-                                    </div>
-                                    <div class="text-right flex-shrink-0">
-                                        <p class="font-black text-sm" style="color:var(--brand)">{{ formatCurrency(item.total) }}</p>
-                                        <p class="text-[10px] text-slate-400">total investido</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- COMPARATIVO MENSAL -->
-                        <div v-if="financeTab === 'chart'" class="space-y-4">
-                            <div v-if="monthlyChartLoading" class="text-center py-12 text-slate-400"><i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2 block"></i>Carregando...</div>
-                            <div v-else class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5">
-                                <p class="text-xs font-black text-slate-400 uppercase tracking-wider mb-5">Receita — Últimos 6 Meses</p>
-                                <div class="flex items-end justify-between gap-2 h-40">
-                                    <div v-for="m in monthlyChartData" :key="m.label + m.year" class="flex flex-col items-center flex-1 h-full justify-end gap-2">
-                                        <p class="text-[9px] font-bold text-brand-600 truncate w-full text-center">{{ m.value > 0 ? formatCurrency(m.value).replace('R$\u00a0','').replace(',00','') : '' }}</p>
-                                        <div class="w-full rounded-t-lg transition-all duration-700 min-h-[4px]"
-                                             :style="{ height: monthlyChartData.length ? (Math.max(...monthlyChartData.map(x=>x.value)) > 0 ? (m.value / Math.max(...monthlyChartData.map(x=>x.value)) * 100) : 4) + '%' : '4%', background: 'linear-gradient(180deg, var(--brand-light), var(--brand-mid))' }"
-                                             :class="m.value === 0 ? 'opacity-20' : ''">
-                                        </div>
-                                        <p class="text-[10px] font-bold text-slate-400">{{ m.label }}</p>
-                                    </div>
-                                </div>
-                                <div class="mt-4 pt-4 border-t border-slate-100 flex justify-between text-xs text-slate-500">
-                                    <span>Total do período: <strong style="color:var(--ink)">{{ formatCurrency(monthlyChartData.reduce((a,m)=>a+m.value,0)) }}</strong></span>
-                                    <span>Média mensal: <strong style="color:var(--ink)">{{ formatCurrency(monthlyChartData.reduce((a,m)=>a+m.value,0) / 6) }}</strong></span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div v-if="view === 'registrations'" class="space-y-5 animate-fade-in">
-                        <h2 class="font-display text-3xl font-bold" style="color:var(--ink)">Cadastros</h2>
-                        <div class="tab-switcher flex w-fit flex-wrap gap-0.5">
-    <button @click="registrationTab='clients'" :class="registrationTab==='clients' ? 'tab-btn active' : 'tab-btn'" class="px-4 py-2.5">Clientes</button>
-    <button @click="registrationTab='services'" :class="registrationTab==='services' ? 'tab-btn active' : 'tab-btn'" class="px-4 py-2.5">Serviços</button>
-    <button @click="registrationTab='inventory'" :class="registrationTab==='inventory' ? 'tab-btn active' : 'tab-btn'" class="px-4 py-2.5"><i class="fa-solid fa-boxes-stacked mr-1.5"></i>Acervo</button>
-    <button @click="registrationTab='company'" :class="registrationTab==='company' ? 'tab-btn active' : 'tab-btn'" class="px-4 py-2.5">Empresa</button>
-</div>
-                        <div v-if="registrationTab === 'clients'" class="space-y-4">
-                            <div class="p-4 rounded-2xl flex justify-between items-center" style="background:var(--brand-pale);border:1px solid rgba(15,76,129,0.2)"><div><h4 class="font-bold text-sm" style="color:var(--brand-mid)">Link de Acesso do Cliente</h4><p class="text-xs" style="color:rgba(232,67,28,0.7)">Envie este link para seu cliente.</p></div><button @click="copyClientLink" class="btn-primary px-4 py-2 rounded-xl text-xs"><i class="fa-solid fa-copy"></i> Copiar Link</button></div>
-
-                            <div class="flex justify-end"><button @click="openClientModal" class="btn-primary px-5 py-2.5 rounded-xl flex items-center gap-2"><i class="fa-solid fa-plus"></i> Novo Cliente</button></div>
-
-                            <!-- Filtros de Clientes -->
-                            <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 space-y-3">
-                                <p class="text-[11px] font-black uppercase tracking-wider" style="color:var(--ink-soft)">Filtrar Clientes</p>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                    <div class="relative">
-                                        <i class="fa-solid fa-user absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10"></i>
-                                        <input v-model="clientFilter.name" placeholder="Nome" class="w-full h-12 pl-12 pr-4 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-500 text-slate-800 placeholder-slate-400">
-                                    </div>
-                                    <div class="relative">
-                                        <i class="fa-solid fa-id-card absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10"></i>
-                                        <input v-model="clientFilter.cpf" placeholder="CPF" class="w-full h-12 pl-12 pr-4 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-500 text-slate-800 placeholder-slate-400">
-                                    </div>
-                                    <div class="relative">
-                                        <i class="fa-solid fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10"></i>
-                                        <input v-model="clientFilter.email" placeholder="E-mail" class="w-full h-12 pl-12 pr-4 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-500 text-slate-800 placeholder-slate-400">
-                                    </div>
-                                    <div></div>
-                                    <div>
-                                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">Data do Evento — De</label>
-                                        <input v-model="clientFilter.eventDateStart" type="date" class="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-500 text-slate-800">
-                                    </div>
-                                    <div>
-                                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">Data do Evento — Até</label>
-                                        <input v-model="clientFilter.eventDateEnd" type="date" class="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-500 text-slate-800">
-                                    </div>
-                                </div>
-                                <div class="flex gap-2 pt-1">
-                                    <button @click="clearClientFilter" class="h-11 px-5 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-xl font-bold text-sm hover:bg-slate-200 dark:hover:bg-slate-700 transition flex items-center gap-2"><i class="fa-solid fa-xmark"></i> Limpar</button>
-                                    <button @click="searchCatalogClients" class="flex-1 h-11 bg-brand-600 hover:bg-brand-500 text-white rounded-xl font-bold text-sm shadow transition flex items-center justify-center gap-2"><i class="fa-solid fa-search"></i> Buscar</button>
-                                </div>
-                            </div>
-
-                            <!-- Lista de Resultados -->
-                            <div v-if="!catalogSearched" class="text-center py-12 rounded-2xl" style="color:var(--ink-soft);border:1px solid var(--border)">
-                                <i class="fa-solid fa-magnifying-glass text-3xl mb-3 opacity-30 block"></i>
-                                <p class="text-sm font-medium">Use os filtros acima para buscar clientes.</p>
-                            </div>
-                            <div v-else-if="catalogClientsDisplayList.length === 0" class="text-center py-12 rounded-2xl" style="color:var(--ink-soft);border:1px solid var(--border)">
-                                <i class="fa-solid fa-user-slash text-3xl mb-3 opacity-30 block"></i>
-                                <p class="text-sm font-medium">Nenhum cliente encontrado.</p>
-                            </div>
-                            <div v-else class="section-card overflow-hidden">
-                                <div class="px-4 py-2.5 flex items-center justify-between rounded-t-2xl" style="background:var(--surface-3)">
-                                    <span class="text-xs font-bold" style="color:var(--ink-soft)">{{ catalogClientsDisplayList.length }} resultado(s)</span>
-                                </div>
-                                <div v-for="c in catalogClientsDisplayList" :key="c.id" class="p-4 flex justify-between items-center transition" onmouseover="this.style.background='var(--surface-3)'" onmouseout="this.style.background='transparent'">
-                                    <div>
-                                        <div class="font-bold text-slate-800">{{ c.name }}</div>
-                                        <div class="text-xs text-slate-500 mt-0.5 space-x-2">
-                                            <span v-if="c.phone"><i class="fa-solid fa-phone text-[9px]"></i> {{ c.phone }}</span>
-                                            <span v-if="c.cpf"><i class="fa-solid fa-id-card text-[9px]"></i> {{ c.cpf }}</span>
-                                            <span v-if="c.email"><i class="fa-solid fa-envelope text-[9px]"></i> {{ c.email }}</span>
-                                        </div>
-                                    </div>
-                                    <div class="flex items-center gap-1">
-                                        <button @click="openClientHistory(c)" class="text-slate-400 hover:text-purple-500 p-2 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 transition" title="Histórico"><i class="fa-solid fa-clock-rotate-left"></i></button>
-                                        <button @click="openEditClient(c)" class="text-slate-400 hover:text-brand-500 p-2 rounded-lg hover:bg-brand-50 dark:hover:bg-brand-900/20 transition" title="Editar"><i class="fa-solid fa-pen-to-square"></i></button>
-                                        <button @click="deleteClient(c.id)" class="text-slate-400 hover:text-red-500 p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition" title="Excluir"><i class="fa-solid fa-trash"></i></button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div v-if="registrationTab === 'services'" class="space-y-4">
-                            <div class="flex justify-end"><button @click="showServiceModal=true" class="bg-brand-600 hover:bg-brand-500 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg flex items-center gap-2"><i class="fa-solid fa-plus"></i> Novo Serviço</button></div>
-
-                            <!-- Filtros de Serviços -->
-                            <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 space-y-3">
-                                <p class="text-[11px] font-black uppercase tracking-wider" style="color:var(--ink-soft)">Filtrar Serviços</p>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                    <div class="relative">
-                                        <i class="fa-solid fa-tag absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10"></i>
-                                        <input v-model="serviceSearch" placeholder="Descrição do serviço" class="w-full h-12 pl-12 pr-4 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-500 text-slate-800 placeholder-slate-400">
-                                    </div>
-                                    <div class="relative">
-                                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10 text-sm font-bold">R$</span>
-                                        <input v-model="serviceMaxPrice" type="number" placeholder="Preço máximo" class="w-full h-12 pl-12 pr-4 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-500 text-slate-800 placeholder-slate-400">
-                                    </div>
-                                </div>
-                                <div class="flex gap-2 pt-1">
-                                    <button @click="clearServiceFilter" class="h-11 px-5 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-xl font-bold text-sm hover:bg-slate-200 dark:hover:bg-slate-700 transition flex items-center gap-2"><i class="fa-solid fa-xmark"></i> Limpar</button>
-                                    <button @click="searchServices" class="flex-1 h-11 bg-brand-600 hover:bg-brand-500 text-white rounded-xl font-bold text-sm shadow transition flex items-center justify-center gap-2"><i class="fa-solid fa-search"></i> Buscar</button>
-                                </div>
-                            </div>
-
-                            <!-- Lista de Resultados -->
-                            <div v-if="!servicesSearched" class="text-center py-12 rounded-2xl" style="color:var(--ink-soft);border:1px solid var(--border)">
-                                <i class="fa-solid fa-magnifying-glass text-3xl mb-3 opacity-30 block"></i>
-                                <p class="text-sm font-medium">Use os filtros acima para buscar serviços.</p>
-                            </div>
-                            <div v-else-if="servicesDisplayList.length === 0" class="text-center py-12 rounded-2xl" style="color:var(--ink-soft);border:1px solid var(--border)">
-                                <i class="fa-solid fa-box-open text-3xl mb-3 opacity-30 block"></i>
-                                <p class="text-sm font-medium">Nenhum serviço encontrado.</p>
-                            </div>
-                            <div v-else class="section-card divide-y divide-slate-100">
-                                <div class="px-4 py-2.5 flex items-center justify-between bg-slate-50 rounded-t-2xl">
-                                    <span class="text-xs font-bold text-slate-500">{{ servicesDisplayList.length }} resultado(s)</span>
-                                </div>
-                                <div v-for="s in servicesDisplayList" :key="s.id" class="p-4 flex justify-between items-center transition" onmouseover="this.style.background='var(--surface-3)'" onmouseout="this.style.background='transparent'">
-                                    <span class="font-medium text-slate-700 dark:text-slate-300">{{ s.description }}</span>
-                                    <div class="flex items-center gap-4">
-                                        <span class="text-sm font-bold text-brand-600 bg-brand-50 dark:bg-brand-900/30 px-3 py-1 rounded-lg">{{ formatCurrency(s.price) }}</span>
-                                        <button @click="deleteService(s.id)" class="text-slate-400 hover:text-red-500 p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition"><i class="fa-solid fa-trash"></i></button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- ═══ INVENTÁRIO / ACERVO ═══ -->
-                        <div v-if="registrationTab === 'inventory'" class="space-y-5 animate-fade-in">
-                            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-                                <div>
-                                    <h3 class="text-xl font-bold" style="color:var(--ink)">Acervo de Decoração</h3>
-                                    <p class="text-sm" style="color:var(--ink-soft)">Gerencie seus materiais e itens de decoração</p>
-                                </div>
-                                <button @click="showInventoryModal=true" class="btn-primary px-5 py-2.5 rounded-xl flex items-center gap-2 text-sm"><i class="fa-solid fa-plus"></i> Novo Item</button>
-                            </div>
-
-                            <!-- Filtro de categorias -->
-                            <div class="flex gap-2 flex-wrap">
-                                <button v-for="cat in inventoryCategories" :key="cat.k"
-                                    @click="inventoryCatFilter = cat.k"
-                                    :class="inventoryCatFilter===cat.k ? 'btn-primary' : ''"
-                                    class="px-4 py-2 rounded-xl text-sm font-bold transition"
-                                    :style="inventoryCatFilter!==cat.k ? 'background:var(--surface-3);color:var(--ink-mid);border:1px solid var(--border)' : ''">
-                                    {{ cat.icon }} {{ cat.label }}
-                                </button>
-                            </div>
-
-                            <!-- Grid de itens -->
-                            <div v-if="inventoryFiltered.length === 0" class="text-center py-16 section-card" style="color:var(--ink-soft)">
-                                <i class="fa-solid fa-boxes-stacked text-4xl mb-3 block opacity-30"></i>
-                                <p class="font-medium">Nenhum item no acervo.</p>
-                                <p class="text-xs mt-1">Clique em "Novo Item" para começar.</p>
-                            </div>
-                            <div v-else class="inventory-grid">
-                                <div v-for="item in inventoryFiltered" :key="item.id" class="inventory-card hover-lift animate-fade-in">
-                                    <div class="p-4">
-                                        <div class="w-10 h-10 rounded-xl flex items-center justify-center text-lg mb-3" :style="'background:'+getCatColor(item.category)">
-                                            {{ getCatIcon(item.category) }}
-                                        </div>
-                                        <p class="font-bold text-sm leading-snug mb-1" style="color:var(--ink)">{{ item.name }}</p>
-                                        <p class="text-xs mb-2" style="color:var(--ink-soft)">{{ item.category }}</p>
-                                        <div class="flex items-center justify-between">
-                                            <span class="inventory-badge" :class="item.qty > 5 ? 'ok' : item.qty > 0 ? 'low' : 'empty'">
-                                                {{ item.qty }} un.
-                                            </span>
-                                            <div class="flex gap-1">
-                                                <button @click="editInventoryItem(item)" class="w-7 h-7 rounded-lg flex items-center justify-center text-xs transition" style="background:var(--surface-3);color:var(--ink-soft)"><i class="fa-solid fa-pen"></i></button>
-                                                <button @click="deleteInventoryItem(item.id)" class="w-7 h-7 rounded-lg flex items-center justify-center text-xs transition" style="background:rgba(220,38,38,0.07);color:#dc2626"><i class="fa-solid fa-trash"></i></button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div v-if="registrationTab === 'company'" class="bg-white dark:bg-slate-900 p-8 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 space-y-5 max-w-lg">
-                            <div class="flex justify-center gap-6 mb-6">
-                                <div class="relative group cursor-pointer text-center">
-                                    <p class="text-xs text-slate-400 mb-2 font-bold uppercase">Logo</p>
-                                    <img v-if="company.logo" :src="company.logo" class="h-24 w-24 rounded-full object-cover border-4 border-slate-100 shadow-xl mx-auto">
-                                    <div v-else class="h-24 w-24 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 border-4 border-white dark:border-slate-700 shadow-xl mx-auto"><i class="fa-solid fa-camera text-2xl"></i></div>
-                                    <input type="file" @change="handleLogoUpload" class="absolute inset-0 opacity-0 cursor-pointer">
-                                </div>
-                                <div class="relative group cursor-pointer text-center">
-                                    <p class="text-xs text-slate-400 mb-2 font-bold uppercase">Assinatura</p>
-                                    <div @click="openSignatureModal(company, 'company')" class="h-24 w-40 rounded-xl bg-slate-50 border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center hover:bg-slate-100 transition overflow-hidden">
-                                        <img v-if="company.signature" :src="company.signature" class="h-full object-contain p-2">
-                                        <span v-else class="text-xs text-slate-400 font-bold">Criar</span>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="space-y-4">
-                                <input v-model="company.fantasia" placeholder="Nome Fantasia" class="input-light w-full h-14 px-4 rounded-2xl text-sm font-medium">
-                                <input v-model="company.cnpj" placeholder="CNPJ / CPF" class="input-light w-full h-14 px-4 rounded-2xl text-sm font-medium">
-                                <div class="grid grid-cols-2 gap-4">
-                                    <input v-model="company.email" placeholder="E-mail" class="input-light w-full h-14 px-4 rounded-2xl text-sm font-medium">
-                                    <input v-model="company.phone" placeholder="Telefone" class="input-light w-full h-14 px-4 rounded-2xl text-sm font-medium">
-                                </div>
-                                <input v-model="company.rua" placeholder="Endereço (Rua, Nº)" class="input-light w-full h-14 px-4 rounded-2xl text-sm font-medium">
-                                <input v-model="company.bairro" placeholder="Bairro" class="input-light w-full h-14 px-4 rounded-2xl text-sm font-medium">
-                                <div class="grid grid-cols-3 gap-4">
-                                    <input v-model="company.cidade" placeholder="Cidade" class="col-span-2 w-full h-14 px-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 placeholder-slate-400">
-                                    <input v-model="company.estado" placeholder="UF" class="w-full h-14 px-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 placeholder-slate-400 text-center uppercase" maxlength="2">
-                                </div>
-                            </div>
-                            <button @click="saveCompany" class="btn-primary w-full h-14 rounded-2xl flex items-center justify-center gap-2 mt-4">Salvar Dados</button>
-
-                            <!-- EmailJS Config -->
-                            <div class="border-t border-slate-100 pt-5 space-y-3">
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <p class="font-bold text-slate-800 text-sm">E-mail Automático (EmailJS)</p>
-                                        <p class="text-xs mt-0.5" style="color:var(--ink-soft)">Envia e-mail ao cliente ao criar agendamento.</p>
-                                    </div>
-                                    <a href="https://www.emailjs.com" target="_blank" class="text-xs text-brand-600 font-bold hover:underline">Criar conta</a>
-                                </div>
-                                <input v-model="company.emailjs_service_id" placeholder="Service ID" class="input-light w-full h-12 px-4 rounded-xl text-sm">
-                                <input v-model="company.emailjs_template_id" placeholder="Template ID" class="input-light w-full h-12 px-4 rounded-xl text-sm">
-                                <input v-model="company.emailjs_public_key" placeholder="Public Key" class="input-light w-full h-12 px-4 rounded-xl text-sm">
-                                <button @click="saveCompany" class="w-full h-11 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2" style="background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7)"><i class="fa-solid fa-envelope"></i> Salvar Configuração de E-mail</button>
-                            </div>
-
-                            <!-- Cor do Tema -->
-                            <div class="border-t border-slate-100 pt-5 space-y-3">
-                                <div>
-                                    <p class="font-bold text-slate-800 text-sm mb-1">Cor do Tema</p>
-                                    <p class="text-xs mb-3" style="color:var(--ink-soft)">Personalize a cor principal do sistema.</p>
-                                </div>
-                                <div class="flex items-center gap-4">
-                                    <div class="flex gap-2 flex-wrap">
-                                        <button v-for="c in ['#0F4C81','#10B981','#0284C7','#0F766E','#16A34A','#DB2777','#DC2626','#EA580C','#92400E','#374151']" :key="c"
-                                            @click="company.primaryColor = c"
-                                            class="w-8 h-8 rounded-xl border-2 transition-all"
-                                            :style="{ backgroundColor: c }"
-                                            :class="company.primaryColor === c ? 'border-white scale-110 shadow-lg' : 'border-transparent opacity-70 hover:opacity-100'">
-                                        </button>
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <input type="color" v-model="company.primaryColor" class="w-10 h-10 rounded-xl cursor-pointer border-0 bg-transparent p-0.5">
-                                        <span class="text-xs text-slate-400 font-mono">{{ company.primaryColor }}</span>
-                                    </div>
-                                </div>
-                                <button @click="saveCompany" class="w-full h-11 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2" style="background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7)"><i class="fa-solid fa-palette"></i> Salvar Cor do Tema</button>
-                            </div>
-
-                            <!-- Cláusulas do Contrato -->
-                            <div class="border-t border-slate-100 pt-5 space-y-3">
-                                <div>
-                                    <p class="font-bold text-slate-800 text-sm mb-1">Cláusulas do Contrato</p>
-                                    <p class="text-xs mb-3" style="color:var(--ink-soft)">Uma cláusula por linha. Se vazio, usa o padrão do sistema.</p>
-                                </div>
-                                <textarea v-model="company.contractClauses" placeholder="1. RESERVA: O pagamento do sinal garante a reserva da data.&#10;2. DESISTÊNCIA: Em caso de cancelamento com menos de 15 dias, o sinal não será devolvido.&#10;3. DANOS: O CONTRATANTE é responsável pelos materiais..." class="input-light w-full h-40 px-4 py-3 rounded-xl text-xs resize-none font-mono leading-relaxed"></textarea>
-                                <button @click="saveCompany" class="w-full h-11 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2" style="background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7)"><i class="fa-solid fa-file-contract"></i> Salvar Cláusulas</button>
-                            </div>
-
-                            <!-- Log de Auditoria -->
-                            <div class="border-t border-slate-100 pt-5">
-                                <button @click="loadAuditLog" class="h-11 w-full font-bold rounded-xl text-sm transition flex items-center justify-center gap-2" style="background:var(--surface-3);color:var(--ink-mid);border:1px solid var(--border)">
-                                    <i class="fa-solid fa-clock-rotate-left"></i> Ver Log de Auditoria
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </main>
-            
-            <!-- BOTÃO FLUTUANTE GLOBAL (FAB) - DESTACADO E SEMPRE VISÍVEL -->
-            <button @click="startNewSchedule" title="Novo Agendamento" class="fixed bottom-24 right-5 md:bottom-8 md:right-8 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center z-50 transition transform active:scale-95 hover:scale-110 group glow-brand" style="background:linear-gradient(135deg,var(--brand-light),var(--brand-mid))">
-                <i class="fa-solid fa-plus text-2xl text-white group-hover:rotate-90 transition-transform duration-300"></i>
-            </button>
-
-            <!-- MENU INFERIOR MOBILE -->
-            <div class="md:hidden mobile-nav fixed bottom-0 left-0 right-0 z-40 flex justify-around items-center px-2 py-2">
-                <button @click="view='dashboard'" class="flex flex-col items-center justify-center w-14 h-12 rounded-xl transition gap-1" :style="view==='dashboard'?'color:var(--brand)':'color:var(--ink-soft)'">
-                    <i class="fa-solid fa-chart-pie text-lg"></i>
-                    <span class="text-[9px] font-bold">Painel</span>
-                </button>
-                
-                <button @click="view='schedule'" class="relative flex flex-col items-center justify-center w-14 h-12 rounded-xl transition gap-1" :style="view==='schedule'?'color:var(--brand)':'color:var(--ink-soft)'">
-                    <div class="relative">
-                        <i class="fa-solid fa-calendar text-lg"></i>
-                        <span v-if="pendingAppointments.length > 0" class="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 text-white text-[8px] font-bold flex items-center justify-center rounded-full" style="background:var(--brand)">{{ pendingAppointments.length }}</span>
-                    </div>
-                    <span class="text-[9px] font-bold">Agenda</span>
-                </button>
-                
-                <button @click="view='budgets'" class="relative flex flex-col items-center justify-center w-14 h-12 rounded-xl transition gap-1" :style="view==='budgets'?'color:var(--brand)':'color:var(--ink-soft)'">
-                    <div class="relative">
-                        <i class="fa-solid fa-file-invoice-dollar text-lg"></i>
-                        <span v-if="budgetList.length > 0" class="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 text-white text-[8px] font-bold flex items-center justify-center rounded-full" style="background:#d97706">{{ budgetList.length }}</span>
-                    </div>
-                    <span class="text-[9px] font-bold">Orçamentos</span>
-                </button>
-
-                <button @click="view='finance'" class="flex flex-col items-center justify-center w-14 h-12 rounded-xl transition gap-1" :style="view==='finance'?'color:var(--brand)':'color:var(--ink-soft)'">
-                    <i class="fa-solid fa-wallet text-lg"></i>
-                    <span class="text-[9px] font-bold">Financeiro</span>
-                </button>
-                
-                <button @click="view='registrations'" class="flex flex-col items-center justify-center w-14 h-12 rounded-xl transition gap-1" :style="view==='registrations'?'color:var(--brand)':'color:var(--ink-soft)'">
-                    <i class="fa-solid fa-folder text-lg"></i>
-                    <span class="text-[9px] font-bold">Cadastros</span>
-                </button>
-            </div>
-        </div>
-
-        <!-- MODAL HISTÓRICO DO CLIENTE -->
-        <div v-if="showClientHistoryModal && clientHistoryData" class="fixed inset-0 z-[65] flex items-center justify-center p-4" style="background:rgba(0,0,0,0.75);backdrop-filter:blur(12px)">
-            <div class="rounded-3xl w-full max-w-lg max-h-[90vh] flex flex-col" style="background:white;border:1px solid var(--border);box-shadow:var(--shadow-lg)">
-                <div class="p-5 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white dark:bg-slate-900 rounded-t-3xl z-10">
+            <!-- Header fixo -->
+            <header class="sticky top-0 z-30 px-5 py-4 flex justify-between items-center" style="background:rgba(253,248,246,0.95);backdrop-filter:blur(16px);border-bottom:1px solid var(--border)">
+                <div class="flex items-center gap-3">
+                    <img v-if="company.logo" :src="company.logo" class="w-9 h-9 rounded-xl object-cover shadow-xs">
+                    <div v-else class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:linear-gradient(135deg,#2d6da8,#0f4c81)"><i class="fa-solid fa-wand-magic-sparkles text-white text-sm"></i></div>
                     <div>
-                        <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2"><i class="fa-solid fa-clock-rotate-left text-purple-500"></i> Histórico</h2>
-                        <p class="text-sm text-slate-500">{{ clientHistoryData.name }}</p>
-                    </div>
-                    <button @click="showClientHistoryModal=false" class="w-8 h-8 rounded-full flex items-center justify-center hover:text-red-400 transition text-sm" style="background:var(--surface-3);color:var(--ink-soft)"><i class="fa-solid fa-xmark"></i></button>
-                </div>
-                <!-- KPIs do cliente -->
-                <div class="px-5 py-4 grid grid-cols-3 gap-3" style="border-bottom:1px solid var(--border)">
-                    <div class="input-light rounded-2xl p-3 text-center">
-                        <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Eventos</p>
-                        <p class="text-xl font-bold text-slate-900">{{ clientHistoryApps.filter(a=>a.status!=='budget').length }}</p>
-                    </div>
-                    <div class="input-light rounded-2xl p-3 text-center">
-                        <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Total gasto</p>
-                        <p class="text-sm font-bold text-brand-600">{{ formatCurrency(clientHistoryTotal) }}</p>
-                    </div>
-                    <div class="input-light rounded-2xl p-3 text-center">
-                        <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Avaliação</p>
-                        <div v-if="clientAvgRating > 0" class="flex items-center justify-center gap-1">
-                            <i class="fa-solid fa-star text-yellow-400 text-sm"></i>
-                            <p class="text-xl font-bold text-slate-900">{{ clientAvgRating }}</p>
-                        </div>
-                        <p v-else class="text-sm text-slate-400">—</p>
+                        <p class="font-bold text-sm leading-none" style="color:var(--ink)">{{ company.fantasia }}</p>
+                        <p class="text-[11px] mt-0.5" style="color:var(--ink-soft)">Área do Cliente</p>
                     </div>
                 </div>
-                <!-- Lista de eventos -->
-                <div class="overflow-y-auto flex-1 p-5 space-y-3">
-                    <div v-if="clientHistoryLoading" class="text-center py-8 text-slate-400"><i class="fa-solid fa-circle-notch fa-spin text-2xl"></i></div>
-                    <div v-else-if="clientHistoryApps.length === 0" class="text-center py-8 text-slate-400"><i class="fa-solid fa-calendar-xmark text-3xl mb-2 block opacity-30"></i><p class="text-sm">Nenhum evento encontrado.</p></div>
-                    <div v-else v-for="a in clientHistoryApps" :key="a.id" class="input-light rounded-2xl p-4 border border-slate-200">
-                        <div class="flex justify-between items-start mb-2">
+                <button @click="logout" class="h-9 px-4 rounded-xl font-bold text-xs transition" style="background:rgba(220,38,38,0.07);color:#dc2626;border:1px solid rgba(220,38,38,0.15)">Sair</button>
+            </header>
+
+            <!-- Hero boas vindas -->
+            <div class="mx-4 mt-5 rounded-3xl p-6 text-white relative overflow-hidden animate-fade-in" style="background:linear-gradient(135deg,#2d6da8,#0f4c81)">
+                <div class="absolute -top-6 -right-6 w-28 h-28 rounded-full opacity-20" style="background:white"></div>
+                <div class="absolute -bottom-4 -left-4 w-20 h-20 rounded-full opacity-10" style="background:white"></div>
+                <div class="relative z-10">
+                    <p class="text-sm font-semibold opacity-90 mb-1">Olá,</p>
+                    <h2 class="font-display text-2xl font-bold leading-tight">{{ clientData?.name?.split(' ')[0] || 'Cliente' }}! 🎉</h2>
+                    <p class="text-sm opacity-80 mt-1">Acompanhe os detalhes do seu evento abaixo.</p>
+                </div>
+            </div>
+
+            <!-- Lista de eventos -->
+            <div class="flex-1 px-4 py-5 space-y-6 pb-10">
+
+                <div v-if="appointments.length === 0" class="text-center py-16 rounded-3xl" style="background:white;border:1px solid var(--border);color:var(--ink-soft)">
+                    <i class="fa-solid fa-calendar-xmark text-5xl mb-4 block opacity-30"></i>
+                    <p class="font-medium">Nenhum evento encontrado.</p>
+                    <p class="text-xs mt-1">Entre em contato com o organizador.</p>
+                </div>
+
+                <!-- ── Card de cada evento ── -->
+                <div v-for="(app, idx) in appointments" :key="app.id" class="rounded-3xl overflow-hidden animate-slide-up shadow-card" :style="'animation-delay:'+idx*0.08+'s'" style="background:white;border:1px solid var(--border)">
+
+                    <!-- Cabeçalho do card -->
+                    <div class="px-5 pt-5 pb-4 flex justify-between items-start" style="border-bottom:1px solid var(--border)">
+                        <div class="flex items-center gap-4">
+                            <div class="w-14 h-14 rounded-2xl flex flex-col items-center justify-center text-white flex-shrink-0 shadow-brand" style="background:linear-gradient(135deg,#2d6da8,#0f4c81)">
+                                <span class="text-[10px] font-bold uppercase opacity-80">{{ getMonth(app.date) }}</span>
+                                <span class="text-2xl font-black leading-none">{{ getDay(app.date) }}</span>
+                            </div>
                             <div>
-                                <span class="text-xs font-bold px-2 py-0.5 rounded-lg" :class="a.status==='concluded'?'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400':(a.status==='cancelled'?'bg-red-100 text-red-600':'bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400')">{{ statusText(a.status) }}</span>
-                                <p class="text-sm font-bold text-slate-800 mt-1">{{ formatDate(a.date) }} às {{ a.time }}</p>
-                                <p class="text-xs text-slate-500">{{ a.location?.bairro }}</p>
+                                <p class="font-bold text-base leading-tight" style="color:var(--ink)">{{ app.time }}</p>
+                                <p class="text-sm flex items-center gap-1 mt-0.5" style="color:var(--ink-soft)"><i class="fa-solid fa-map-pin text-xs" style="color:var(--brand)"></i> {{ app.location?.bairro }}</p>
                             </div>
-                            <p class="text-sm font-bold text-brand-600">{{ formatCurrency(a.totalServices) }}</p>
                         </div>
-                        <!-- Avaliação do evento -->
-                        <div v-if="a.review?.rating" class="mt-2 pt-2 border-t border-slate-200">
-                            <div class="flex items-center gap-1 mb-1">
-                                <i v-for="n in 5" :key="n" class="fa-solid fa-star text-xs" :class="n <= a.review.rating ? 'text-yellow-400' : 'text-slate-300 dark:text-slate-600'"></i>
-                                <span class="text-[10px] text-slate-400 ml-1">Avaliação do cliente</span>
+                        <span class="pill-status" :style="app.status==='concluded'?'background:#dcfce7;color:#16a34a':app.status==='budget'?'background:#fef9c3;color:#b45309':'background:var(--brand-pale);color:var(--brand-mid)'">
+                            {{ statusText(app.status) }}
+                        </span>
+                    </div>
+
+                    <!-- Contagem regressiva (apenas se pending ou concluded e data futura) -->
+                    <div v-if="(app.status==='pending'||app.status==='concluded') && getDaysUntil(app.date) >= 0" class="px-5 py-4" style="background:var(--brand-pale);border-bottom:1px solid rgba(15,76,129,0.12)">
+                        <p class="text-xs font-bold uppercase tracking-wider mb-3" style="color:var(--brand-mid)">⏳ Contagem regressiva</p>
+                        <div class="flex gap-3 justify-center">
+                            <div class="countdown-box" v-if="countdowns[app.id]">
+                                <span class="countdown-num">{{ countdowns[app.id].days }}</span>
+                                <span class="countdown-label">dias</span>
                             </div>
-                            <p v-if="a.review.comment" class="text-xs italic text-slate-500">"{{ a.review.comment }}"</p>
+                            <div class="countdown-box" v-if="countdowns[app.id]">
+                                <span class="countdown-num">{{ countdowns[app.id].hours }}</span>
+                                <span class="countdown-label">horas</span>
+                            </div>
+                            <div class="countdown-box" v-if="countdowns[app.id]">
+                                <span class="countdown-num">{{ countdowns[app.id].minutes }}</span>
+                                <span class="countdown-label">min</span>
+                            </div>
+                            <div class="countdown-box" v-if="countdowns[app.id]">
+                                <span class="countdown-num">{{ countdowns[app.id].seconds }}</span>
+                                <span class="countdown-label">seg</span>
+                            </div>
                         </div>
-                        <!-- Botão pedir avaliação se concluído e sem nota -->
-                        <div v-if="a.status === 'concluded' && !a.review?.rating" class="mt-2 pt-2 border-t border-slate-200 flex gap-2">
-                            <button @click="copyReviewLink(a)" class="flex-1 h-8 rounded-xl bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 text-[10px] font-bold flex items-center justify-center gap-1 hover:bg-yellow-100 transition border border-yellow-200 dark:border-yellow-800"><i class="fa-solid fa-link"></i> Copiar link</button>
-                            <button @click="sendReviewWhatsApp(a)" class="flex-1 h-8 rounded-xl bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-[10px] font-bold flex items-center justify-center gap-1 hover:bg-green-100 transition border border-green-200 dark:border-green-800"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
-                        </div>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- MODAL INVENTÁRIO -->
-        <div v-if="showInventoryModal" class="fixed inset-0 z-[60] flex items-center justify-center p-4" style="background:rgba(0,0,0,0.6);backdrop-filter:blur(10px)">
-            <div class="rounded-3xl w-full max-w-md animate-scale-in shadow-modal" style="background:white;border:1px solid var(--border)">
-                <div class="p-6 flex justify-between items-center" style="border-bottom:1px solid var(--border)">
-                    <h2 class="text-xl font-bold flex items-center gap-2" style="color:var(--ink)">
-                        <i class="fa-solid fa-boxes-stacked" style="color:var(--brand)"></i>
-                        {{ editingInventoryId ? 'Editar Item' : 'Novo Item do Acervo' }}
-                    </h2>
-                    <button @click="closeInventoryModal" class="w-8 h-8 rounded-full flex items-center justify-center text-sm transition hover:text-red-500" style="background:var(--surface-3);color:var(--ink-soft)"><i class="fa-solid fa-xmark"></i></button>
-                </div>
-                <div class="p-6 space-y-4">
-                    <div class="relative">
-                        <i class="fa-solid fa-box absolute left-4 top-1/2 -translate-y-1/2 text-xs" style="color:var(--ink-soft)"></i>
-                        <input v-model="newInventory.name" placeholder="Nome do item *" class="input-light w-full h-14 pl-11 pr-4 rounded-2xl text-sm font-medium">
-                    </div>
-                    <select v-model="newInventory.category" class="input-light w-full h-14 px-4 rounded-2xl text-sm font-medium appearance-none">
-                        <option value="">Categoria *</option>
-                        <option v-for="cat in inventoryCategories.filter(c=>c.k!=='all')" :value="cat.label">{{ cat.icon }} {{ cat.label }}</option>
-                    </select>
-                    <div class="relative">
-                        <i class="fa-solid fa-hashtag absolute left-4 top-1/2 -translate-y-1/2 text-xs" style="color:var(--ink-soft)"></i>
-                        <input v-model.number="newInventory.qty" type="number" min="0" placeholder="Quantidade *" class="input-light w-full h-14 pl-11 pr-4 rounded-2xl text-sm font-medium">
-                    </div>
-                    <div class="relative">
-                        <i class="fa-solid fa-note-sticky absolute left-4 top-1/2 -translate-y-1/2 text-xs" style="color:var(--ink-soft)"></i>
-                        <input v-model="newInventory.notes" placeholder="Observações (opcional)" class="input-light w-full h-12 pl-11 pr-4 rounded-xl text-sm">
-                    </div>
-                    <div class="flex gap-3 pt-2">
-                        <button @click="closeInventoryModal" class="h-14 px-6 rounded-2xl font-bold transition" style="background:var(--surface-3);color:var(--ink-soft)">Cancelar</button>
-                        <button @click="saveInventoryItem" class="btn-primary flex-1 h-14 rounded-2xl flex items-center justify-center gap-2"><i class="fa-solid fa-check"></i> Salvar</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- MODAL CLIENTE -->
-        <div v-if="showClientModal" class="fixed inset-0 z-[60] flex items-center justify-center p-4" style="background:rgba(0,0,0,0.75);backdrop-filter:blur(12px)">
-            <div class="rounded-3xl w-full max-w-md" style="background:white;border:1px solid var(--border);box-shadow:var(--shadow-lg)">
-                <div class="p-6 flex justify-between items-center" style="border-bottom:1px solid var(--border)">
-                    <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2">
-                        <i class="fa-solid fa-user-plus text-brand-600"></i>
-                        {{ editingClientId ? 'Editar Cliente' : 'Novo Cliente' }}
-                    </h2>
-                    <button @click="showClientModal=false" class="w-8 h-8 rounded-full flex items-center justify-center hover:text-red-400 transition text-sm" style="background:var(--surface-3);color:var(--ink-soft)">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
-                </div>
-                <div class="p-6 space-y-4">
-                    <div class="relative">
-                        <i class="fa-solid fa-user absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10"></i>
-                        <input v-model="newClient.name" placeholder="Nome completo *" class="input-light w-full h-14 pl-12 pr-4 rounded-2xl text-sm font-medium">
-                    </div>
-                    <div class="relative">
-                        <i class="fa-solid fa-phone absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10"></i>
-                        <input v-model="newClient.phone" placeholder="Telefone / WhatsApp" class="input-light w-full h-14 pl-12 pr-4 rounded-2xl text-sm font-medium">
-                    </div>
-                    <div class="relative">
-                        <i class="fa-solid fa-id-card absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10"></i>
-                        <input v-model="newClient.cpf" placeholder="CPF" class="input-light w-full h-14 pl-12 pr-4 rounded-2xl text-sm font-medium">
-                    </div>
-                    <div class="relative">
-                        <i class="fa-solid fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10"></i>
-                        <input v-model="newClient.email" placeholder="E-mail" class="input-light w-full h-14 pl-12 pr-4 rounded-2xl text-sm font-medium">
-                    </div>
-                    <div class="flex gap-3 pt-2">
-                        <button @click="showClientModal=false" class="h-14 px-6 rounded-2xl font-bold transition" style="background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.5)">Cancelar</button>
-                        <button @click="saveClient" class="btn-primary flex-1 h-14 rounded-2xl flex items-center justify-center gap-2">
-                            <i class="fa-solid fa-check"></i> Salvar
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- MODAL SERVIÇO -->
-        <div v-if="showServiceModal" class="fixed inset-0 z-[60] flex items-center justify-center p-4" style="background:rgba(0,0,0,0.75);backdrop-filter:blur(12px)">
-            <div class="rounded-3xl w-full max-w-md" style="background:white;border:1px solid var(--border);box-shadow:var(--shadow-lg)">
-                <div class="p-6 flex justify-between items-center" style="border-bottom:1px solid var(--border)">
-                    <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2">
-                        <i class="fa-solid fa-tag text-brand-600"></i> Novo Serviço
-                    </h2>
-                    <button @click="showServiceModal=false" class="w-8 h-8 rounded-full flex items-center justify-center hover:text-red-400 transition text-sm" style="background:var(--surface-3);color:var(--ink-soft)">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
-                </div>
-                <div class="p-6 space-y-4">
-                    <div class="relative">
-                        <i class="fa-solid fa-tag absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10"></i>
-                        <input v-model="newService.description" placeholder="Descrição do serviço *" class="input-light w-full h-14 pl-12 pr-4 rounded-2xl text-sm font-medium">
-                    </div>
-                    <div class="relative">
-                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10 text-sm font-bold">R$</span>
-                        <input v-model="newService.price" type="number" placeholder="Preço *" class="input-light w-full h-14 pl-12 pr-4 rounded-2xl text-sm font-medium">
-                    </div>
-                    <div class="flex gap-3 pt-2">
-                        <button @click="showServiceModal=false" class="h-14 px-6 rounded-2xl font-bold transition" style="background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.5)">Cancelar</button>
-                        <button @click="saveService" class="btn-primary flex-1 h-14 rounded-2xl flex items-center justify-center gap-2">
-                            <i class="fa-solid fa-check"></i> Salvar
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- MODAL ASSINATURA -->
-        <div v-if="showSignatureModal" class="fixed inset-0 z-[70] bg-black/90 flex items-center justify-center p-4 backdrop-blur-sm">
-            <div class="bg-white dark:bg-slate-900 p-4 rounded-3xl w-full max-w-md shadow-2xl border border-slate-200">
-                <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-lg text-slate-900">Assinar</h3><button @click="showSignatureModal=false" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-xmark text-xl"></i></button></div>
-                <div class="bg-slate-100 dark:bg-slate-800 rounded-2xl overflow-hidden border-2 border-dashed border-slate-300 dark:border-slate-600 relative touch-none"><canvas id="signature-pad" class="w-full h-48 bg-white cursor-crosshair"></canvas><div class="absolute bottom-2 right-2 text-[10px] text-slate-400 pointer-events-none">Desenhe acima</div></div>
-                <div class="flex gap-3 mt-4"><button @click="clearSignature" class="h-12 px-4 rounded-xl font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200">Limpar</button><button @click="saveSignature" class="flex-1 h-12 bg-brand-600 hover:bg-brand-500 text-white rounded-xl font-bold shadow-lg flex items-center justify-center gap-2"><i v-if="authLoading" class="fa-solid fa-circle-notch fa-spin"></i> Confirmar</button></div>
-            </div>
-        </div>
-
-        <!-- MODAL RECIBO -->
-        <div v-if="showReceiptModal && currentReceipt" class="fixed inset-0 z-[80] flex items-center justify-center p-4" style="background:rgba(26,16,24,0.6);backdrop-filter:blur(12px)">
-            <div class="bg-white w-full max-w-md shadow-2xl relative text-slate-800 rounded-3xl overflow-hidden" id="receipt-capture-area">
-                <div class="bg-slate-900 text-white p-8 text-center"><h2 class="text-2xl font-bold">{{ company.fantasia }}</h2><p class="text-xs uppercase opacity-60 mt-1 tracking-widest">Recibo / Detalhes</p></div>
-                <div class="p-8 space-y-5 text-sm bg-slate-50">
-                    <div class="flex justify-between border-b pb-2"><span class="text-slate-500 font-bold uppercase text-[10px]">Cliente</span><span class="font-bold">{{ getClientName(currentReceipt.clientId) }}</span></div>
-                    <div class="flex justify-between border-b pb-2"><span class="text-slate-500 font-bold uppercase text-[10px]">Data e Hora</span><span class="font-bold">{{ formatDate(currentReceipt.date) }} às {{ currentReceipt.time }}</span></div>
-                    <div class="flex justify-between border-b pb-2"><span class="text-slate-500 font-bold uppercase text-[10px]">Local</span><span class="font-bold text-right">{{ currentReceipt.location.bairro }}</span></div>
-                    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm"><div v-for="s in currentReceipt.selectedServices" class="flex justify-between mb-2 text-slate-600"><span>{{ s.description }}</span><span class="font-mono font-bold text-slate-900">{{ formatCurrency(s.price) }}</span></div><div class="border-t border-slate-100 my-3 pt-3 flex justify-between font-bold text-lg text-slate-900"><span>Total</span><span>{{ formatCurrency(currentReceipt.totalServices) }}</span></div><div class="flex justify-between text-green-600 text-xs font-bold mb-1"><span>Entrada</span><span>- {{ formatCurrency(currentReceipt.entryFee) }}</span></div><div class="flex justify-between font-bold text-brand-600 text-lg border-t border-dashed border-slate-300 pt-3 mt-3"><span>A Pagar</span><span>{{ formatCurrency(currentReceipt.finalBalance) }}</span></div></div>
-                    <div v-if="currentReceipt.notes" class="text-xs bg-yellow-50 text-yellow-800 p-3 rounded-lg border border-yellow-200 italic">Obs: {{ currentReceipt.notes }}</div>
-                    <div v-if="currentReceipt.details?.balloonColors" class="text-xs bg-purple-50 text-purple-800 p-3 rounded-lg border border-purple-200"><strong>Cores:</strong> {{ currentReceipt.details.balloonColors }}</div>
-                    <div v-if="currentReceipt.internalNotes" class="text-xs bg-orange-50 text-orange-800 p-3 rounded-lg border border-orange-200 flex items-start gap-2"><i class="fa-solid fa-lock mt-0.5 flex-shrink-0"></i><span><strong>Nota Interna:</strong> {{ currentReceipt.internalNotes }}</span></div>
-                    <div v-if="currentReceipt.installments > 1" class="text-xs bg-brand-50 text-brand-800 p-3 rounded-lg border border-brand-200"><strong>Parcelamento:</strong> {{ currentReceipt.installments }}x de {{ formatCurrency(currentReceipt.finalBalance / currentReceipt.installments) }}</div>
-                    
-                    <div v-if="currentReceipt.status === 'budget'" class="text-center mt-2">
-                         <span class="bg-yellow-100 text-yellow-700 text-[10px] font-bold px-3 py-1 rounded-full uppercase border border-yellow-200">Este documento é um Orçamento</span>
+                    <div v-else-if="getDaysUntil(app.date) < 0 && app.status !== 'cancelled'" class="px-5 py-3 text-center" style="background:var(--surface-3)">
+                        <p class="text-sm font-bold" style="color:var(--ink-soft)">🎊 Evento realizado! Obrigado pela confiança.</p>
                     </div>
 
-                </div>
-                <div class="bg-slate-100 p-3 text-center text-[10px] text-slate-400">Gerado via PartyPlanner Pro</div>
-            </div>
-            <div class="absolute bottom-8 right-6 flex flex-col gap-4 z-50">
-                <button @click="openWhatsApp(currentReceipt)" class="w-14 h-14 bg-green-500 text-white rounded-full shadow-xl flex items-center justify-center text-2xl hover:scale-110 transition border-2 border-white dark:border-slate-800"><i class="fa-brands fa-whatsapp"></i></button>
-                <button @click="downloadReceiptImage" class="w-14 h-14 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center text-xl hover:scale-110 transition border-2 border-white dark:border-slate-800"><i class="fa-solid fa-image"></i></button>
-                <button @click="generateContractPDF" class="w-14 h-14 bg-red-600 text-white rounded-full shadow-xl flex items-center justify-center text-xl hover:scale-110 transition border-2 border-white dark:border-slate-800"><i class="fa-solid fa-file-pdf"></i></button>
-                <button @click="showReceiptModal=false" class="w-14 h-14 bg-white text-slate-900 rounded-full shadow-xl flex items-center justify-center text-xl hover:scale-110 transition border-2 border-slate-200"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-        </div>
-
-        <!-- MODAL AGENDAMENTO -->
-        <div v-if="user && showAppointmentModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div class="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto border border-slate-200 dark:border-slate-800">
-                <div class="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white dark:bg-slate-900 z-10"><h2 class="text-xl font-bold text-slate-900 flex items-center gap-2"><i class="fa-solid fa-calendar-check text-brand-600"></i> {{ isEditing ? 'Editar' : 'Novo' }} Agendamento</h2><button @click="showAppointmentModal=false" class="w-8 h-8 rounded-full flex items-center justify-center hover:text-red-400 transition text-sm" style="background:var(--surface-3);color:var(--ink-soft)"><i class="fa-solid fa-xmark"></i></button></div>
-                <div class="p-6 space-y-5">
-                    <div class="relative group"><label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block ml-1">Cliente</label><div class="relative w-full"><i class="fa-solid fa-user absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="clientSearchTerm" placeholder="Buscar cliente..." class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 placeholder-slate-400"></div><div v-if="filteredClientsSearch.length" class="absolute w-full bg-white dark:bg-slate-800 border dark:border-slate-700 shadow-xl max-h-40 overflow-y-auto z-20 mt-2 rounded-xl p-1"><div v-for="c in filteredClientsSearch" @click="selectClient(c)" class="p-3 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer rounded-lg text-sm font-medium transition text-slate-700 dark:text-slate-200">{{ c.name }}</div></div><button v-if="!tempApp.clientId" @click="showClientModal=true" class="text-xs text-brand-600 font-bold mt-2 hover:underline inline-flex items-center gap-1 ml-1"><i class="fa-solid fa-user-plus"></i> Cadastrar Novo</button></div>
-                    <div class="grid grid-cols-2 gap-4"><div><label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block ml-1">Data</label><div class="relative w-full"><i class="fa-solid fa-calendar absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="tempApp.date" type="date" class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-white"></div></div><div><label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block ml-1">Hora</label><div class="relative w-full"><i class="fa-solid fa-clock absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="tempApp.time" type="time" class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-white"></div></div></div>
-                    <div><label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block ml-1">Local</label><div class="relative w-full"><i class="fa-solid fa-map-pin absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="tempApp.location.bairro" placeholder="Endereço / Bairro" class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 placeholder-slate-400"></div></div>
-                    <div class="rounded-2xl p-5" style="background:var(--surface-2);border:1px solid var(--border)">
-                                    <div class="flex justify-between items-center mb-4">
-                                        <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ink-soft)">🎨 Moodboard de Serviços</label>
-                                        <button @click="showServiceModal=true" class="text-xs font-bold transition flex items-center gap-1" style="color:var(--brand)"><i class="fa-solid fa-plus"></i> Novo serviço</button>
-                                    </div>
-
-                                    <!-- Busca rápida de serviços no modal -->
-                                    <div class="relative mb-4">
-                                        <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-xs pointer-events-none" style="color:var(--ink-soft)"></i>
-                                        <input v-model="moodboardSearch" placeholder="Filtrar serviços..." class="input-light w-full h-10 pl-9 pr-3 rounded-xl text-sm">
-                                    </div>
-
-                                    <!-- Moodboard grid -->
-                                    <div v-if="services.length === 0" class="text-center py-6" style="color:var(--ink-soft)">
-                                        <i class="fa-solid fa-tags text-3xl mb-2 block opacity-30"></i>
-                                        <p class="text-xs">Nenhum serviço cadastrado ainda.</p>
-                                    </div>
-                                    <div v-else class="moodboard-grid mb-4">
-                                        <div v-for="s in moodboardFiltered" :key="s.id"
-                                            @click="toggleMoodboardService(s)"
-                                            class="moodboard-card"
-                                            :class="isServiceSelected(s) ? 'selected' : ''">
-                                            <div class="text-xl mb-2">{{ getMoodboardIcon(s.description) }}</div>
-                                            <p class="text-xs font-bold leading-snug mb-1" style="color:var(--ink)">{{ s.description }}</p>
-                                            <p class="text-xs font-black" style="color:var(--brand)">{{ formatCurrency(s.price) }}</p>
-                                        </div>
-                                    </div>
-
-                                    <!-- Selecionados -->
-                                    <div v-if="tempApp.selectedServices.length" class="space-y-1.5">
-                                        <p class="text-[10px] font-bold uppercase tracking-wider mb-2" style="color:var(--ink-soft)">Selecionados ({{ tempApp.selectedServices.length }})</p>
-                                        <div v-for="(s,i) in tempApp.selectedServices" :key="i" class="flex justify-between items-center text-sm p-3 rounded-xl animate-fade-in" style="background:white;border:1px solid var(--border)">
-                                            <span class="truncate pr-2 font-medium" style="color:var(--ink)">{{ s.description }}</span>
-                                            <div class="flex gap-2 items-center flex-shrink-0">
-                                                <span class="font-black text-sm" style="color:var(--brand)">{{ formatCurrency(s.price) }}</span>
-                                                <button @click="removeServiceFromApp(i)" class="w-6 h-6 rounded-lg flex items-center justify-center transition" style="background:rgba(220,38,38,0.08);color:#dc2626"><i class="fa-solid fa-xmark text-xs"></i></button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div v-else class="text-center py-3 text-xs" style="color:var(--ink-soft)">Clique nos cards acima para selecionar serviços</div>
-                                </div>
-                    <div><label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block ml-1">Cores dos Balões</label><div class="relative w-full"><i class="fa-solid fa-palette absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="tempApp.details.balloonColors" placeholder="Ex: Azul Royal e Prata" class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 placeholder-slate-400"></div></div>
-
-                    <!-- CHECKLIST DO EVENTO -->
-                    <div class="bg-slate-50 p-4 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 space-y-3">
-                        <div class="flex items-center justify-between">
-                            <label class="text-xs font-bold text-slate-500 uppercase">Checklist do Evento</label>
-                            <span v-if="tempApp.checklist?.length" class="text-xs font-bold text-brand-600">{{ checklistProgress }}% concluído</span>
-                        </div>
-                        <!-- Barra de progresso -->
-                        <div v-if="tempApp.checklist?.length" class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
-                            <div class="h-1.5 bg-brand-500 rounded-full transition-all duration-500" :style="{ width: checklistProgress + '%' }"></div>
-                        </div>
-                        <!-- Itens -->
+                    <!-- Serviços contratados -->
+                    <div class="px-5 py-4" style="border-bottom:1px solid var(--border)">
+                        <p class="text-[11px] font-bold uppercase tracking-wider mb-3" style="color:var(--ink-soft)">Serviços</p>
                         <div class="space-y-2">
-                            <div v-for="(item, i) in tempApp.checklist" :key="i" class="flex items-center gap-2 bg-white dark:bg-slate-900 rounded-xl px-3 py-2 border border-slate-200">
-                                <button @click="toggleChecklistItem(i)" class="w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all" :class="item.done ? 'bg-green-500 border-green-500 text-white' : 'border-slate-300 dark:border-slate-600'">
-                                    <i v-if="item.done" class="fa-solid fa-check text-[9px]"></i>
+                            <div v-for="s in app.selectedServices" :key="s.description" class="flex justify-between items-center text-sm">
+                                <span style="color:var(--ink)">{{ s.description }}</span>
+                                <span class="font-bold" style="color:var(--ink)">{{ formatCurrency(s.price) }}</span>
+                            </div>
+                        </div>
+                        <div v-if="app.details?.balloonColors" class="mt-3 p-3 rounded-xl text-xs font-medium" style="background:var(--surface-3);color:var(--ink-soft)">
+                            🎈 Decoração: {{ app.details.balloonColors }}
+                        </div>
+                    </div>
+
+                    <!-- Resumo financeiro -->
+                    <div class="px-5 py-4" style="border-bottom:1px solid var(--border)">
+                        <div class="flex justify-between text-sm mb-1">
+                            <span style="color:var(--ink-soft)">Total dos serviços</span>
+                            <span class="font-semibold" style="color:var(--ink)">{{ formatCurrency(app.totalServices) }}</span>
+                        </div>
+                        <div v-if="app.details?.entryFee > 0" class="flex justify-between text-sm mb-1">
+                            <span style="color:var(--ink-soft)">Sinal pago</span>
+                            <span class="font-semibold text-green-600">- {{ formatCurrency(app.details.entryFee) }}</span>
+                        </div>
+                        <div class="flex justify-between text-base font-black mt-2 pt-2" style="border-top:1px solid var(--border)">
+                            <span style="color:var(--ink)">A pagar</span>
+                            <span style="color:var(--brand)">{{ formatCurrency(app.finalBalance) }}</span>
+                        </div>
+                    </div>
+
+                    <!-- Contrato / Assinatura -->
+                    <div class="px-5 py-5">
+                        <!-- JÁ ASSINADO -->
+                        <div v-if="app.clientSignature" class="text-center">
+                            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-xl mb-4 text-sm font-bold" style="background:#dcfce7;color:#16a34a">
+                                <i class="fa-solid fa-circle-check"></i> Contrato assinado com sucesso!
+                            </div>
+                            <div class="p-4 rounded-2xl mb-4" style="background:var(--surface-3);border:1px solid var(--border)">
+                                <img :src="app.clientSignature" class="h-12 mx-auto" style="mix-blend-mode:multiply">
+                            </div>
+                            <div class="flex gap-3">
+                                <button @click="downloadContract(app)" class="flex-1 h-14 rounded-2xl font-bold text-sm transition flex items-center justify-center gap-2" style="background:var(--surface-3);color:var(--ink-mid);border:1px solid var(--border)">
+                                    <i class="fa-solid fa-file-pdf"></i> Baixar PDF
                                 </button>
-                                <span class="flex-1 text-sm font-medium text-slate-700 dark:text-slate-300 transition-all" :class="item.done ? 'line-through opacity-50' : ''">{{ item.text }}</span>
-                                <button @click="removeChecklistItem(i)" class="text-slate-300 hover:text-red-400 transition flex-shrink-0"><i class="fa-solid fa-xmark text-xs"></i></button>
+                                <button @click="openSupport(app)" class="flex-1 h-14 rounded-2xl font-bold text-sm text-white transition flex items-center justify-center gap-2" style="background:#25d366">
+                                    <i class="fa-brands fa-whatsapp text-lg"></i> Suporte
+                                </button>
                             </div>
                         </div>
-                        <!-- Adicionar item -->
-                        <div class="flex gap-2">
-                            <input v-model="newChecklistItem" @keyup.enter="addChecklistItem" placeholder="Nova tarefa..." class="flex-1 h-10 px-3 bg-white dark:bg-slate-900 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-500 text-slate-800 placeholder-slate-400">
-                            <button @click="addChecklistItem" class="w-10 h-10 bg-brand-600 hover:bg-brand-500 text-white rounded-xl flex items-center justify-center transition"><i class="fa-solid fa-plus text-sm"></i></button>
-                        </div>
-                    </div>
-                    <div><label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block ml-1">Observações para o Cliente</label><textarea v-model="tempApp.notes" placeholder="Detalhes visíveis no recibo..." class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 rounded-2xl p-4 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 placeholder-slate-400 resize-none h-24"></textarea></div>
-                    <div><label class="text-[11px] font-bold text-orange-500 uppercase tracking-wider mb-1.5 block ml-1 flex items-center gap-1.5"><i class="fa-solid fa-lock text-[10px]"></i> Notas Internas (visível só para você)</label><textarea v-model="tempApp.internalNotes" placeholder="Anotações privadas sobre o evento..." class="w-full bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-800 rounded-2xl p-4 text-sm font-medium outline-none focus:ring-2 focus:ring-orange-400 transition-all text-slate-800 placeholder-slate-400 resize-none h-20"></textarea></div>
-                    <div class="bg-brand-50 dark:bg-slate-800 p-5 rounded-2xl border border-brand-100 dark:border-slate-700 space-y-3">
-                        <div class="flex justify-between text-sm text-slate-600 dark:text-slate-300"><span>Valor Total:</span> <strong class="text-lg text-white">{{ formatCurrency(totalServices) }}</strong></div>
-                        <div class="flex justify-between items-center"><span class="text-sm font-medium text-slate-500">Sinal (Entrada):</span> <input v-model="tempApp.details.entryFee" type="number" class="w-32 h-10 p-2 rounded-lg text-right border-none ring-1 ring-slate-300 focus:ring-brand-500 text-slate-900 font-bold bg-white shadow-inner"></div>
-                        <div class="flex justify-between text-brand-700 dark:text-brand-400 font-bold border-t border-brand-200 dark:border-slate-600 pt-3 text-lg"><span>Restante:</span> <span>{{ formatCurrency(finalBalance) }}</span></div>
-                        <!-- Parcelamento -->
-                        <div class="border-t border-brand-200 dark:border-slate-600 pt-3">
-                            <div class="flex justify-between items-center">
-                                <span class="text-sm font-medium text-slate-500">Parcelar restante em:</span>
-                                <div class="flex items-center gap-2">
-                                    <select v-model="tempApp.installments" class="h-10 px-3 rounded-lg ring-1 ring-slate-300 focus:ring-brand-500 text-white dark:bg-slate-700 font-bold bg-white text-sm outline-none">
-                                        <option v-for="n in [1,2,3,4,5,6,10,12]" :value="n">{{ n }}x</option>
-                                    </select>
-                                    <span class="font-bold text-brand-600 text-sm whitespace-nowrap">{{ formatCurrency(installmentValue) }}/parcela</span>
-                                </div>
+
+                        <!-- AGUARDANDO ASSINATURA -->
+                        <div v-else>
+                            <div class="p-4 rounded-2xl mb-4 text-center" style="background:#fef9c3;border:1px solid rgba(202,138,4,0.2)">
+                                <p class="text-sm font-bold" style="color:#b45309">✍️ Assinatura pendente</p>
+                                <p class="text-xs mt-1" style="color:rgba(180,83,9,0.7)">Leia o contrato e assine digitalmente para confirmar.</p>
                             </div>
+                            <button @click="openContractPreview(app)" class="btn-cta">
+                                <i class="fa-solid fa-file-contract"></i> Ver Contrato e Assinar
+                            </button>
                         </div>
                     </div>
-                    
-                    <div class="grid grid-cols-2 gap-3 mt-4">
-                        <button @click="saveAsBudget" class="h-14 bg-yellow-100 text-yellow-700 hover:bg-yellow-200 font-bold rounded-2xl transition flex items-center justify-center gap-2">
-                            <i class="fa-solid fa-file-invoice-dollar"></i> Orçamento
-                        </button>
-                        <button @click="saveAppointment" :disabled="authLoading" class="h-14 btn-primary hover:bg-brand-500 font-bold rounded-2xl transition shadow-lg flex items-center justify-center gap-2">
-                            <i v-if="authLoading" class="fa-solid fa-circle-notch fa-spin"></i>
-                            <i v-else class="fa-solid fa-check"></i> Salvar
-                        </button>
+
+                </div>
+            </div><!-- /eventos -->
+
+        </div><!-- /portal -->
+
+        <!-- ═══════════════════════════════════════
+             MODAL CONTRATO (fluxo vertical contínuo)
+             ═══════════════════════════════════════ -->
+        <div v-if="showContractModal" class="fixed inset-0 z-[70] flex flex-col" style="background:var(--surface-2)">
+
+            <!-- Header fixo do modal -->
+            <div class="flex items-center gap-3 px-5 py-4 flex-shrink-0" style="background:white;border-bottom:1px solid var(--border)">
+                <button @click="showContractModal=false" class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style="background:var(--surface-3);color:var(--ink-soft)">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </button>
+                <div class="flex-1 min-w-0">
+                    <h3 class="font-bold text-base leading-none" style="color:var(--ink)">Contrato Digital</h3>
+                    <p class="text-xs mt-0.5" style="color:var(--ink-soft)">Role até o final para assinar</p>
+                </div>
+                <div class="w-8 h-8 rounded-full flex items-center justify-center" style="background:var(--brand-pale)">
+                    <i class="fa-solid fa-file-contract text-sm" style="color:var(--brand)"></i>
+                </div>
+            </div>
+
+            <!-- Conteúdo rolável do contrato -->
+            <div class="flex-1 overflow-y-auto px-5 py-6 space-y-5 pb-44">
+
+                <!-- Logo/empresa -->
+                <div class="text-center pb-5" style="border-bottom:1px solid var(--border)">
+                    <img v-if="company.logo" :src="company.logo" class="w-20 h-20 rounded-2xl object-cover mx-auto mb-3 shadow-pop">
+                    <h2 class="font-display text-xl font-bold" style="color:var(--ink)">{{ company.fantasia }}</h2>
+                    <p v-if="company.cnpj" class="text-xs mt-0.5" style="color:var(--ink-soft)">CNPJ: {{ company.cnpj }}</p>
+                    <span class="inline-block mt-3 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wide" style="background:var(--brand-pale);color:var(--brand-mid)">Contrato de Prestação de Serviços</span>
+                </div>
+
+                <!-- Contratante -->
+                <div class="rounded-2xl p-5 space-y-2" style="background:var(--surface-3)">
+                    <p class="text-[10px] font-black uppercase tracking-widest mb-3" style="color:var(--ink-soft)">Contratante</p>
+                    <p class="text-sm"><span class="font-bold" style="color:var(--ink)">Nome:</span> <span style="color:var(--ink-soft)">{{ clientData?.name }}</span></p>
+                    <p v-if="clientData?.cpf" class="text-sm"><span class="font-bold" style="color:var(--ink)">CPF:</span> <span style="color:var(--ink-soft)">{{ clientData.cpf }}</span></p>
+                    <p v-if="clientData?.phone" class="text-sm"><span class="font-bold" style="color:var(--ink)">Tel:</span> <span style="color:var(--ink-soft)">{{ clientData.phone }}</span></p>
+                </div>
+
+                <!-- Evento -->
+                <div class="rounded-2xl p-5 space-y-2" style="background:var(--surface-3)">
+                    <p class="text-[10px] font-black uppercase tracking-widest mb-3" style="color:var(--ink-soft)">Dados do Evento</p>
+                    <p class="text-sm" v-if="contractApp"><span class="font-bold" style="color:var(--ink)">Data:</span> <span style="color:var(--ink-soft)">{{ formatDate(contractApp.date) }} às {{ contractApp.time }}</span></p>
+                    <p class="text-sm" v-if="contractApp"><span class="font-bold" style="color:var(--ink)">Local:</span> <span style="color:var(--ink-soft)">{{ contractApp?.location?.bairro }}</span></p>
+                    <p class="text-sm" v-if="contractApp?.details?.balloonColors"><span class="font-bold" style="color:var(--ink)">Decoração:</span> <span style="color:var(--ink-soft)">{{ contractApp.details.balloonColors }}</span></p>
+                </div>
+
+                <!-- Serviços -->
+                <div v-if="contractApp?.selectedServices?.length" class="rounded-2xl overflow-hidden" style="border:1px solid var(--border)">
+                    <div class="flex justify-between px-5 py-3 text-xs font-black uppercase" style="background:var(--ink);color:white">
+                        <span>Serviço</span><span>Valor</span>
                     </div>
-                </div> 
-            </div> 
-        </div> 
+                    <div v-for="s in contractApp.selectedServices" :key="s.description" class="flex justify-between px-5 py-3.5 text-sm" style="border-top:1px solid var(--border)">
+                        <span style="color:var(--ink)">{{ s.description }}</span>
+                        <span class="font-bold" style="color:var(--ink)">{{ formatCurrency(s.price) }}</span>
+                    </div>
+                </div>
 
-    </div> 
+                <!-- Financeiro -->
+                <div v-if="contractApp" class="rounded-2xl p-5 space-y-2" style="background:var(--brand-pale);border:1px solid rgba(15,76,129,0.15)">
+                    <div class="flex justify-between text-sm">
+                        <span style="color:var(--ink-soft)">Total dos Serviços</span>
+                        <span class="font-bold" style="color:var(--ink)">{{ formatCurrency(contractApp.totalServices) }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span style="color:var(--ink-soft)">Sinal / Entrada</span>
+                        <span class="font-bold text-green-600">{{ formatCurrency(contractApp.details?.entryFee || 0) }}</span>
+                    </div>
+                    <div class="flex justify-between pt-3 mt-2" style="border-top:1px solid rgba(255,92,53,0.2)">
+                        <span class="font-black" style="color:var(--ink)">Restante a Pagar</span>
+                        <span class="font-black text-xl" style="color:var(--brand)">{{ formatCurrency(contractApp.finalBalance) }}</span>
+                    </div>
+                </div>
 
-    <!-- SCRIPTS OBRIGATÓRIOS DO VUE E DA APLICAÇÃO -->
+                <!-- Cláusulas -->
+                <div class="space-y-4">
+                    <p class="text-[10px] font-black uppercase tracking-widest" style="color:var(--ink-soft)">Cláusulas e Condições</p>
+                    <div v-if="company.contractClauses" class="space-y-3">
+                        <div v-for="(clause, ci) in company.contractClauses.split('\n').filter(c=>c.trim())" :key="ci" class="flex gap-3 text-sm leading-relaxed p-4 rounded-xl" style="background:var(--surface-3)">
+                            <span class="font-black flex-shrink-0" style="color:var(--brand)">{{ ci+1 }}.</span>
+                            <p style="color:var(--ink-soft)">{{ clause.replace(/^\d+\.\s*/, '') }}</p>
+                        </div>
+                    </div>
+                    <div v-else class="space-y-3">
+                        <div v-for="(c, ci) in defaultClauses" :key="ci" class="flex gap-3 text-sm leading-relaxed p-4 rounded-xl" style="background:var(--surface-3)">
+                            <span class="font-black flex-shrink-0" style="color:var(--brand)">{{ ci+1 }}.</span>
+                            <div style="color:var(--ink-soft)"><span class="font-bold" style="color:var(--ink)">{{ c.title }}:</span> {{ c.body }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="h-4"></div>
+            </div>
+
+            <!-- Sticky bottom — botão de aceitar -->
+            <div class="sticky-footer animate-slide-up">
+                <p class="text-center text-xs" style="color:var(--ink-soft)">Ao assinar, você confirma que leu e concorda com todas as cláusulas acima.</p>
+                <button @click="acceptAndSign" class="btn-cta">
+                    <i class="fa-solid fa-signature"></i> Li e aceito — Assinar Agora
+                </button>
+            </div>
+        </div>
+
+        <!-- ═══ MODAL ASSINATURA ═══ -->
+        <div v-if="showSignModal" class="fixed inset-0 z-[80] flex flex-col items-end justify-end" style="background:rgba(26,16,24,0.6);backdrop-filter:blur(8px)">
+            <div class="w-full rounded-t-3xl p-6 animate-slide-up shadow-modal" style="background:white">
+                <div class="w-10 h-1 rounded-full mx-auto mb-5" style="background:var(--border)"></div>
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-display text-xl font-bold" style="color:var(--ink)">Sua assinatura</h3>
+                    <button @click="showSignModal=false" class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:var(--surface-3);color:var(--ink-soft)"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <p class="text-sm mb-4" style="color:var(--ink-soft)">Desenhe sua assinatura no campo abaixo com o dedo.</p>
+                <div class="rounded-2xl overflow-hidden mb-4" style="border:2px dashed var(--border)">
+                    <canvas id="signature-pad" class="w-full bg-white cursor-crosshair" style="height:180px;touch-action:none;display:block"></canvas>
+                </div>
+                <div class="flex gap-3">
+                    <button @click="clearCanvas" class="h-14 px-6 rounded-2xl font-bold transition" style="background:var(--surface-3);color:var(--ink-soft);border:1px solid var(--border)">Limpar</button>
+                    <button @click="saveSignature" :disabled="authLoading" class="btn-cta flex-1" style="height:56px;font-size:15px;border-radius:16px">
+                        <i v-if="authLoading" class="fa-solid fa-circle-notch animate-spin"></i>
+                        <i v-else class="fa-solid fa-check-circle"></i>
+                        Confirmar Assinatura
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /app -->
+
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script type="module" src="js/app.js"></script>
-
+    <script type="module" src="js/client.js"></script>
 </body>
 </html>
