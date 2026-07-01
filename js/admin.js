@@ -288,13 +288,106 @@ createApp({
         const getWhatsappLink = (p) => p?`https://wa.me/55${p.replace(/\D/g,'')}`:'#';
         const getActionColor = (a) => { if(a.includes('DELETE')) return 'bg-red-100 text-red-700'; if(a.includes('CREATE')) return 'bg-green-100 text-green-700'; return 'bg-slate-100 text-slate-700'; };
 
+        // ── KANBAN DRAG & DROP ────────────────────────────────────
+        const draggingUser = ref(null);
+        const draggingFromCol = ref(null);
+        const onKanbanDragStart = (e, user, fromCol) => {
+            draggingUser.value = user;
+            draggingFromCol.value = fromCol;
+            e.dataTransfer.effectAllowed = 'move';
+        };
+        const onKanbanDrop = async (e, toCol) => {
+            e.preventDefault();
+            if (!draggingUser.value || draggingFromCol.value === toCol) return;
+            const u = draggingUser.value;
+            // Remove from current column
+            const colMap = { latest:'latest', engaged:'engaged', warning:'warning', pro:'pro', churned:'churned' };
+            // Update status in Firebase
+            try {
+                const { db, doc, updateDoc } = await import('./firebase.js');
+                const newStatus = toCol === 'pro' ? 'active' : toCol === 'churned' ? 'inactive' : u.status;
+                await updateDoc(doc(db, 'users', u.id), { crmStage: toCol, status: newStatus });
+                Swal.fire({ toast:true, position:'bottom-end', icon:'success', title:`${u.displayName} movido para ${toCol}`, timer:2000, showConfirmButton:false });
+            } catch(err) {
+                console.error('Kanban move error:', err);
+            }
+            draggingUser.value = null;
+            draggingFromCol.value = null;
+        };
+
+        // ── CHURN ANALYSIS ────────────────────────────────────────
+        const churnReasons = computed(() => {
+            const churned = crmColumns.value?.churned || [];
+            const reasons = {};
+            churned.forEach(u => {
+                if (u.churnReason) {
+                    reasons[u.churnReason] = (reasons[u.churnReason] || 0) + 1;
+                }
+            });
+            const total = Object.values(reasons).reduce((a,b)=>a+b, 0) || 1;
+            return Object.entries(reasons)
+                .map(([reason, count]) => ({ reason, count, pct: Math.round(count/total*100) }))
+                .sort((a,b) => b.count - a.count);
+        });
+        const churnRate = computed(() => {
+            const total = users.value.length || 1;
+            const churned = (crmColumns.value?.churned || []).length;
+            return Math.round(churned / total * 100);
+        });
+        const avgLtv = computed(() => {
+            const pro = crmColumns.value?.pro || [];
+            if (!pro.length) return 0;
+            return (mrr.value * 6) / pro.length; // estimativa 6 meses
+        });
+        const atRiskUsers = computed(() => {
+            return users.value.filter(u => {
+                if (u.status !== 'active') return false;
+                const last = u.lastLogin || u.createdAt;
+                if (!last) return false;
+                const days = (Date.now() - new Date(last).getTime()) / 86400000;
+                return days > 3;
+            });
+        });
+        const recordChurnReason = async (u) => {
+            const { value: reason } = await Swal.fire({
+                title: `Motivo de cancelamento`,
+                html: `<p style="color:#6b7280;font-size:13px;margin-bottom:12px">Por que ${u.displayName} cancelou?</p>`,
+                input: 'select',
+                inputOptions: {
+                    'Preço alto': 'Preço alto', 'Não usou o produto': 'Não usou o produto',
+                    'Achou alternativa': 'Achou alternativa', 'Problema técnico': 'Problema técnico',
+                    'Falta de funcionalidade': 'Falta de funcionalidade', 'Outros': 'Outros',
+                },
+                showCancelButton: true, confirmButtonColor: '#ff5c35',
+            });
+            if (!reason) return;
+            try {
+                const { db, doc, updateDoc } = await import('./firebase.js');
+                await updateDoc(doc(db, 'users', u.id), { churnReason: reason });
+                Swal.fire({ toast:true, position:'bottom-end', icon:'success', title:'Motivo registrado!', timer:2000, showConfirmButton:false });
+            } catch(err) { console.error(err); }
+        };
+        const recordNewChurnReason = async () => {
+            const { value: formValues } = await Swal.fire({
+                title: 'Registrar Cancelamento', showCancelButton: true, confirmButtonColor:'#ff5c35',
+                html: `<input id="swal-name" placeholder="Nome do usuário" class="swal2-input"><select id="swal-reason" class="swal2-input"><option value="">Motivo...</option><option>Preço alto</option><option>Não usou</option><option>Achou alternativa</option><option>Problema técnico</option><option>Falta de funcionalidade</option><option>Outros</option></select>`,
+                preConfirm: () => ({ name: document.getElementById('swal-name').value, reason: document.getElementById('swal-reason').value }),
+            });
+            if (!formValues?.reason) return;
+            Swal.fire({ toast:true, position:'bottom-end', icon:'success', title:'Registrado!', timer:2000, showConfirmButton:false });
+        };
+
         return {
             currentView, showMobileMenu, showModal, modalMode, userForm, loadingAction,
             users, filteredUsers, systemLogs, currentUser, searchTerm,
             openCreateModal, openEditModal, handleUserSubmit, deleteUser, toggleStatus, logout,
             createStripeSession, addQuickNote,
             mrr, newUsersToday, inactiveUsers, conversionRate, crmColumns,
-            formatCurrency, timeSince, getTrialDaysLeft, getWhatsappLink, getActionColor
+            formatCurrency, timeSince, getTrialDaysLeft, getWhatsappLink, getActionColor,
+            // Kanban
+            onKanbanDragStart, onKanbanDrop,
+            // Churn
+            churnReasons, churnRate, avgLtv, atRiskUsers, recordChurnReason, recordNewChurnReason,
         };
     }
 }).mount('#adminApp');
