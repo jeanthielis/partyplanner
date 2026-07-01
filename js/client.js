@@ -407,11 +407,52 @@ createApp({
             appointments.value = [];
         };
 
+        // ── COUNTDOWN ──────────────────────────────────────────
+        const countdowns = ref({});
+        const getDaysUntil = (dateStr) => {
+            if (!dateStr) return -1;
+            const now = new Date();
+            const ev = new Date(dateStr + 'T00:00:00');
+            return Math.floor((ev - now) / 86400000);
+        };
+        const updateCountdowns = () => {
+            appointments.value.forEach(app => {
+                if (!app.date) return;
+                const ev = new Date(app.date + 'T00:00:00');
+                const diff = ev - new Date();
+                if (diff < 0) { countdowns.value[app.id] = null; return; }
+                const days    = Math.floor(diff / 86400000);
+                const hours   = Math.floor((diff % 86400000) / 3600000);
+                const minutes = Math.floor((diff % 3600000) / 60000);
+                const seconds = Math.floor((diff % 60000) / 1000);
+                countdowns.value[app.id] = { days, hours, minutes, seconds };
+            });
+        };
+        let countdownInterval = null;
+        const { watch } = Vue;
+        watch(appointments, (val) => {
+            if (val.length) {
+                updateCountdowns();
+                if (!countdownInterval) countdownInterval = setInterval(updateCountdowns, 1000);
+            }
+        }, { immediate: true });
+
+        // ── CLÁUSULAS PADRÃO ────────────────────────────────────
+        const defaultClauses = [
+            { title:'DO OBJETO', body:'O presente contrato tem como objeto a prestação de serviços de decoração conforme itens descritos acima.' },
+            { title:'DA RESERVA', body:'A data somente será reservada mediante o pagamento do sinal. Em caso de cancelamento com menos de 30 dias, o valor do sinal não será devolvido.' },
+            { title:'DO PAGAMENTO', body:'O valor restante deverá ser quitado até a data do evento, antes do início da montagem.' },
+            { title:'DA CONSERVAÇÃO', body:'O CONTRATANTE responsabiliza-se pela conservação das peças. Danos ou extravios serão de responsabilidade do contratante.' },
+            { title:'DA MONTAGEM', body:'O local deve estar disponível e limpo no horário combinado. A desmontagem ocorrerá conforme horário pré-agendado.' },
+            { title:'DE FORÇA MAIOR', body:'A CONTRATADA não se responsabiliza por falhas decorrentes de casos fortuitos ou força maior.' },
+        ];
+
         return {
             loadingState, authLoading, accessInput, company, clientData, appointments,
             showSignModal, showContractModal, contractApp, handleInputMask, handleAccess, logout,
             getDay, getMonth, statusText, formatCurrency, formatDate, openSignature, openSupport,
-            clearCanvas, saveSignature, downloadContract, openContractPreview, acceptAndSign
+            clearCanvas, saveSignature, downloadContract, openContractPreview, acceptAndSign,
+            countdowns, getDaysUntil, defaultClauses,
         };
     }
 }).mount('#client-app');
