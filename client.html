@@ -8,7 +8,7 @@
     <meta property="og:type"        content="website">
     <meta property="og:title"       content="🎉 Seu evento está confirmado!">
     <meta property="og:description" content="Acesse sua área exclusiva para ver os detalhes do evento e assinar o contrato digital.">
-    <meta name="theme-color" content="#ff5c35">
+    <meta name="theme-color" content="#0f4c81">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -25,7 +25,7 @@
                 extend: {
                     fontFamily: { sans: ['Inter','sans-serif'], display: ['Syne','sans-serif'] },
                     colors: {
-                        brand: { 50:'#fff4f1', 100:'#ffe4dc', 300:'#ff8f6b', 500:'#ff5c35', 600:'#e8431c', 700:'#c23010' }
+                        brand: { 50:'#edf4fa', 100:'#d8e8f5', 300:'#2d6da8', 500:'#0f4c81', 600:'#0a3a63', 700:'#082d4d' }
                     }
                 }
             }
@@ -33,19 +33,19 @@
     </script>
     <style>
         :root {
-            --brand:#ff5c35; --brand-mid:#e8431c; --brand-light:#ff8f6b;
-            --brand-pale:#fff4f1;
-            --ink:#1a1018; --ink-soft:#9b8f97;
-            --surface:#ffffff; --surface-2:#fdf8f6; --surface-3:#f7f0ed;
-            --border:rgba(26,16,24,0.08);
+            --brand:#0f4c81; --brand-mid:#0a3a63; --brand-light:#2d6da8;
+            --brand-pale:#edf4fa;
+            --ink:#102a43; --ink-soft:#8ba3b8;
+            --surface:#ffffff; --surface-2:#f7fafc; --surface-3:#eef4f8;
+            --border:rgba(16,42,67,0.09);
         }
         [v-cloak]{display:none}
         body{background:var(--surface-2);font-family:Inter,sans-serif;color:var(--ink)}
         .input-client{background:var(--surface-3);border:1.5px solid var(--border);border-radius:16px;width:100%;padding:0 1.25rem;height:56px;font-size:15px;font-weight:500;outline:none;transition:all .18s ease;color:var(--ink)}
-        .input-client:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(255,92,53,.12);background:white}
+        .input-client:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(15,76,129,.12);background:white}
         .input-client::placeholder{color:var(--ink-soft)}
-        .btn-cta{background:linear-gradient(135deg,#ff8f6b,#e8431c);color:white;font-weight:800;font-size:17px;border:none;border-radius:20px;width:100%;height:60px;cursor:pointer;transition:all .18s ease;box-shadow:0 4px 20px rgba(255,92,53,.35);display:flex;align-items:center;justify-content:center;gap:10px;letter-spacing:-.01em}
-        .btn-cta:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(255,92,53,.45)}
+        .btn-cta{background:linear-gradient(135deg,#34d399,#10b981);color:white;font-weight:800;font-size:17px;border:none;border-radius:20px;width:100%;height:60px;cursor:pointer;transition:all .18s ease;box-shadow:0 4px 20px rgba(16,185,129,.35);display:flex;align-items:center;justify-content:center;gap:10px;letter-spacing:-.01em}
+        .btn-cta:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(16,185,129,.45)}
         .btn-cta:active{transform:scale(.98)}
         .btn-cta:disabled{opacity:.55;transform:none;box-shadow:none;cursor:not-allowed}
         .pill-status{display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border-radius:99px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
@@ -59,7 +59,7 @@
 
         <!-- ═══ LOADING ═══ -->
         <div v-if="loadingState === 'global'" class="fixed inset-0 z-[100] flex flex-col items-center justify-center" style="background:var(--surface-2)">
-            <div class="w-20 h-20 rounded-3xl flex items-center justify-center mb-5 shadow-brand" style="background:linear-gradient(135deg,#ff8f6b,#e8431c)">
+            <div class="w-20 h-20 rounded-3xl flex items-center justify-center mb-5 shadow-brand" style="background:linear-gradient(135deg,#2d6da8,#0f4c81)">
                 <i class="fa-solid fa-wand-magic-sparkles text-3xl text-white animate-pulse-soft"></i>
             </div>
             <p class="font-display text-lg font-bold" style="color:var(--ink)">Buscando seu evento...</p>
@@ -72,7 +72,7 @@
                 <div v-if="company.logo" class="w-24 h-24 rounded-3xl overflow-hidden mx-auto mb-4 shadow-pop border-4" style="border-color:white">
                     <img :src="company.logo" class="w-full h-full object-cover">
                 </div>
-                <div v-else class="w-20 h-20 rounded-3xl mx-auto flex items-center justify-center mb-4 shadow-brand" style="background:linear-gradient(135deg,#ff8f6b,#e8431c)">
+                <div v-else class="w-20 h-20 rounded-3xl mx-auto flex items-center justify-center mb-4 shadow-brand" style="background:linear-gradient(135deg,#2d6da8,#0f4c81)">
                     <i class="fa-solid fa-wand-magic-sparkles text-3xl text-white"></i>
                 </div>
                 <h1 class="font-display text-3xl font-bold" style="color:var(--ink)">{{ company.fantasia || 'Área do Cliente' }}</h1>
@@ -104,7 +104,7 @@
             <header class="sticky top-0 z-30 px-5 py-4 flex justify-between items-center" style="background:rgba(253,248,246,0.95);backdrop-filter:blur(16px);border-bottom:1px solid var(--border)">
                 <div class="flex items-center gap-3">
                     <img v-if="company.logo" :src="company.logo" class="w-9 h-9 rounded-xl object-cover shadow-xs">
-                    <div v-else class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:linear-gradient(135deg,#ff8f6b,#e8431c)"><i class="fa-solid fa-wand-magic-sparkles text-white text-sm"></i></div>
+                    <div v-else class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:linear-gradient(135deg,#2d6da8,#0f4c81)"><i class="fa-solid fa-wand-magic-sparkles text-white text-sm"></i></div>
                     <div>
                         <p class="font-bold text-sm leading-none" style="color:var(--ink)">{{ company.fantasia }}</p>
                         <p class="text-[11px] mt-0.5" style="color:var(--ink-soft)">Área do Cliente</p>
@@ -114,7 +114,7 @@
             </header>
 
             <!-- Hero boas vindas -->
-            <div class="mx-4 mt-5 rounded-3xl p-6 text-white relative overflow-hidden animate-fade-in" style="background:linear-gradient(135deg,#ff8f6b,#e8431c)">
+            <div class="mx-4 mt-5 rounded-3xl p-6 text-white relative overflow-hidden animate-fade-in" style="background:linear-gradient(135deg,#2d6da8,#0f4c81)">
                 <div class="absolute -top-6 -right-6 w-28 h-28 rounded-full opacity-20" style="background:white"></div>
                 <div class="absolute -bottom-4 -left-4 w-20 h-20 rounded-full opacity-10" style="background:white"></div>
                 <div class="relative z-10">
@@ -139,7 +139,7 @@
                     <!-- Cabeçalho do card -->
                     <div class="px-5 pt-5 pb-4 flex justify-between items-start" style="border-bottom:1px solid var(--border)">
                         <div class="flex items-center gap-4">
-                            <div class="w-14 h-14 rounded-2xl flex flex-col items-center justify-center text-white flex-shrink-0 shadow-brand" style="background:linear-gradient(135deg,#ff8f6b,#e8431c)">
+                            <div class="w-14 h-14 rounded-2xl flex flex-col items-center justify-center text-white flex-shrink-0 shadow-brand" style="background:linear-gradient(135deg,#2d6da8,#0f4c81)">
                                 <span class="text-[10px] font-bold uppercase opacity-80">{{ getMonth(app.date) }}</span>
                                 <span class="text-2xl font-black leading-none">{{ getDay(app.date) }}</span>
                             </div>
@@ -154,7 +154,7 @@
                     </div>
 
                     <!-- Contagem regressiva (apenas se pending ou concluded e data futura) -->
-                    <div v-if="(app.status==='pending'||app.status==='concluded') && getDaysUntil(app.date) >= 0" class="px-5 py-4" style="background:var(--brand-pale);border-bottom:1px solid rgba(255,92,53,0.12)">
+                    <div v-if="(app.status==='pending'||app.status==='concluded') && getDaysUntil(app.date) >= 0" class="px-5 py-4" style="background:var(--brand-pale);border-bottom:1px solid rgba(15,76,129,0.12)">
                         <p class="text-xs font-bold uppercase tracking-wider mb-3" style="color:var(--brand-mid)">⏳ Contagem regressiva</p>
                         <div class="flex gap-3 justify-center">
                             <div class="countdown-box" v-if="countdowns[app.id]">
@@ -304,7 +304,7 @@
                 </div>
 
                 <!-- Financeiro -->
-                <div v-if="contractApp" class="rounded-2xl p-5 space-y-2" style="background:var(--brand-pale);border:1px solid rgba(255,92,53,0.15)">
+                <div v-if="contractApp" class="rounded-2xl p-5 space-y-2" style="background:var(--brand-pale);border:1px solid rgba(15,76,129,0.15)">
                     <div class="flex justify-between text-sm">
                         <span style="color:var(--ink-soft)">Total dos Serviços</span>
                         <span class="font-bold" style="color:var(--ink)">{{ formatCurrency(contractApp.totalServices) }}</span>
