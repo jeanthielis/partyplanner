@@ -1,315 +1,379 @@
 <!DOCTYPE html>
-<html lang="pt-BR" class="dark">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Área do Cliente | PartyPlanner</title>
 
-    <!-- ═══ Open Graph / WhatsApp Preview ═══ -->
     <meta property="og:type"        content="website">
-    <meta property="og:url"         content="https://agendamentofestas.netlify.app/client.html">
-    <meta property="og:site_name"   content="PartyPlanner Pro">
     <meta property="og:title"       content="🎉 Seu evento está confirmado!">
-    <meta property="og:description" content="Acesse sua área exclusiva para ver os detalhes do evento, ler e assinar o contrato digital com segurança.">
-    <meta property="og:image"       content="https://agendamentofestas.netlify.app/og-banner.png">
-    <meta property="og:image:width"  content="1200">
-    <meta property="og:image:height" content="630">
-    <meta property="og:image:alt"   content="PartyPlanner Pro — Seu evento está confirmado">
+    <meta property="og:description" content="Acesse sua área exclusiva para ver os detalhes do evento e assinar o contrato digital.">
+    <meta name="theme-color" content="#ff5c35">
 
-    <!-- WhatsApp usa estas também -->
-    <meta name="twitter:card"        content="summary_large_image">
-    <meta name="twitter:title"       content="🎉 Seu evento está confirmado!">
-    <meta name="twitter:description" content="Acesse sua área exclusiva para ver os detalhes e assinar o contrato digital.">
-    <meta name="twitter:image"       content="https://agendamentofestas.netlify.app/og-banner.png">
-    
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Syne:wght@700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    
+    <link rel="stylesheet" href="css/style.css">
+
     <script>
         tailwind.config = {
-            darkMode: 'class',
             theme: {
                 extend: {
-                    fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
-                    colors: { brand: { 500: '#6366F1', 600: '#4F46E5' } },
-                    boxShadow: { 'neon': '0 0 20px rgba(99, 102, 241, 0.25)' }
+                    fontFamily: { sans: ['Inter','sans-serif'], display: ['Syne','sans-serif'] },
+                    colors: {
+                        brand: { 50:'#fff4f1', 100:'#ffe4dc', 300:'#ff8f6b', 500:'#ff5c35', 600:'#e8431c', 700:'#c23010' }
+                    }
                 }
             }
         }
     </script>
     <style>
-        [v-cloak] { display: none; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        canvas { touch-action: none; }
+        :root {
+            --brand:#ff5c35; --brand-mid:#e8431c; --brand-light:#ff8f6b;
+            --brand-pale:#fff4f1;
+            --ink:#1a1018; --ink-soft:#9b8f97;
+            --surface:#ffffff; --surface-2:#fdf8f6; --surface-3:#f7f0ed;
+            --border:rgba(26,16,24,0.08);
+        }
+        [v-cloak]{display:none}
+        body{background:var(--surface-2);font-family:Inter,sans-serif;color:var(--ink)}
+        .input-client{background:var(--surface-3);border:1.5px solid var(--border);border-radius:16px;width:100%;padding:0 1.25rem;height:56px;font-size:15px;font-weight:500;outline:none;transition:all .18s ease;color:var(--ink)}
+        .input-client:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(255,92,53,.12);background:white}
+        .input-client::placeholder{color:var(--ink-soft)}
+        .btn-cta{background:linear-gradient(135deg,#ff8f6b,#e8431c);color:white;font-weight:800;font-size:17px;border:none;border-radius:20px;width:100%;height:60px;cursor:pointer;transition:all .18s ease;box-shadow:0 4px 20px rgba(255,92,53,.35);display:flex;align-items:center;justify-content:center;gap:10px;letter-spacing:-.01em}
+        .btn-cta:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(255,92,53,.45)}
+        .btn-cta:active{transform:scale(.98)}
+        .btn-cta:disabled{opacity:.55;transform:none;box-shadow:none;cursor:not-allowed}
+        .pill-status{display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border-radius:99px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+        .sticky-footer{position:fixed;bottom:0;left:0;right:0;padding:12px 20px 20px;background:rgba(253,248,246,.97);backdrop-filter:blur(16px);border-top:1px solid var(--border);z-index:50;display:flex;flex-direction:column;gap:8px}
+        @supports(padding:max(0px)){.sticky-footer{padding-bottom:max(20px,env(safe-area-inset-bottom))}}
     </style>
 </head>
-<body class="bg-slate-50 dark:bg-[#0F172A] text-slate-800 dark:text-slate-200 font-sans h-screen overflow-hidden">
-    
-    <div id="client-app" v-cloak class="h-full flex flex-col">
-        
-        <div v-if="loadingState === 'global'" class="fixed inset-0 z-[100] bg-[#0F172A] flex flex-col items-center justify-center text-white">
-            <div class="w-16 h-16 bg-brand-600 rounded-2xl flex items-center justify-center shadow-neon mb-4 animate-bounce">
-                <i class="fa-solid fa-wand-magic-sparkles text-2xl"></i>
+<body class="min-h-screen">
+
+    <div id="client-app" v-cloak>
+
+        <!-- ═══ LOADING ═══ -->
+        <div v-if="loadingState === 'global'" class="fixed inset-0 z-[100] flex flex-col items-center justify-center" style="background:var(--surface-2)">
+            <div class="w-20 h-20 rounded-3xl flex items-center justify-center mb-5 shadow-brand" style="background:linear-gradient(135deg,#ff8f6b,#e8431c)">
+                <i class="fa-solid fa-wand-magic-sparkles text-3xl text-white animate-pulse-soft"></i>
             </div>
-            <h2 class="text-xl font-bold animate-pulse">Buscando informações...</h2>
+            <p class="font-display text-lg font-bold" style="color:var(--ink)">Buscando seu evento...</p>
         </div>
 
-        <div v-if="loadingState === 'login'" class="flex-1 flex items-center justify-center p-6 bg-[#0F172A]">
-            <div class="bg-slate-800 p-8 rounded-3xl w-full max-w-sm border border-slate-700 shadow-2xl relative overflow-hidden">
-                <div class="text-center mb-8 relative z-10">
-                    <div v-if="company.logo" class="w-20 h-20 mx-auto mb-4 rounded-full border-4 border-slate-700 overflow-hidden shadow-lg">
-                        <img :src="company.logo" class="w-full h-full object-cover">
-                    </div>
-                    <div v-else class="w-16 h-16 bg-brand-600 rounded-2xl mx-auto flex items-center justify-center shadow-lg mb-4 text-white text-2xl">
-                        <i class="fa-solid fa-wand-magic-sparkles"></i>
-                    </div>
-                    <h1 class="text-2xl font-bold text-white">{{ company.fantasia || 'Área do Cliente' }}</h1>
-                    <p class="text-sm text-slate-400 mt-1">Digite seus dados para acessar.</p>
+        <!-- ═══ LOGIN ═══ -->
+        <div v-if="loadingState === 'login'" class="min-h-screen flex flex-col items-center justify-center px-5 py-10">
+            <!-- Logo da empresa -->
+            <div class="mb-8 text-center animate-slide-up">
+                <div v-if="company.logo" class="w-24 h-24 rounded-3xl overflow-hidden mx-auto mb-4 shadow-pop border-4" style="border-color:white">
+                    <img :src="company.logo" class="w-full h-full object-cover">
                 </div>
+                <div v-else class="w-20 h-20 rounded-3xl mx-auto flex items-center justify-center mb-4 shadow-brand" style="background:linear-gradient(135deg,#ff8f6b,#e8431c)">
+                    <i class="fa-solid fa-wand-magic-sparkles text-3xl text-white"></i>
+                </div>
+                <h1 class="font-display text-3xl font-bold" style="color:var(--ink)">{{ company.fantasia || 'Área do Cliente' }}</h1>
+                <p class="text-sm mt-2" style="color:var(--ink-soft)">Digite seu CPF ou e-mail para acessar</p>
+            </div>
 
-                <form @submit.prevent="handleAccess" class="space-y-4 relative z-10">
-                    <div class="relative w-full">
-                        <i class="fa-solid fa-id-card absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10"></i>
-                        <input 
-                            v-model="accessInput" 
-                            @input="handleInputMask" 
-                            placeholder="CPF ou E-mail" 
-                            class="w-full h-12 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 transition-all placeholder-slate-400" 
-                            required
-                        >
-                    </div>
-                    <button type="submit" :disabled="authLoading" class="h-12 w-full bg-brand-600 hover:bg-brand-500 text-white font-bold rounded-xl shadow-lg transition active:scale-95 flex items-center justify-center gap-2 mt-2">
-                        <i v-if="authLoading" class="fa-solid fa-circle-notch fa-spin"></i> Acessar Meus Eventos
-                    </button>
-                </form>
+            <div class="w-full max-w-sm animate-slide-up delay-1">
+                <div class="rounded-3xl p-8" style="background:white;border:1px solid var(--border);box-shadow:0 4px 24px rgba(26,16,24,0.08)">
+                    <form @submit.prevent="handleAccess" class="space-y-4">
+                        <div class="relative">
+                            <i class="fa-solid fa-id-card absolute left-4 top-1/2 -translate-y-1/2 text-sm" style="color:var(--ink-soft)"></i>
+                            <input v-model="accessInput" @input="handleInputMask" placeholder="CPF ou E-mail" class="input-client" style="padding-left:3rem" required>
+                        </div>
+                        <button type="submit" :disabled="authLoading" class="btn-cta mt-2" style="font-size:15px;height:56px">
+                            <i v-if="authLoading" class="fa-solid fa-circle-notch animate-spin"></i>
+                            <i v-else class="fa-solid fa-arrow-right-to-bracket"></i>
+                            Acessar Meus Eventos
+                        </button>
+                    </form>
+                </div>
+                <p class="text-center text-xs mt-5" style="color:var(--ink-soft)">Seus dados são protegidos por criptografia de ponta a ponta.</p>
             </div>
         </div>
 
-        <div v-if="loadingState === 'portal'" class="flex-1 h-full overflow-y-auto bg-slate-50 dark:bg-[#0F172A]">
-            <header class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 p-5 sticky top-0 z-30 flex justify-between items-center shadow-sm">
-                <div class="font-bold text-lg text-slate-800 dark:text-white flex items-center gap-2">
-                    <img v-if="company.logo" :src="company.logo" class="w-8 h-8 rounded-full object-cover shadow-sm">
-                    <span v-else><i class="fa-solid fa-user-circle text-brand-600"></i></span>
-                    {{ company.fantasia || 'Área do Cliente' }}
+        <!-- ═══ PORTAL DO CLIENTE ═══ -->
+        <div v-if="loadingState === 'portal'" class="flex flex-col min-h-screen">
+
+            <!-- Header fixo -->
+            <header class="sticky top-0 z-30 px-5 py-4 flex justify-between items-center" style="background:rgba(253,248,246,0.95);backdrop-filter:blur(16px);border-bottom:1px solid var(--border)">
+                <div class="flex items-center gap-3">
+                    <img v-if="company.logo" :src="company.logo" class="w-9 h-9 rounded-xl object-cover shadow-xs">
+                    <div v-else class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:linear-gradient(135deg,#ff8f6b,#e8431c)"><i class="fa-solid fa-wand-magic-sparkles text-white text-sm"></i></div>
+                    <div>
+                        <p class="font-bold text-sm leading-none" style="color:var(--ink)">{{ company.fantasia }}</p>
+                        <p class="text-[11px] mt-0.5" style="color:var(--ink-soft)">Área do Cliente</p>
+                    </div>
                 </div>
-                <button @click="logout" class="text-xs font-bold text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg hover:bg-red-100 transition">Sair</button>
+                <button @click="logout" class="h-9 px-4 rounded-xl font-bold text-xs transition" style="background:rgba(220,38,38,0.07);color:#dc2626;border:1px solid rgba(220,38,38,0.15)">Sair</button>
             </header>
-            
-            <div class="p-5 md:p-10 max-w-3xl mx-auto space-y-6">
-                <div class="bg-brand-600 rounded-3xl p-8 text-center text-white shadow-neon relative overflow-hidden">
-                    <i class="fa-solid fa-wand-magic-sparkles text-6xl absolute -top-4 -right-4 opacity-20 rotate-12"></i>
-                    <h2 class="text-2xl font-bold mb-2">Olá, {{ clientData?.name || 'Cliente' }}!</h2>
-                    <p class="opacity-90 text-sm">Acompanhe aqui os detalhes do seu evento.</p>
+
+            <!-- Hero boas vindas -->
+            <div class="mx-4 mt-5 rounded-3xl p-6 text-white relative overflow-hidden animate-fade-in" style="background:linear-gradient(135deg,#ff8f6b,#e8431c)">
+                <div class="absolute -top-6 -right-6 w-28 h-28 rounded-full opacity-20" style="background:white"></div>
+                <div class="absolute -bottom-4 -left-4 w-20 h-20 rounded-full opacity-10" style="background:white"></div>
+                <div class="relative z-10">
+                    <p class="text-sm font-semibold opacity-90 mb-1">Olá,</p>
+                    <h2 class="font-display text-2xl font-bold leading-tight">{{ clientData?.name?.split(' ')[0] || 'Cliente' }}! 🎉</h2>
+                    <p class="text-sm opacity-80 mt-1">Acompanhe os detalhes do seu evento abaixo.</p>
+                </div>
+            </div>
+
+            <!-- Lista de eventos -->
+            <div class="flex-1 px-4 py-5 space-y-6 pb-10">
+
+                <div v-if="appointments.length === 0" class="text-center py-16 rounded-3xl" style="background:white;border:1px solid var(--border);color:var(--ink-soft)">
+                    <i class="fa-solid fa-calendar-xmark text-5xl mb-4 block opacity-30"></i>
+                    <p class="font-medium">Nenhum evento encontrado.</p>
+                    <p class="text-xs mt-1">Entre em contato com o organizador.</p>
                 </div>
 
-                <div v-if="appointments.length === 0" class="text-center py-10 text-slate-400 bg-white dark:bg-slate-900 rounded-3xl border dark:border-slate-800">
-                    <i class="fa-solid fa-calendar-xmark text-4xl mb-3 opacity-50"></i>
-                    <p>Nenhum evento encontrado.</p>
-                </div>
+                <!-- ── Card de cada evento ── -->
+                <div v-for="(app, idx) in appointments" :key="app.id" class="rounded-3xl overflow-hidden animate-slide-up shadow-card" :style="'animation-delay:'+idx*0.08+'s'" style="background:white;border:1px solid var(--border)">
 
-                <div v-for="app in appointments" :key="app.id" class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden animate-fade-in">
-                    <div class="bg-slate-50 dark:bg-slate-800/50 p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-brand-100 dark:bg-brand-900/30 text-brand-600 flex items-center justify-center font-bold text-lg">{{ getDay(app.date) }}</div>
+                    <!-- Cabeçalho do card -->
+                    <div class="px-5 pt-5 pb-4 flex justify-between items-start" style="border-bottom:1px solid var(--border)">
+                        <div class="flex items-center gap-4">
+                            <div class="w-14 h-14 rounded-2xl flex flex-col items-center justify-center text-white flex-shrink-0 shadow-brand" style="background:linear-gradient(135deg,#ff8f6b,#e8431c)">
+                                <span class="text-[10px] font-bold uppercase opacity-80">{{ getMonth(app.date) }}</span>
+                                <span class="text-2xl font-black leading-none">{{ getDay(app.date) }}</span>
+                            </div>
                             <div>
-                                <div class="text-xs font-bold text-brand-600 uppercase">{{ getMonth(app.date) }}</div>
-                                <div class="font-bold text-slate-800 dark:text-white">{{ app.time }}</div>
+                                <p class="font-bold text-base leading-tight" style="color:var(--ink)">{{ app.time }}</p>
+                                <p class="text-sm flex items-center gap-1 mt-0.5" style="color:var(--ink-soft)"><i class="fa-solid fa-map-pin text-xs" style="color:var(--brand)"></i> {{ app.location?.bairro }}</p>
                             </div>
                         </div>
-                        <div class="px-3 py-1 rounded-full text-xs font-bold uppercase border" 
-                             :class="{
-                                'bg-green-100 text-green-700 border-green-200': app.status === 'concluded',
-                                'bg-yellow-100 text-yellow-700 border-yellow-200': app.status === 'budget',
-                                'bg-orange-100 text-orange-700 border-orange-200': app.status === 'pending'
-                             }">
+                        <span class="pill-status" :style="app.status==='concluded'?'background:#dcfce7;color:#16a34a':app.status==='budget'?'background:#fef9c3;color:#b45309':'background:var(--brand-pale);color:var(--brand-mid)'">
                             {{ statusText(app.status) }}
+                        </span>
+                    </div>
+
+                    <!-- Contagem regressiva (apenas se pending ou concluded e data futura) -->
+                    <div v-if="(app.status==='pending'||app.status==='concluded') && getDaysUntil(app.date) >= 0" class="px-5 py-4" style="background:var(--brand-pale);border-bottom:1px solid rgba(255,92,53,0.12)">
+                        <p class="text-xs font-bold uppercase tracking-wider mb-3" style="color:var(--brand-mid)">⏳ Contagem regressiva</p>
+                        <div class="flex gap-3 justify-center">
+                            <div class="countdown-box" v-if="countdowns[app.id]">
+                                <span class="countdown-num">{{ countdowns[app.id].days }}</span>
+                                <span class="countdown-label">dias</span>
+                            </div>
+                            <div class="countdown-box" v-if="countdowns[app.id]">
+                                <span class="countdown-num">{{ countdowns[app.id].hours }}</span>
+                                <span class="countdown-label">horas</span>
+                            </div>
+                            <div class="countdown-box" v-if="countdowns[app.id]">
+                                <span class="countdown-num">{{ countdowns[app.id].minutes }}</span>
+                                <span class="countdown-label">min</span>
+                            </div>
+                            <div class="countdown-box" v-if="countdowns[app.id]">
+                                <span class="countdown-num">{{ countdowns[app.id].seconds }}</span>
+                                <span class="countdown-label">seg</span>
+                            </div>
                         </div>
                     </div>
-                    
-                    <div class="p-6 space-y-4">
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <p class="text-[10px] uppercase font-bold text-slate-400 mb-1">Local</p>
-                                <p class="text-slate-800 dark:text-white font-medium text-sm"><i class="fa-solid fa-map-pin text-brand-500 mr-1"></i> {{ app.location.bairro }}</p>
-                            </div>
-                            <div class="text-right">
-                                <p class="text-[10px] uppercase font-bold text-slate-400 mb-1">Valor Total</p>
-                                <p class="text-lg font-black text-brand-600">{{ formatCurrency(app.totalServices) }}</p>
+                    <div v-else-if="getDaysUntil(app.date) < 0 && app.status !== 'cancelled'" class="px-5 py-3 text-center" style="background:var(--surface-3)">
+                        <p class="text-sm font-bold" style="color:var(--ink-soft)">🎊 Evento realizado! Obrigado pela confiança.</p>
+                    </div>
+
+                    <!-- Serviços contratados -->
+                    <div class="px-5 py-4" style="border-bottom:1px solid var(--border)">
+                        <p class="text-[11px] font-bold uppercase tracking-wider mb-3" style="color:var(--ink-soft)">Serviços</p>
+                        <div class="space-y-2">
+                            <div v-for="s in app.selectedServices" :key="s.description" class="flex justify-between items-center text-sm">
+                                <span style="color:var(--ink)">{{ s.description }}</span>
+                                <span class="font-bold" style="color:var(--ink)">{{ formatCurrency(s.price) }}</span>
                             </div>
                         </div>
-                        
-                        <div v-if="app.details?.balloonColors">
-                            <p class="text-[10px] uppercase font-bold text-slate-400 mb-1">Decoração</p>
-                            <p class="text-slate-800 dark:text-white font-medium text-sm">🎈 {{ app.details.balloonColors }}</p>
+                        <div v-if="app.details?.balloonColors" class="mt-3 p-3 rounded-xl text-xs font-medium" style="background:var(--surface-3);color:var(--ink-soft)">
+                            🎈 Decoração: {{ app.details.balloonColors }}
+                        </div>
+                    </div>
+
+                    <!-- Resumo financeiro -->
+                    <div class="px-5 py-4" style="border-bottom:1px solid var(--border)">
+                        <div class="flex justify-between text-sm mb-1">
+                            <span style="color:var(--ink-soft)">Total dos serviços</span>
+                            <span class="font-semibold" style="color:var(--ink)">{{ formatCurrency(app.totalServices) }}</span>
+                        </div>
+                        <div v-if="app.details?.entryFee > 0" class="flex justify-between text-sm mb-1">
+                            <span style="color:var(--ink-soft)">Sinal pago</span>
+                            <span class="font-semibold text-green-600">- {{ formatCurrency(app.details.entryFee) }}</span>
+                        </div>
+                        <div class="flex justify-between text-base font-black mt-2 pt-2" style="border-top:1px solid var(--border)">
+                            <span style="color:var(--ink)">A pagar</span>
+                            <span style="color:var(--brand)">{{ formatCurrency(app.finalBalance) }}</span>
+                        </div>
+                    </div>
+
+                    <!-- Contrato / Assinatura -->
+                    <div class="px-5 py-5">
+                        <!-- JÁ ASSINADO -->
+                        <div v-if="app.clientSignature" class="text-center">
+                            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-xl mb-4 text-sm font-bold" style="background:#dcfce7;color:#16a34a">
+                                <i class="fa-solid fa-circle-check"></i> Contrato assinado com sucesso!
+                            </div>
+                            <div class="p-4 rounded-2xl mb-4" style="background:var(--surface-3);border:1px solid var(--border)">
+                                <img :src="app.clientSignature" class="h-12 mx-auto" style="mix-blend-mode:multiply">
+                            </div>
+                            <div class="flex gap-3">
+                                <button @click="downloadContract(app)" class="flex-1 h-14 rounded-2xl font-bold text-sm transition flex items-center justify-center gap-2" style="background:var(--surface-3);color:var(--ink-mid);border:1px solid var(--border)">
+                                    <i class="fa-solid fa-file-pdf"></i> Baixar PDF
+                                </button>
+                                <button @click="openSupport(app)" class="flex-1 h-14 rounded-2xl font-bold text-sm text-white transition flex items-center justify-center gap-2" style="background:#25d366">
+                                    <i class="fa-brands fa-whatsapp text-lg"></i> Suporte
+                                </button>
+                            </div>
                         </div>
 
-                        <div v-if="app.clientSignature" class="bg-green-50 dark:bg-green-900/20 p-4 rounded-xl border border-green-100 dark:border-green-800 text-center mt-2">
-                            <p class="text-xs font-bold text-green-600 mb-2 uppercase flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> Contrato Assinado</p>
-                            <img :src="app.clientSignature" class="h-10 mx-auto mix-blend-multiply dark:mix-blend-normal opacity-80">
-                        </div>
-                        
-                        <div v-else class="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-xl border border-yellow-100 dark:border-yellow-800 text-center mt-2">
-                            <p class="text-xs font-bold text-yellow-700 mb-2 uppercase">Aguardando Assinatura</p>
-                            <p class="text-[10px] text-slate-500 mb-3">Leia o contrato e assine para confirmar a contratação.</p>
-                            <button @click="openContractPreview(app)" class="bg-brand-600 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-lg hover:bg-brand-500 transition w-full flex items-center justify-center gap-2">
-                                <i class="fa-solid fa-file-contract"></i> Visualizar e Assinar Contrato
+                        <!-- AGUARDANDO ASSINATURA -->
+                        <div v-else>
+                            <div class="p-4 rounded-2xl mb-4 text-center" style="background:#fef9c3;border:1px solid rgba(202,138,4,0.2)">
+                                <p class="text-sm font-bold" style="color:#b45309">✍️ Assinatura pendente</p>
+                                <p class="text-xs mt-1" style="color:rgba(180,83,9,0.7)">Leia o contrato e assine digitalmente para confirmar.</p>
+                            </div>
+                            <button @click="openContractPreview(app)" class="btn-cta">
+                                <i class="fa-solid fa-file-contract"></i> Ver Contrato e Assinar
                             </button>
                         </div>
+                    </div>
 
-                        <div class="grid grid-cols-2 gap-3 pt-2">
-                            <button 
-                                @click="downloadContract(app)" 
-                                :disabled="!app.clientSignature"
-                                :class="!app.clientSignature ? 'bg-slate-200 text-slate-400 cursor-not-allowed dark:bg-slate-800 dark:text-slate-600' : 'bg-slate-800 text-white shadow-lg hover:bg-slate-900'"
-                                class="h-12 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all">
-                                <i class="fa-solid" :class="!app.clientSignature ? 'fa-lock' : 'fa-file-pdf'"></i> 
-                                {{ !app.clientSignature ? 'Assine para Baixar' : 'Baixar Contrato' }}
-                            </button>
-                            <button @click="openSupport(app)" class="h-12 bg-green-500 hover:bg-green-600 text-white rounded-xl font-bold text-xs shadow-lg flex items-center justify-center gap-2 transition">
-                                <i class="fa-brands fa-whatsapp text-lg"></i> Suporte
-                            </button>
+                </div>
+            </div><!-- /eventos -->
+
+        </div><!-- /portal -->
+
+        <!-- ═══════════════════════════════════════
+             MODAL CONTRATO (fluxo vertical contínuo)
+             ═══════════════════════════════════════ -->
+        <div v-if="showContractModal" class="fixed inset-0 z-[70] flex flex-col" style="background:var(--surface-2)">
+
+            <!-- Header fixo do modal -->
+            <div class="flex items-center gap-3 px-5 py-4 flex-shrink-0" style="background:white;border-bottom:1px solid var(--border)">
+                <button @click="showContractModal=false" class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style="background:var(--surface-3);color:var(--ink-soft)">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </button>
+                <div class="flex-1 min-w-0">
+                    <h3 class="font-bold text-base leading-none" style="color:var(--ink)">Contrato Digital</h3>
+                    <p class="text-xs mt-0.5" style="color:var(--ink-soft)">Role até o final para assinar</p>
+                </div>
+                <div class="w-8 h-8 rounded-full flex items-center justify-center" style="background:var(--brand-pale)">
+                    <i class="fa-solid fa-file-contract text-sm" style="color:var(--brand)"></i>
+                </div>
+            </div>
+
+            <!-- Conteúdo rolável do contrato -->
+            <div class="flex-1 overflow-y-auto px-5 py-6 space-y-5 pb-44">
+
+                <!-- Logo/empresa -->
+                <div class="text-center pb-5" style="border-bottom:1px solid var(--border)">
+                    <img v-if="company.logo" :src="company.logo" class="w-20 h-20 rounded-2xl object-cover mx-auto mb-3 shadow-pop">
+                    <h2 class="font-display text-xl font-bold" style="color:var(--ink)">{{ company.fantasia }}</h2>
+                    <p v-if="company.cnpj" class="text-xs mt-0.5" style="color:var(--ink-soft)">CNPJ: {{ company.cnpj }}</p>
+                    <span class="inline-block mt-3 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wide" style="background:var(--brand-pale);color:var(--brand-mid)">Contrato de Prestação de Serviços</span>
+                </div>
+
+                <!-- Contratante -->
+                <div class="rounded-2xl p-5 space-y-2" style="background:var(--surface-3)">
+                    <p class="text-[10px] font-black uppercase tracking-widest mb-3" style="color:var(--ink-soft)">Contratante</p>
+                    <p class="text-sm"><span class="font-bold" style="color:var(--ink)">Nome:</span> <span style="color:var(--ink-soft)">{{ clientData?.name }}</span></p>
+                    <p v-if="clientData?.cpf" class="text-sm"><span class="font-bold" style="color:var(--ink)">CPF:</span> <span style="color:var(--ink-soft)">{{ clientData.cpf }}</span></p>
+                    <p v-if="clientData?.phone" class="text-sm"><span class="font-bold" style="color:var(--ink)">Tel:</span> <span style="color:var(--ink-soft)">{{ clientData.phone }}</span></p>
+                </div>
+
+                <!-- Evento -->
+                <div class="rounded-2xl p-5 space-y-2" style="background:var(--surface-3)">
+                    <p class="text-[10px] font-black uppercase tracking-widest mb-3" style="color:var(--ink-soft)">Dados do Evento</p>
+                    <p class="text-sm" v-if="contractApp"><span class="font-bold" style="color:var(--ink)">Data:</span> <span style="color:var(--ink-soft)">{{ formatDate(contractApp.date) }} às {{ contractApp.time }}</span></p>
+                    <p class="text-sm" v-if="contractApp"><span class="font-bold" style="color:var(--ink)">Local:</span> <span style="color:var(--ink-soft)">{{ contractApp?.location?.bairro }}</span></p>
+                    <p class="text-sm" v-if="contractApp?.details?.balloonColors"><span class="font-bold" style="color:var(--ink)">Decoração:</span> <span style="color:var(--ink-soft)">{{ contractApp.details.balloonColors }}</span></p>
+                </div>
+
+                <!-- Serviços -->
+                <div v-if="contractApp?.selectedServices?.length" class="rounded-2xl overflow-hidden" style="border:1px solid var(--border)">
+                    <div class="flex justify-between px-5 py-3 text-xs font-black uppercase" style="background:var(--ink);color:white">
+                        <span>Serviço</span><span>Valor</span>
+                    </div>
+                    <div v-for="s in contractApp.selectedServices" :key="s.description" class="flex justify-between px-5 py-3.5 text-sm" style="border-top:1px solid var(--border)">
+                        <span style="color:var(--ink)">{{ s.description }}</span>
+                        <span class="font-bold" style="color:var(--ink)">{{ formatCurrency(s.price) }}</span>
+                    </div>
+                </div>
+
+                <!-- Financeiro -->
+                <div v-if="contractApp" class="rounded-2xl p-5 space-y-2" style="background:var(--brand-pale);border:1px solid rgba(255,92,53,0.15)">
+                    <div class="flex justify-between text-sm">
+                        <span style="color:var(--ink-soft)">Total dos Serviços</span>
+                        <span class="font-bold" style="color:var(--ink)">{{ formatCurrency(contractApp.totalServices) }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span style="color:var(--ink-soft)">Sinal / Entrada</span>
+                        <span class="font-bold text-green-600">{{ formatCurrency(contractApp.details?.entryFee || 0) }}</span>
+                    </div>
+                    <div class="flex justify-between pt-3 mt-2" style="border-top:1px solid rgba(255,92,53,0.2)">
+                        <span class="font-black" style="color:var(--ink)">Restante a Pagar</span>
+                        <span class="font-black text-xl" style="color:var(--brand)">{{ formatCurrency(contractApp.finalBalance) }}</span>
+                    </div>
+                </div>
+
+                <!-- Cláusulas -->
+                <div class="space-y-4">
+                    <p class="text-[10px] font-black uppercase tracking-widest" style="color:var(--ink-soft)">Cláusulas e Condições</p>
+                    <div v-if="company.contractClauses" class="space-y-3">
+                        <div v-for="(clause, ci) in company.contractClauses.split('\n').filter(c=>c.trim())" :key="ci" class="flex gap-3 text-sm leading-relaxed p-4 rounded-xl" style="background:var(--surface-3)">
+                            <span class="font-black flex-shrink-0" style="color:var(--brand)">{{ ci+1 }}.</span>
+                            <p style="color:var(--ink-soft)">{{ clause.replace(/^\d+\.\s*/, '') }}</p>
+                        </div>
+                    </div>
+                    <div v-else class="space-y-3">
+                        <div v-for="(c, ci) in defaultClauses" :key="ci" class="flex gap-3 text-sm leading-relaxed p-4 rounded-xl" style="background:var(--surface-3)">
+                            <span class="font-black flex-shrink-0" style="color:var(--brand)">{{ ci+1 }}.</span>
+                            <div style="color:var(--ink-soft)"><span class="font-bold" style="color:var(--ink)">{{ c.title }}:</span> {{ c.body }}</div>
                         </div>
                     </div>
                 </div>
+
+                <div class="h-4"></div>
+            </div>
+
+            <!-- Sticky bottom — botão de aceitar -->
+            <div class="sticky-footer animate-slide-up">
+                <p class="text-center text-xs" style="color:var(--ink-soft)">Ao assinar, você confirma que leu e concorda com todas as cláusulas acima.</p>
+                <button @click="acceptAndSign" class="btn-cta">
+                    <i class="fa-solid fa-signature"></i> Li e aceito — Assinar Agora
+                </button>
             </div>
         </div>
 
-        <!-- CONTRACT PREVIEW MODAL -->
-        <div v-if="showContractModal" class="fixed inset-0 z-[70] bg-black/90 flex items-center justify-center p-4 backdrop-blur-sm">
-            <div class="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-lg shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col" style="max-height: 90vh;">
-                <!-- Header -->
-                <div class="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center flex-shrink-0">
-                    <h3 class="font-bold text-lg text-slate-800 dark:text-white flex items-center gap-2">
-                        <i class="fa-solid fa-file-contract text-brand-600"></i> Contrato de Prestação de Serviços
-                    </h3>
-                    <button @click="showContractModal=false" class="text-slate-400 hover:text-red-500 w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
-                </div>
-
-                <!-- Scrollable Contract Content -->
-                <div class="overflow-y-auto flex-1 p-5 space-y-4 text-sm text-slate-700 dark:text-slate-300">
-                    <!-- Company Header -->
-                    <div class="text-center pb-4 border-b border-slate-200 dark:border-slate-700">
-                        <img v-if="company.logo" :src="company.logo" class="w-16 h-16 rounded-full object-cover mx-auto mb-2 shadow">
-                        <p class="font-black text-slate-900 dark:text-white text-base uppercase">{{ company.fantasia }}</p>
-                        <p v-if="company.cnpj" class="text-xs text-slate-500 mt-0.5">CNPJ: {{ company.cnpj }}</p>
-                        <p v-if="company.rua" class="text-xs text-slate-500">{{ company.rua }}, {{ company.bairro }} — {{ company.cidade }}/{{ company.estado }}</p>
-                        <p v-if="company.phone" class="text-xs text-slate-500">Tel: {{ company.phone }}</p>
-                    </div>
-
-                    <!-- Title -->
-                    <div class="text-center">
-                        <span class="text-xs font-black uppercase tracking-widest text-brand-600 bg-brand-50 dark:bg-brand-900/20 px-4 py-1.5 rounded-full">Contrato de Prestação de Serviços</span>
-                    </div>
-
-                    <!-- Parties -->
-                    <div class="bg-slate-50 dark:bg-slate-800 rounded-2xl p-4 space-y-1">
-                        <p class="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">Contratante</p>
-                        <p><span class="font-bold text-slate-900 dark:text-white">Nome:</span> {{ clientData?.name }}</p>
-                        <p v-if="clientData?.cpf"><span class="font-bold text-slate-900 dark:text-white">CPF:</span> {{ clientData?.cpf }}</p>
-                        <p v-if="clientData?.phone"><span class="font-bold text-slate-900 dark:text-white">Tel:</span> {{ clientData?.phone }}</p>
-                    </div>
-
-                    <!-- Event Details -->
-                    <div class="bg-slate-50 dark:bg-slate-800 rounded-2xl p-4 space-y-1">
-                        <p class="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">Dados do Evento</p>
-                        <p v-if="contractApp"><span class="font-bold text-slate-900 dark:text-white">Data:</span> {{ formatDate(contractApp.date) }} às {{ contractApp.time }}</p>
-                        <p v-if="contractApp"><span class="font-bold text-slate-900 dark:text-white">Local:</span> {{ contractApp?.location?.bairro }}</p>
-                        <p v-if="contractApp?.details?.balloonColors"><span class="font-bold text-slate-900 dark:text-white">Decoração:</span> {{ contractApp.details.balloonColors }}</p>
-                    </div>
-
-                    <!-- Services -->
-                    <div v-if="contractApp?.selectedServices?.length" class="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700">
-                        <div class="bg-slate-800 text-white px-4 py-2 flex justify-between text-xs font-bold uppercase">
-                            <span>Serviço</span><span>Valor</span>
-                        </div>
-                        <div v-for="s in contractApp.selectedServices" :key="s.description" class="flex justify-between px-4 py-2.5 border-b border-slate-100 dark:border-slate-800 last:border-0 bg-white dark:bg-slate-900">
-                            <span class="text-slate-700 dark:text-slate-300">{{ s.description }}</span>
-                            <span class="font-bold text-slate-900 dark:text-white">{{ formatCurrency(s.price) }}</span>
-                        </div>
-                    </div>
-
-                    <!-- Financials -->
-                    <div v-if="contractApp" class="bg-brand-50 dark:bg-brand-900/20 rounded-2xl p-4 space-y-1.5">
-                        <div class="flex justify-between text-xs"><span class="text-slate-500">Total dos Serviços</span><span class="font-bold">{{ formatCurrency(contractApp.totalServices) }}</span></div>
-                        <div class="flex justify-between text-xs"><span class="text-slate-500">Sinal / Entrada</span><span class="font-bold">{{ formatCurrency(contractApp.details?.entryFee || 0) }}</span></div>
-                        <div class="flex justify-between border-t border-brand-200 dark:border-brand-800 pt-1.5 mt-1.5"><span class="font-black text-slate-900 dark:text-white">Restante a Pagar</span><span class="font-black text-brand-600 text-base">{{ formatCurrency(contractApp.finalBalance) }}</span></div>
-                    </div>
-
-                    <!-- Clauses -->
-                    <div class="space-y-3">
-                        <p class="text-[10px] font-black uppercase text-slate-400 tracking-wider">Cláusulas e Condições</p>
-                        <div class="space-y-2.5">
-                            <div class="flex gap-3 text-xs leading-relaxed">
-                                <span class="font-black text-brand-600 flex-shrink-0">1.</span>
-                                <p><span class="font-bold text-slate-900 dark:text-white">DO OBJETO:</span> O presente contrato tem como objeto a prestação de serviços de decoração conforme itens descritos acima.</p>
-                            </div>
-                            <div class="flex gap-3 text-xs leading-relaxed">
-                                <span class="font-black text-brand-600 flex-shrink-0">2.</span>
-                                <p><span class="font-bold text-slate-900 dark:text-white">DA RESERVA:</span> A data somente será reservada mediante o pagamento do sinal. Em caso de cancelamento com menos de 30 dias, o valor do sinal não será devolvido, servindo como multa contratual.</p>
-                            </div>
-                            <div class="flex gap-3 text-xs leading-relaxed">
-                                <span class="font-black text-brand-600 flex-shrink-0">3.</span>
-                                <p><span class="font-bold text-slate-900 dark:text-white">DO PAGAMENTO:</span> O valor restante deverá ser quitado até a data do evento, antes do início da montagem.</p>
-                            </div>
-                            <div class="flex gap-3 text-xs leading-relaxed">
-                                <span class="font-black text-brand-600 flex-shrink-0">4.</span>
-                                <p><span class="font-bold text-slate-900 dark:text-white">DA CONSERVAÇÃO:</span> O CONTRATANTE responsabiliza-se pela conservação das peças e materiais durante o evento. Danos, quebras ou extravios serão de responsabilidade do contratante.</p>
-                            </div>
-                            <div class="flex gap-3 text-xs leading-relaxed">
-                                <span class="font-black text-brand-600 flex-shrink-0">5.</span>
-                                <p><span class="font-bold text-slate-900 dark:text-white">DA MONTAGEM:</span> O local deve estar disponível e limpo no horário combinado. A desmontagem ocorrerá conforme horário pré-agendado.</p>
-                            </div>
-                            <div class="flex gap-3 text-xs leading-relaxed">
-                                <span class="font-black text-brand-600 flex-shrink-0">6.</span>
-                                <p><span class="font-bold text-slate-900 dark:text-white">DE FORÇA MAIOR:</span> A CONTRATADA não se responsabiliza por falhas decorrentes de casos fortuitos ou força maior (tempestades, falta de energia, etc).</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Spacer for bottom button -->
-                    <div class="h-2"></div>
-                </div>
-
-                <!-- Accept Footer -->
-                <div class="p-5 border-t border-slate-100 dark:border-slate-800 flex-shrink-0 bg-white dark:bg-slate-900 rounded-b-3xl">
-                    <p class="text-center text-xs text-slate-500 mb-3">Ao clicar em "Li e aceito os termos", você confirma que leu e concorda com todas as cláusulas acima.</p>
-                    <button @click="acceptAndSign" class="w-full h-14 bg-brand-600 hover:bg-brand-500 text-white rounded-2xl font-bold shadow-lg flex items-center justify-center gap-2 transition active:scale-95">
-                        <i class="fa-solid fa-check-circle"></i> Li e aceito os termos — Assinar
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- SIGNATURE MODAL -->
-        <div v-if="showSignModal" class="fixed inset-0 z-[80] bg-black/90 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
-            <div class="bg-white dark:bg-slate-900 p-4 rounded-3xl w-full max-w-md shadow-2xl border border-slate-200 dark:border-slate-700">
+        <!-- ═══ MODAL ASSINATURA ═══ -->
+        <div v-if="showSignModal" class="fixed inset-0 z-[80] flex flex-col items-end justify-end" style="background:rgba(26,16,24,0.6);backdrop-filter:blur(8px)">
+            <div class="w-full rounded-t-3xl p-6 animate-slide-up shadow-modal" style="background:white">
+                <div class="w-10 h-1 rounded-full mx-auto mb-5" style="background:var(--border)"></div>
                 <div class="flex justify-between items-center mb-4">
-                    <h3 class="font-bold text-lg text-slate-800 dark:text-white">Assinar Contrato</h3>
-                    <button @click="showSignModal=false" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-xmark text-xl"></i></button>
+                    <h3 class="font-display text-xl font-bold" style="color:var(--ink)">Sua assinatura</h3>
+                    <button @click="showSignModal=false" class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:var(--surface-3);color:var(--ink-soft)"><i class="fa-solid fa-xmark"></i></button>
                 </div>
-                <div class="bg-slate-100 dark:bg-slate-800 rounded-2xl overflow-hidden border-2 border-dashed border-slate-300 dark:border-slate-600 relative touch-none">
-                    <canvas id="signature-pad" class="w-full h-48 bg-white cursor-crosshair" style="touch-action: none;"></canvas>
-                    <div class="absolute bottom-2 right-2 text-[10px] text-slate-400 pointer-events-none">Desenhe sua assinatura acima</div>
+                <p class="text-sm mb-4" style="color:var(--ink-soft)">Desenhe sua assinatura no campo abaixo com o dedo.</p>
+                <div class="rounded-2xl overflow-hidden mb-4" style="border:2px dashed var(--border)">
+                    <canvas id="signature-pad" class="w-full bg-white cursor-crosshair" style="height:180px;touch-action:none;display:block"></canvas>
                 </div>
-                <div class="flex gap-3 mt-4">
-                    <button @click="clearCanvas" class="h-12 px-4 rounded-xl font-bold text-slate-500 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 transition">Limpar</button>
-                    <button @click="saveSignature" class="flex-1 h-12 bg-brand-600 hover:bg-brand-500 text-white rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition">
-                        <i v-if="authLoading" class="fa-solid fa-circle-notch fa-spin"></i> Confirmar
+                <div class="flex gap-3">
+                    <button @click="clearCanvas" class="h-14 px-6 rounded-2xl font-bold transition" style="background:var(--surface-3);color:var(--ink-soft);border:1px solid var(--border)">Limpar</button>
+                    <button @click="saveSignature" :disabled="authLoading" class="btn-cta flex-1" style="height:56px;font-size:15px;border-radius:16px">
+                        <i v-if="authLoading" class="fa-solid fa-circle-notch animate-spin"></i>
+                        <i v-else class="fa-solid fa-check-circle"></i>
+                        Confirmar Assinatura
                     </button>
                 </div>
             </div>
         </div>
 
-    </div>
+    </div><!-- /app -->
 
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script type="module" src="js/client.js"></script> </body>
+    <script type="module" src="js/client.js"></script>
+</body>
 </html>
