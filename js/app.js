@@ -88,6 +88,66 @@ createApp({
         const calendarCursor = ref(new Date());
         const selectedCalendarDate = ref(null);
         const registrationTab = ref('clients');
+
+        // ─── INVENTÁRIO / ACERVO ──────────────────────────────
+        const showInventoryModal = ref(false);
+        const editingInventoryId = ref(null);
+        const inventoryCatFilter = ref('all');
+        const inventoryItems = ref([]);
+        const newInventory = reactive({ name: '', category: '', qty: 0, notes: '' });
+        const inventoryCategories = [
+            { k:'all',    label:'Todos',     icon:'🗂️' },
+            { k:'baloes', label:'Balões',    icon:'🎈' },
+            { k:'flores', label:'Flores',    icon:'🌸' },
+            { k:'tecidos',label:'Tecidos',   icon:'🎀' },
+            { k:'mesas',  label:'Mesas',     icon:'🪑' },
+            { k:'luzes',  label:'Iluminação',icon:'💡' },
+            { k:'outros', label:'Outros',    icon:'📦' },
+        ];
+        const inventoryFiltered = computed(() => {
+            if (inventoryCatFilter.value === 'all') return inventoryItems.value;
+            const catLabel = inventoryCategories.find(c => c.k === inventoryCatFilter.value)?.label;
+            return inventoryItems.value.filter(i => i.category === catLabel);
+        });
+        const getCatIcon = (cat) => {
+            const found = inventoryCategories.find(c => c.label === cat);
+            return found ? found.icon : '📦';
+        };
+        const getCatColor = (cat) => {
+            const map = { 'Balões':'rgba(59,130,246,0.12)', 'Flores':'rgba(236,72,153,0.12)', 'Tecidos':'rgba(168,85,247,0.12)', 'Mesas':'rgba(245,158,11,0.12)', 'Iluminação':'rgba(234,179,8,0.12)' };
+            return map[cat] || 'rgba(255,92,53,0.08)';
+        };
+
+        // Moodboard helpers
+        const moodboardSearch = ref('');
+        const moodboardFiltered = computed(() => {
+            if (!moodboardSearch.value.trim()) return services.value;
+            const t = moodboardSearch.value.toLowerCase();
+            return services.value.filter(s => s.description.toLowerCase().includes(t));
+        });
+        const getMoodboardIcon = (desc) => {
+            const d = desc.toLowerCase();
+            if (d.includes('balo') || d.includes('balloon'))   return '🎈';
+            if (d.includes('flor') || d.includes('bouquet'))   return '🌸';
+            if (d.includes('mesa') || d.includes('table'))     return '🪑';
+            if (d.includes('luz') || d.includes('light'))      return '✨';
+            if (d.includes('topo') || d.includes('topper'))    return '🎂';
+            if (d.includes('painel') || d.includes('banner'))  return '🖼️';
+            if (d.includes('vela') || d.includes('candle'))    return '🕯️';
+            if (d.includes('arco') || d.includes('arch'))      return '🌈';
+            if (d.includes('foto') || d.includes('photo'))     return '📸';
+            if (d.includes('musi') || d.includes('som'))       return '🎵';
+            return '🎉';
+        };
+        const isServiceSelected = (s) => tempApp.selectedServices.some(x => x.description === s.description);
+        const toggleMoodboardService = (s) => {
+            const idx = tempApp.selectedServices.findIndex(x => x.description === s.description);
+            if (idx >= 0) {
+                tempApp.selectedServices.splice(idx, 1);
+            } else {
+                tempApp.selectedServices.push({ description: s.description, price: s.price });
+            }
+        };
         const agendaTab = ref('pending');
 
         // Modais
@@ -488,6 +548,26 @@ createApp({
             } catch(e) { console.error(e); }
             finally { clientHistoryLoading.value = false; }
         };
+        const clientAvgRating = computed(() => {
+            const rated = clientHistoryApps.value.filter(a => a.review?.rating);
+            if (!rated.length) return 0;
+            return (rated.reduce((acc, a) => acc + a.review.rating, 0) / rated.length).toFixed(1);
+        });
+        const generateReviewLink = (app) => {
+            const basePath = window.location.origin + window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+            return basePath + 'review.html?aid=' + app.id + '&uid=' + user.value.uid;
+        };
+        const copyReviewLink = (app) => {
+            navigator.clipboard.writeText(generateReviewLink(app)).then(() => Swal.fire('Copiado!', 'Link de avaliacao copiado.', 'success'));
+        };
+        const sendReviewWhatsApp = (app) => {
+            const cli = clientCache[app.clientId];
+            if (!cli?.phone) return Swal.fire('Atencao', 'Cliente sem telefone cadastrado.', 'warning');
+            const link = generateReviewLink(app);
+            const phoneClean = cli.phone.replace(/\D/g,'');
+            const msg = 'Ola ' + cli.name + '! Foi um prazer realizar seu evento!\n\nQueremos saber como foi sua experiencia. Avalie nosso servico (leva menos de 1 minuto):\n' + link;
+            window.open('https://wa.me/55' + phoneClean + '?text=' + encodeURIComponent(msg), '_blank');
+        };
         const clientHistoryTotal = computed(() => clientHistoryApps.value.filter(a => a.status !== 'budget').reduce((acc, a) => acc + toNum(a.totalServices), 0));
 
         // ─── COR DO TEMA ──────────────────────────────────────────
@@ -808,7 +888,36 @@ createApp({
         const saveCompany = () => { updateDoc(doc(db, "users", user.value.uid), { companyConfig: company }); Swal.fire('Salvo', '', 'success'); };
         const deleteService = async (id) => { await deleteDoc(doc(db, "services", id)); };
         const deleteExpense = async (id) => { const { isConfirmed } = await Swal.fire({ title: 'Excluir?', text: 'Não pode desfazer.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33' }); if (isConfirmed) { await deleteDoc(doc(db, "expenses", id)); if (expensesFilter.start && expensesFilter.end) searchExpenses(); loadDashboardData(); Swal.fire('Excluído!', '', 'success'); } };
-        const changeStatus = async (app, status) => { const {isConfirmed} = await Swal.fire({title: 'Alterar Status?', icon:'question', showCancelButton:true}); if(isConfirmed) { await updateDoc(doc(db,"appointments",app.id), {status:status}); await logAudit('change_status', `Status de agendamento de ${getClientName(app.clientId)} (${formatDate(app.date)}) alterado para ${statusText(status)}`); Swal.fire('Feito','','success'); loadDashboardData(); } };
+        const changeStatus = async (app, status) => {
+            const {isConfirmed} = await Swal.fire({title: 'Alterar Status?', icon:'question', showCancelButton:true, confirmButtonColor:'#4F46E5'});
+            if(!isConfirmed) return;
+            await updateDoc(doc(db,"appointments",app.id), {status});
+            await logAudit('change_status', `Status de agendamento de ${getClientName(app.clientId)} (${formatDate(app.date)}) alterado para ${statusText(status)}`);
+            loadDashboardData();
+            if (status === 'concluded') {
+                const basePath = window.location.origin + window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+                const reviewLink = `${basePath}review.html?aid=${app.id}&uid=${user.value.uid}`;
+                const cli = clientCache[app.clientId];
+                const { isConfirmed: share } = await Swal.fire({
+                    title: '\u{1F389} Evento conclu\u00EDdo!',
+                    html: `Deseja enviar o link de avalia\u00E7\u00E3o para <strong>${cli?.name || 'o cliente'}</strong>?<br><small style="color:#94a3b8">O cliente poder\u00E1 dar de 1 a 5 estrelas e deixar um coment\u00E1rio.</small>`,
+                    icon: 'success',
+                    showCancelButton: true,
+                    confirmButtonText: '\u{1F4F2} Enviar WhatsApp',
+                    cancelButtonText: 'S\u00F3 copiar link',
+                    confirmButtonColor: '#16A34A',
+                });
+                if (share && cli?.phone) {
+                    const phoneClean = cli.phone.replace(/\D/g,'');
+                    const msg = `Ol\u00E1 ${cli.name}! \u{1F389} Foi um prazer realizar seu evento!\n\nQueremos saber como foi sua experi\u00EAncia. Avalie nosso servi\u00E7o (leva menos de 1 minuto):\n${reviewLink}`;
+                    window.open(`https://wa.me/55${phoneClean}?text=${encodeURIComponent(msg)}`, '_blank');
+                } else if (!share) {
+                    navigator.clipboard.writeText(reviewLink).then(() => Swal.fire('Link copiado!', 'Cole e envie para o cliente.', 'success'));
+                }
+            } else {
+                Swal.fire('Feito','','success');
+            }
+        };
         const handleLogoUpload = (e) => { const f = e.target.files[0]; if(f){ const r=new FileReader(); r.onload=x=>{company.logo=x.target.result; updateDoc(doc(db,"users",user.value.uid),{companyConfig:company});}; r.readAsDataURL(f); }};
         const toggleDarkMode = () => { isDark.value=!isDark.value; document.documentElement.classList.toggle('dark'); };
         const changeCalendarMonth = (off) => { const d = new Date(calendarCursor.value); d.setMonth(d.getMonth() + off); calendarCursor.value = d; };
@@ -859,6 +968,47 @@ createApp({
     }
 };
 
+        // ─── INVENTORY CRUD ───────────────────────────────────
+        const loadInventory = () => {
+            if (!user.value) return;
+            import('../js/firebase.js').then(({ collection, onSnapshot, query, where, db }) => {
+                onSnapshot(query(collection(db, 'inventory'), where('userId', '==', user.value.uid)), snap => {
+                    inventoryItems.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                });
+            }).catch(() => {});
+        };
+        const saveInventoryItem = async () => {
+            if (!newInventory.name.trim() || !newInventory.category || newInventory.qty < 0) {
+                return Swal.fire('Atenção', 'Preencha nome, categoria e quantidade.', 'warning');
+            }
+            const { db, collection, doc, addDoc, updateDoc } = await import('./firebase.js');
+            const payload = { name: newInventory.name.trim(), category: newInventory.category, qty: newInventory.qty, notes: newInventory.notes.trim(), userId: user.value.uid };
+            if (editingInventoryId.value) {
+                await updateDoc(doc(db, 'inventory', editingInventoryId.value), payload);
+                Swal.fire({ toast:true, position:'bottom', icon:'success', title:'Item atualizado!', timer:2000, showConfirmButton:false });
+            } else {
+                await addDoc(collection(db, 'inventory'), payload);
+                Swal.fire({ toast:true, position:'bottom', icon:'success', title:'Item adicionado!', timer:2000, showConfirmButton:false });
+            }
+            closeInventoryModal();
+        };
+        const closeInventoryModal = () => {
+            showInventoryModal.value = false;
+            editingInventoryId.value = null;
+            newInventory.name = ''; newInventory.category = ''; newInventory.qty = 0; newInventory.notes = '';
+        };
+        const editInventoryItem = (item) => {
+            editingInventoryId.value = item.id;
+            newInventory.name = item.name; newInventory.category = item.category; newInventory.qty = item.qty; newInventory.notes = item.notes || '';
+            showInventoryModal.value = true;
+        };
+        const deleteInventoryItem = async (id) => {
+            const { isConfirmed } = await Swal.fire({ title:'Remover item?', icon:'question', showCancelButton:true, confirmButtonColor:'#dc2626' });
+            if (!isConfirmed) return;
+            const { db, doc, deleteDoc } = await import('./firebase.js');
+            await deleteDoc(doc(db, 'inventory', id));
+        };
+
         return {
             user, view, isDark, authForm, authLoading, isRegistering, handleAuth, logout, isGlobalLoading,
             dashboardMonth, financeData, next7DaysApps, statementList, isExtractLoaded,
@@ -891,9 +1041,15 @@ createApp({
             // Comparativo mensal
             monthlyChartData, monthlyChartLoading, loadMonthlyChart,
             // Histórico cliente
-            showClientHistoryModal, clientHistoryData, clientHistoryApps, clientHistoryLoading, openClientHistory, clientHistoryTotal,
+            showClientHistoryModal, clientHistoryData, clientHistoryApps, clientHistoryLoading, openClientHistory, clientHistoryTotal, clientAvgRating, generateReviewLink, copyReviewLink, sendReviewWhatsApp,
             // Tema
-            applyThemeColor
+            applyThemeColor,
+            // Inventário / Acervo
+            showInventoryModal, inventoryItems, inventoryFiltered, inventoryCategories, inventoryCatFilter,
+            newInventory, saveInventoryItem, closeInventoryModal, editInventoryItem, deleteInventoryItem, editingInventoryId,
+            getCatIcon, getCatColor,
+            // Moodboard
+            moodboardSearch, moodboardFiltered, getMoodboardIcon, isServiceSelected, toggleMoodboardService,
         };
     }
 }).mount('#app');
