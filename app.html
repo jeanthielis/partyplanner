@@ -18,6 +18,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="css/style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -735,7 +736,12 @@
 
                     <div v-if="view === 'registrations'" class="space-y-5 animate-fade-in">
                         <h2 class="font-display text-3xl font-bold" style="color:var(--ink)">Cadastros</h2>
-                        <div class="tab-switcher flex w-fit"><button v-for="t in ['clients','services','company']" @click="registrationTab=t" :class="registrationTab===t ? 'tab-btn active' : 'tab-btn'" class="px-5 py-2.5">{{ t==='clients'?'Clientes':(t==='services'?'Serviços':'Empresa') }}</button></div>
+                        <div class="tab-switcher flex w-fit flex-wrap gap-0.5">
+    <button @click="registrationTab='clients'" :class="registrationTab==='clients' ? 'tab-btn active' : 'tab-btn'" class="px-4 py-2.5">Clientes</button>
+    <button @click="registrationTab='services'" :class="registrationTab==='services' ? 'tab-btn active' : 'tab-btn'" class="px-4 py-2.5">Serviços</button>
+    <button @click="registrationTab='inventory'" :class="registrationTab==='inventory' ? 'tab-btn active' : 'tab-btn'" class="px-4 py-2.5"><i class="fa-solid fa-boxes-stacked mr-1.5"></i>Acervo</button>
+    <button @click="registrationTab='company'" :class="registrationTab==='company' ? 'tab-btn active' : 'tab-btn'" class="px-4 py-2.5">Empresa</button>
+</div>
                         <div v-if="registrationTab === 'clients'" class="space-y-4">
                             <div class="p-4 rounded-2xl flex justify-between items-center" style="background:var(--brand-pale);border:1px solid rgba(255,92,53,0.2)"><div><h4 class="font-bold text-sm" style="color:var(--brand-mid)">Link de Acesso do Cliente</h4><p class="text-xs" style="color:rgba(232,67,28,0.7)">Envie este link para seu cliente.</p></div><button @click="copyClientLink" class="btn-primary px-4 py-2 rounded-xl text-xs"><i class="fa-solid fa-copy"></i> Copiar Link</button></div>
 
@@ -848,6 +854,55 @@
                             </div>
                         </div>
                         
+                        <!-- ═══ INVENTÁRIO / ACERVO ═══ -->
+                        <div v-if="registrationTab === 'inventory'" class="space-y-5 animate-fade-in">
+                            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                                <div>
+                                    <h3 class="text-xl font-bold" style="color:var(--ink)">Acervo de Decoração</h3>
+                                    <p class="text-sm" style="color:var(--ink-soft)">Gerencie seus materiais e itens de decoração</p>
+                                </div>
+                                <button @click="showInventoryModal=true" class="btn-primary px-5 py-2.5 rounded-xl flex items-center gap-2 text-sm"><i class="fa-solid fa-plus"></i> Novo Item</button>
+                            </div>
+
+                            <!-- Filtro de categorias -->
+                            <div class="flex gap-2 flex-wrap">
+                                <button v-for="cat in inventoryCategories" :key="cat.k"
+                                    @click="inventoryCatFilter = cat.k"
+                                    :class="inventoryCatFilter===cat.k ? 'btn-primary' : ''"
+                                    class="px-4 py-2 rounded-xl text-sm font-bold transition"
+                                    :style="inventoryCatFilter!==cat.k ? 'background:var(--surface-3);color:var(--ink-mid);border:1px solid var(--border)' : ''">
+                                    {{ cat.icon }} {{ cat.label }}
+                                </button>
+                            </div>
+
+                            <!-- Grid de itens -->
+                            <div v-if="inventoryFiltered.length === 0" class="text-center py-16 section-card" style="color:var(--ink-soft)">
+                                <i class="fa-solid fa-boxes-stacked text-4xl mb-3 block opacity-30"></i>
+                                <p class="font-medium">Nenhum item no acervo.</p>
+                                <p class="text-xs mt-1">Clique em "Novo Item" para começar.</p>
+                            </div>
+                            <div v-else class="inventory-grid">
+                                <div v-for="item in inventoryFiltered" :key="item.id" class="inventory-card hover-lift animate-fade-in">
+                                    <div class="p-4">
+                                        <div class="w-10 h-10 rounded-xl flex items-center justify-center text-lg mb-3" :style="'background:'+getCatColor(item.category)">
+                                            {{ getCatIcon(item.category) }}
+                                        </div>
+                                        <p class="font-bold text-sm leading-snug mb-1" style="color:var(--ink)">{{ item.name }}</p>
+                                        <p class="text-xs mb-2" style="color:var(--ink-soft)">{{ item.category }}</p>
+                                        <div class="flex items-center justify-between">
+                                            <span class="inventory-badge" :class="item.qty > 5 ? 'ok' : item.qty > 0 ? 'low' : 'empty'">
+                                                {{ item.qty }} un.
+                                            </span>
+                                            <div class="flex gap-1">
+                                                <button @click="editInventoryItem(item)" class="w-7 h-7 rounded-lg flex items-center justify-center text-xs transition" style="background:var(--surface-3);color:var(--ink-soft)"><i class="fa-solid fa-pen"></i></button>
+                                                <button @click="deleteInventoryItem(item.id)" class="w-7 h-7 rounded-lg flex items-center justify-center text-xs transition" style="background:rgba(220,38,38,0.07);color:#dc2626"><i class="fa-solid fa-trash"></i></button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div v-if="registrationTab === 'company'" class="bg-white dark:bg-slate-900 p-8 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 space-y-5 max-w-lg">
                             <div class="flex justify-center gap-6 mb-6">
                                 <div class="relative group cursor-pointer text-center">
@@ -1040,6 +1095,41 @@
             </div>
         </div>
 
+        <!-- MODAL INVENTÁRIO -->
+        <div v-if="showInventoryModal" class="fixed inset-0 z-[60] flex items-center justify-center p-4" style="background:rgba(0,0,0,0.6);backdrop-filter:blur(10px)">
+            <div class="rounded-3xl w-full max-w-md animate-scale-in shadow-modal" style="background:white;border:1px solid var(--border)">
+                <div class="p-6 flex justify-between items-center" style="border-bottom:1px solid var(--border)">
+                    <h2 class="text-xl font-bold flex items-center gap-2" style="color:var(--ink)">
+                        <i class="fa-solid fa-boxes-stacked" style="color:var(--brand)"></i>
+                        {{ editingInventoryId ? 'Editar Item' : 'Novo Item do Acervo' }}
+                    </h2>
+                    <button @click="closeInventoryModal" class="w-8 h-8 rounded-full flex items-center justify-center text-sm transition hover:text-red-500" style="background:var(--surface-3);color:var(--ink-soft)"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div class="relative">
+                        <i class="fa-solid fa-box absolute left-4 top-1/2 -translate-y-1/2 text-xs" style="color:var(--ink-soft)"></i>
+                        <input v-model="newInventory.name" placeholder="Nome do item *" class="input-light w-full h-14 pl-11 pr-4 rounded-2xl text-sm font-medium">
+                    </div>
+                    <select v-model="newInventory.category" class="input-light w-full h-14 px-4 rounded-2xl text-sm font-medium appearance-none">
+                        <option value="">Categoria *</option>
+                        <option v-for="cat in inventoryCategories.filter(c=>c.k!=='all')" :value="cat.label">{{ cat.icon }} {{ cat.label }}</option>
+                    </select>
+                    <div class="relative">
+                        <i class="fa-solid fa-hashtag absolute left-4 top-1/2 -translate-y-1/2 text-xs" style="color:var(--ink-soft)"></i>
+                        <input v-model.number="newInventory.qty" type="number" min="0" placeholder="Quantidade *" class="input-light w-full h-14 pl-11 pr-4 rounded-2xl text-sm font-medium">
+                    </div>
+                    <div class="relative">
+                        <i class="fa-solid fa-note-sticky absolute left-4 top-1/2 -translate-y-1/2 text-xs" style="color:var(--ink-soft)"></i>
+                        <input v-model="newInventory.notes" placeholder="Observações (opcional)" class="input-light w-full h-12 pl-11 pr-4 rounded-xl text-sm">
+                    </div>
+                    <div class="flex gap-3 pt-2">
+                        <button @click="closeInventoryModal" class="h-14 px-6 rounded-2xl font-bold transition" style="background:var(--surface-3);color:var(--ink-soft)">Cancelar</button>
+                        <button @click="saveInventoryItem" class="btn-primary flex-1 h-14 rounded-2xl flex items-center justify-center gap-2"><i class="fa-solid fa-check"></i> Salvar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- MODAL CLIENTE -->
         <div v-if="showClientModal" class="fixed inset-0 z-[60] flex items-center justify-center p-4" style="background:rgba(0,0,0,0.75);backdrop-filter:blur(12px)">
             <div class="rounded-3xl w-full max-w-md" style="background:white;border:1px solid var(--border);box-shadow:var(--shadow-lg)">
@@ -1155,7 +1245,47 @@
                     <div class="relative group"><label class="text-[11px] font-bold opacity-50 text-white uppercase tracking-wider mb-1.5 block ml-1">Cliente</label><div class="relative w-full"><i class="fa-solid fa-user absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="clientSearchTerm" placeholder="Buscar cliente..." class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-white/8 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-white placeholder-slate-400"></div><div v-if="filteredClientsSearch.length" class="absolute w-full bg-white dark:bg-slate-800 border dark:border-slate-700 shadow-xl max-h-40 overflow-y-auto z-20 mt-2 rounded-xl p-1"><div v-for="c in filteredClientsSearch" @click="selectClient(c)" class="p-3 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer rounded-lg text-sm font-medium transition text-slate-700 dark:text-slate-200">{{ c.name }}</div></div><button v-if="!tempApp.clientId" @click="showClientModal=true" class="text-xs text-brand-600 font-bold mt-2 hover:underline inline-flex items-center gap-1 ml-1"><i class="fa-solid fa-user-plus"></i> Cadastrar Novo</button></div>
                     <div class="grid grid-cols-2 gap-4"><div><label class="text-[11px] font-bold opacity-50 text-white uppercase tracking-wider mb-1.5 block ml-1">Data</label><div class="relative w-full"><i class="fa-solid fa-calendar absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="tempApp.date" type="date" class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-white/8 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-white"></div></div><div><label class="text-[11px] font-bold opacity-50 text-white uppercase tracking-wider mb-1.5 block ml-1">Hora</label><div class="relative w-full"><i class="fa-solid fa-clock absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="tempApp.time" type="time" class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-white/8 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-white"></div></div></div>
                     <div><label class="text-[11px] font-bold opacity-50 text-white uppercase tracking-wider mb-1.5 block ml-1">Local</label><div class="relative w-full"><i class="fa-solid fa-map-pin absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="tempApp.location.bairro" placeholder="Endereço / Bairro" class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-white/8 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-white placeholder-slate-400"></div></div>
-                    <div class="bg-white/5/50 p-5 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700"><div class="flex justify-between items-center mb-3"><label class="text-xs font-bold text-slate-500 uppercase">Itens do Evento</label><button @click="showServiceModal=true" class="text-xs text-brand-600 font-bold hover:underline">+ Catálogo</button></div><div class="flex gap-3 mb-3"><div class="relative w-full flex-1"><i class="fa-solid fa-tag absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><select v-model="tempServiceSelect" class="w-full h-14 pl-12 pr-4 bg-white dark:bg-slate-900 border border-white/8 rounded-2xl outline-none focus:ring-2 focus:ring-brand-500 text-sm appearance-none truncate text-white"><option :value="''">Selecione...</option><option v-for="s in services" :value="s">{{ s.description }} - {{ formatCurrency(s.price) }}</option></select></div><button @click="addServiceToApp" class="w-14 h-14 bg-green-500 hover:bg-green-600 text-white rounded-2xl shadow-lg flex items-center justify-center font-bold text-xl transition"><i class="fa-solid fa-plus"></i></button></div><div class="space-y-2"><div v-for="(s,i) in tempApp.selectedServices" class="flex justify-between items-center text-sm bg-white dark:bg-slate-800 p-3 rounded-xl border border-white/8 shadow-sm"><span class="truncate pr-2 font-medium text-slate-700 dark:text-slate-300">{{ s.description }}</span><div class="flex gap-3 whitespace-nowrap items-center"><span class="font-bold text-brand-600">{{ formatCurrency(s.price) }}</span><button @click="removeServiceFromApp(i)" class="text-red-400 hover:text-red-600 transition"><i class="fa-solid fa-trash-can"></i></button></div></div></div></div>
+                    <div class="rounded-2xl p-5" style="background:var(--surface-2);border:1px solid var(--border)">
+                                    <div class="flex justify-between items-center mb-4">
+                                        <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ink-soft)">🎨 Moodboard de Serviços</label>
+                                        <button @click="showServiceModal=true" class="text-xs font-bold transition flex items-center gap-1" style="color:var(--brand)"><i class="fa-solid fa-plus"></i> Novo serviço</button>
+                                    </div>
+
+                                    <!-- Busca rápida de serviços no modal -->
+                                    <div class="relative mb-4">
+                                        <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-xs pointer-events-none" style="color:var(--ink-soft)"></i>
+                                        <input v-model="moodboardSearch" placeholder="Filtrar serviços..." class="input-light w-full h-10 pl-9 pr-3 rounded-xl text-sm">
+                                    </div>
+
+                                    <!-- Moodboard grid -->
+                                    <div v-if="services.length === 0" class="text-center py-6" style="color:var(--ink-soft)">
+                                        <i class="fa-solid fa-tags text-3xl mb-2 block opacity-30"></i>
+                                        <p class="text-xs">Nenhum serviço cadastrado ainda.</p>
+                                    </div>
+                                    <div v-else class="moodboard-grid mb-4">
+                                        <div v-for="s in moodboardFiltered" :key="s.id"
+                                            @click="toggleMoodboardService(s)"
+                                            class="moodboard-card"
+                                            :class="isServiceSelected(s) ? 'selected' : ''">
+                                            <div class="text-xl mb-2">{{ getMoodboardIcon(s.description) }}</div>
+                                            <p class="text-xs font-bold leading-snug mb-1" style="color:var(--ink)">{{ s.description }}</p>
+                                            <p class="text-xs font-black" style="color:var(--brand)">{{ formatCurrency(s.price) }}</p>
+                                        </div>
+                                    </div>
+
+                                    <!-- Selecionados -->
+                                    <div v-if="tempApp.selectedServices.length" class="space-y-1.5">
+                                        <p class="text-[10px] font-bold uppercase tracking-wider mb-2" style="color:var(--ink-soft)">Selecionados ({{ tempApp.selectedServices.length }})</p>
+                                        <div v-for="(s,i) in tempApp.selectedServices" :key="i" class="flex justify-between items-center text-sm p-3 rounded-xl animate-fade-in" style="background:white;border:1px solid var(--border)">
+                                            <span class="truncate pr-2 font-medium" style="color:var(--ink)">{{ s.description }}</span>
+                                            <div class="flex gap-2 items-center flex-shrink-0">
+                                                <span class="font-black text-sm" style="color:var(--brand)">{{ formatCurrency(s.price) }}</span>
+                                                <button @click="removeServiceFromApp(i)" class="w-6 h-6 rounded-lg flex items-center justify-center transition" style="background:rgba(220,38,38,0.08);color:#dc2626"><i class="fa-solid fa-xmark text-xs"></i></button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div v-else class="text-center py-3 text-xs" style="color:var(--ink-soft)">Clique nos cards acima para selecionar serviços</div>
+                                </div>
                     <div><label class="text-[11px] font-bold opacity-50 text-white uppercase tracking-wider mb-1.5 block ml-1">Cores dos Balões</label><div class="relative w-full"><i class="fa-solid fa-palette absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="tempApp.details.balloonColors" placeholder="Ex: Azul Royal e Prata" class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-white/8 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-white placeholder-slate-400"></div></div>
 
                     <!-- CHECKLIST DO EVENTO -->
