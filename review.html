@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Avaliar Evento | PartyPlanner</title>
+
+    <meta property="og:type"        content="website">
+    <meta property="og:title"       content="⭐ Como foi seu evento?">
+    <meta property="og:description" content="Compartilhe sua experiência e ajude-nos a melhorar cada vez mais!">
+    <meta name="theme-color" content="#0f4c81">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="css/style.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter','sans-serif'], display: ['Syne','sans-serif'] },
+                    colors: { brand: { 100:'#d8e8f5', 500:'#2d6da8', 600:'#0f4c81' } }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --brand:#0f4c81; --brand-mid:#0a3a63; --brand-light:#2d6da8;
+            --brand-pale:#edf4fa;
+            --ink:#102a43; --ink-soft:#8ba3b8;
+            --surface-2:#f7fafc; --surface-3:#eef4f8;
+            --border:rgba(16,42,67,0.09);
+        }
+        [v-cloak] { display: none; }
+        body { background: var(--surface-2); font-family: Inter, sans-serif; color: var(--ink); }
+        .star-btn { transition: transform 0.15s ease; background: none; border: none; cursor: pointer; padding: 4px; }
+        .star-btn:hover { transform: scale(1.18); }
+        .star-btn.active i { color: #f59e0b; }
+        .star-btn:not(.active) i { color: #d5dfe8; }
+        .btn-send {
+            background: linear-gradient(135deg, #34d399, #10b981);
+            color: white; font-weight: 800; font-size: 17px;
+            border: none; border-radius: 20px; width: 100%; height: 60px;
+            cursor: pointer; transition: all .18s ease;
+            box-shadow: 0 4px 20px rgba(16,185,129,.35);
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+        }
+        .btn-send:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(16,185,129,.45); }
+        .btn-send:disabled { background: #d5dfe8; box-shadow: none; cursor: not-allowed; }
+        .card { background: white; border: 1px solid var(--border); border-radius: 24px; box-shadow: 0 1px 4px rgba(16,42,67,0.05), 0 4px 16px rgba(16,42,67,0.04); }
+        textarea:focus { border-color: var(--brand) !important; box-shadow: 0 0 0 3px rgba(15,76,129,.12); outline: none; background: white !important; }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <div id="review-app" v-cloak>
+
+        <!-- Loading -->
+        <div v-if="state === 'loading'" class="fixed inset-0 flex flex-col items-center justify-center" style="background:var(--surface-2)">
+            <div class="w-20 h-20 rounded-3xl flex items-center justify-center mb-5 animate-pulse-soft" style="background:linear-gradient(135deg,#2d6da8,#0f4c81);box-shadow:0 4px 20px rgba(15,76,129,.3)">
+                <i class="fa-solid fa-star text-3xl text-white"></i>
+            </div>
+            <p class="font-display text-lg font-bold">Carregando...</p>
+        </div>
+
+        <!-- Erro -->
+        <div v-else-if="state === 'error'" class="min-h-screen flex items-center justify-center p-6 text-center">
+            <div>
+                <i class="fa-solid fa-triangle-exclamation text-5xl mb-4 block" style="color:#dc2626"></i>
+                <h2 class="text-xl font-bold mb-2">Link inválido</h2>
+                <p style="color:var(--ink-soft)">Este link de avaliação não é válido ou expirou.</p>
+            </div>
+        </div>
+
+        <!-- Já avaliado / Obrigado -->
+        <div v-else-if="state === 'done'" class="min-h-screen flex items-center justify-center p-6">
+            <div class="text-center max-w-sm animate-scale-in">
+                <div class="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6" style="background:#e8faf3">
+                    <i class="fa-solid fa-check text-4xl" style="color:#10b981"></i>
+                </div>
+                <h2 class="font-display text-2xl font-bold mb-3">Obrigado pela avaliação! 🎉</h2>
+                <p class="mb-6" style="color:var(--ink-soft)">Sua opinião é muito importante para continuarmos melhorando.</p>
+                <div class="flex justify-center gap-1.5 mb-4">
+                    <i v-for="n in 5" :key="n" class="fa-solid fa-star text-3xl" :style="n <= submittedRating ? 'color:#f59e0b' : 'color:#d5dfe8'"></i>
+                </div>
+                <p v-if="submittedComment" class="text-sm italic rounded-2xl p-4 mt-2" style="background:var(--surface-3);color:var(--ink-soft)">"{{ submittedComment }}"</p>
+            </div>
+        </div>
+
+        <!-- Formulário -->
+        <div v-else-if="state === 'form'" class="min-h-screen flex items-center justify-center p-4 py-10">
+            <div class="w-full max-w-md">
+
+                <div class="text-center mb-8 animate-slide-up">
+                    <div class="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-4" style="background:linear-gradient(135deg,#2d6da8,#0f4c81);box-shadow:0 4px 20px rgba(15,76,129,.3)">
+                        <i class="fa-solid fa-wand-magic-sparkles text-3xl text-white"></i>
+                    </div>
+                    <h1 class="font-display text-2xl font-bold">Como foi seu evento?</h1>
+                    <p class="text-sm mt-1" style="color:var(--ink-soft)">Sua avaliação nos ajuda a melhorar sempre</p>
+                </div>
+
+                <!-- Card do evento -->
+                <div class="card p-5 mb-5 animate-slide-up delay-1">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:var(--brand-pale)">
+                            <i class="fa-solid fa-calendar-check" style="color:var(--brand)"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-sm">{{ companyName }}</p>
+                            <p class="text-xs" style="color:var(--ink-soft)">{{ formatDate(appointment.date) }} às {{ appointment.time }}</p>
+                        </div>
+                    </div>
+                    <div class="pt-3 space-y-1.5" style="border-top:1px solid var(--border)">
+                        <div v-for="s in appointment.selectedServices" :key="s.description" class="flex justify-between text-xs" style="color:var(--ink-soft)">
+                            <span>{{ s.description }}</span>
+                            <span class="font-bold" style="color:var(--ink)">{{ formatCurrency(s.price) }}</span>
+                        </div>
+                        <div class="flex justify-between text-sm font-black pt-2 mt-2" style="border-top:1px solid var(--border)">
+                            <span>Total</span>
+                            <span style="color:var(--brand)">{{ formatCurrency(appointment.totalServices) }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Estrelas -->
+                <div class="card p-6 mb-4 animate-slide-up delay-2">
+                    <p class="text-sm font-bold text-center mb-4" style="color:var(--ink)">Sua nota geral</p>
+                    <div class="flex justify-center gap-2 mb-3">
+                        <button v-for="n in 5" :key="n"
+                            @click="setRating(n)"
+                            @mouseover="hoverRating = n"
+                            @mouseleave="hoverRating = 0"
+                            class="star-btn"
+                            :class="{ active: n <= (hoverRating || rating) }">
+                            <i class="fa-solid fa-star text-4xl transition-colors"></i>
+                        </button>
+                    </div>
+                    <p class="text-center text-sm font-bold h-5" style="color:var(--ink-soft)">
+                        <span v-if="(hoverRating||rating) === 1">😞 Ruim</span>
+                        <span v-else-if="(hoverRating||rating) === 2">😐 Regular</span>
+                        <span v-else-if="(hoverRating||rating) === 3">🙂 Bom</span>
+                        <span v-else-if="(hoverRating||rating) === 4">😊 Muito bom</span>
+                        <span v-else-if="(hoverRating||rating) === 5">🤩 Excelente!</span>
+                    </p>
+                </div>
+
+                <!-- Comentário -->
+                <div class="card p-5 mb-6 animate-slide-up delay-3">
+                    <p class="text-sm font-bold mb-3" style="color:var(--ink)">Deixe um comentário (opcional)</p>
+                    <textarea v-model="comment"
+                        placeholder="Conte como foi a experiência, o que mais gostou, sugestões..."
+                        class="w-full rounded-xl p-4 text-sm resize-none h-28 transition-all"
+                        style="background:var(--surface-3);border:1.5px solid var(--border);color:var(--ink)"></textarea>
+                </div>
+
+                <!-- Enviar -->
+                <div class="animate-slide-up delay-4">
+                    <button @click="submitReview" :disabled="rating === 0 || submitting" class="btn-send">
+                        <i v-if="submitting" class="fa-solid fa-circle-notch animate-spin"></i>
+                        <i v-else class="fa-solid fa-paper-plane"></i>
+                        {{ submitting ? 'Enviando...' : 'Enviar Avaliação' }}
+                    </button>
+                    <p class="text-center text-xs mt-3" style="color:var(--ink-soft)">Selecione ao menos uma estrela para enviar</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script type="module">
+        import { db, collection, doc, getDoc, getDocs, addDoc, updateDoc, query, where } from './js/firebase.js';
+        const { createApp, ref, onMounted } = Vue;
+
+        createApp({
+            setup() {
+                const state = ref('loading');
+                const appointment = ref({});
+                const companyName = ref('');
+                const rating = ref(0);
+                const hoverRating = ref(0);
+                const comment = ref('');
+                const submitting = ref(false);
+                const submittedRating = ref(0);
+                const submittedComment = ref('');
+
+                const urlParams = new URLSearchParams(window.location.search);
+                const appointmentId = urlParams.get('aid');
+                const userId = urlParams.get('uid');
+
+                const formatDate = (d) => { if(!d) return ''; try{ return d.split('-').reverse().join('/'); } catch(e){ return d; } };
+                const formatCurrency = (v) => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(parseFloat(v)||0);
+                const setRating = (n) => { rating.value = n; };
+
+                onMounted(async () => {
+                    if (!appointmentId || !userId) { state.value = 'error'; return; }
+                    try {
+                        // Já avaliado?
+                        const reviewSnap = await getDocs(query(collection(db, 'reviews'), where('appointmentId', '==', appointmentId)));
+                        if (!reviewSnap.empty) {
+                            const r = reviewSnap.docs[0].data();
+                            submittedRating.value = r.rating;
+                            submittedComment.value = r.comment || '';
+                            state.value = 'done';
+                            return;
+                        }
+
+                        const appDoc = await getDoc(doc(db, 'appointments', appointmentId));
+                        if (!appDoc.exists() || appDoc.data().userId !== userId) { state.value = 'error'; return; }
+                        appointment.value = { id: appDoc.id, ...appDoc.data() };
+
+                        const userDoc = await getDoc(doc(db, 'users', userId));
+                        if (userDoc.exists()) companyName.value = userDoc.data().companyConfig?.fantasia || 'PartyPlanner';
+
+                        state.value = 'form';
+                    } catch(e) {
+                        console.error(e);
+                        state.value = 'error';
+                    }
+                });
+
+                const submitReview = async () => {
+                    if (rating.value === 0 || submitting.value) return;
+                    submitting.value = true;
+                    try {
+                        await addDoc(collection(db, 'reviews'), {
+                            appointmentId, userId,
+                            clientId: appointment.value.clientId || '',
+                            rating: rating.value,
+                            comment: comment.value.trim(),
+                            date: appointment.value.date,
+                            createdAt: new Date().toISOString()
+                        });
+                        await updateDoc(doc(db, 'appointments', appointmentId), {
+                            review: { rating: rating.value, comment: comment.value.trim(), createdAt: new Date().toISOString() }
+                        });
+                        submittedRating.value = rating.value;
+                        submittedComment.value = comment.value.trim();
+                        state.value = 'done';
+                    } catch(e) {
+                        console.error(e);
+                        Swal.fire('Erro', 'Não foi possível enviar a avaliação. Tente novamente.', 'error');
+                    } finally {
+                        submitting.value = false;
+                    }
+                };
+
+                return { state, appointment, companyName, rating, hoverRating, comment, submitting, submittedRating, submittedComment, setRating, submitReview, formatDate, formatCurrency };
+            }
+        }).mount('#review-app');
+    </script>
+</body>
+</html>

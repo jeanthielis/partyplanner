@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catálogo de Decorações | PartyPlanner</title>
+
+    <meta property="og:type"        content="website">
+    <meta property="og:title"       content="🎉 Catálogo de Decorações">
+    <meta property="og:description" content="Veja nossos modelos de decoração com valores e monte a festa dos seus sonhos.">
+    <meta name="theme-color" content="#0f4c81">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+
+    <style>
+        :root {
+            --brand:#0f4c81; --brand-mid:#0a3a63; --brand-light:#2d6da8;
+            --brand-pale:#edf4fa;
+            --ink:#102a43; --ink-soft:#8ba3b8;
+            --surface-2:#f7fafc; --surface-3:#eef4f8;
+            --border:rgba(16,42,67,0.09);
+        }
+        [v-cloak]{display:none}
+        body{background:var(--surface-2);font-family:Inter,sans-serif;color:var(--ink)}
+        .catalog-card{background:white;border:1.5px solid var(--border);border-radius:20px;overflow:hidden;transition:all .18s ease;cursor:pointer;position:relative}
+        .catalog-card:hover{transform:translateY(-3px);box-shadow:0 8px 28px rgba(16,42,67,.12);border-color:rgba(15,76,129,.3)}
+        .catalog-card.picked{border-color:#10b981;box-shadow:0 0 0 3px rgba(16,185,129,.18),0 8px 28px rgba(16,185,129,.15)}
+        .catalog-card.picked::after{content:'✓';position:absolute;top:10px;right:12px;width:24px;height:24px;background:#10b981;color:white;border-radius:99px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900}
+        .btn-zap{background:#25d366;color:white;font-weight:800;border:none;border-radius:18px;height:58px;padding:0 1.75rem;cursor:pointer;transition:all .18s ease;box-shadow:0 4px 18px rgba(37,211,102,.4);display:flex;align-items:center;justify-content:center;gap:10px;font-size:15px;width:100%}
+        .btn-zap:hover{transform:translateY(-2px)}
+        .sticky-cta{position:fixed;bottom:0;left:0;right:0;padding:12px 16px 18px;background:rgba(247,250,252,.97);backdrop-filter:blur(16px);border-top:1px solid var(--border);z-index:50}
+        @supports(padding:max(0px)){.sticky-cta{padding-bottom:max(18px,env(safe-area-inset-bottom))}}
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <div id="catalog-app" v-cloak>
+
+        <!-- Loading -->
+        <div v-if="state === 'loading'" class="fixed inset-0 z-50 flex flex-col items-center justify-center" style="background:var(--surface-2)">
+            <div class="w-20 h-20 rounded-3xl flex items-center justify-center mb-5 animate-pulse-soft" style="background:linear-gradient(135deg,#2d6da8,#0f4c81);box-shadow:0 4px 20px rgba(15,76,129,.3)">
+                <i class="fa-solid fa-book-open text-3xl text-white"></i>
+            </div>
+            <p class="font-display text-lg font-bold">Abrindo catálogo...</p>
+        </div>
+
+        <!-- Erro -->
+        <div v-else-if="state === 'error'" class="min-h-screen flex items-center justify-center p-6 text-center">
+            <div>
+                <i class="fa-solid fa-triangle-exclamation text-5xl mb-4 block" style="color:#dc2626"></i>
+                <h2 class="text-xl font-bold mb-2">Catálogo não encontrado</h2>
+                <p style="color:var(--ink-soft)">Este link não é válido ou não há serviços cadastrados.</p>
+            </div>
+        </div>
+
+        <!-- Catálogo -->
+        <div v-else-if="state === 'ready'" class="pb-40">
+
+            <!-- Hero -->
+            <header class="text-center px-5 pt-12 pb-8 animate-fade-in">
+                <img v-if="company.logo" :src="company.logo" class="w-24 h-24 rounded-3xl object-cover mx-auto mb-4 shadow-pop border-4" style="border-color:white">
+                <div v-else class="w-20 h-20 rounded-3xl mx-auto flex items-center justify-center mb-4" style="background:linear-gradient(135deg,#2d6da8,#0f4c81);box-shadow:0 4px 20px rgba(15,76,129,.3)">
+                    <i class="fa-solid fa-wand-magic-sparkles text-3xl text-white"></i>
+                </div>
+                <h1 class="font-display text-3xl md:text-4xl font-bold">{{ company.fantasia || 'Catálogo' }}</h1>
+                <p class="text-sm mt-2 max-w-md mx-auto" style="color:var(--ink-soft)">Escolha os modelos de decoração que combinam com a sua festa e peça um orçamento na hora 🎉</p>
+            </header>
+
+            <!-- Busca -->
+            <div class="max-w-3xl mx-auto px-4 mb-6">
+                <div class="relative">
+                    <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-sm" style="color:var(--ink-soft)"></i>
+                    <input v-model="search" placeholder="Buscar decoração..."
+                        class="w-full h-14 pl-12 pr-4 rounded-2xl text-sm font-medium transition-all"
+                        style="background:white;border:1.5px solid var(--border);color:var(--ink);outline:none"
+                        onfocus="this.style.borderColor='#0f4c81';this.style.boxShadow='0 0 0 3px rgba(15,76,129,.12)'"
+                        onblur="this.style.borderColor='rgba(16,42,67,0.09)';this.style.boxShadow='none'">
+                </div>
+            </div>
+
+            <!-- Grid de modelos -->
+            <main class="max-w-3xl mx-auto px-4">
+                <div v-if="filteredServices.length === 0" class="text-center py-16 rounded-3xl" style="background:white;border:1px solid var(--border);color:var(--ink-soft)">
+                    <i class="fa-solid fa-magnifying-glass text-4xl mb-4 block opacity-30"></i>
+                    <p class="font-medium">Nenhum modelo encontrado.</p>
+                </div>
+                <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div v-for="s in filteredServices" :key="s.id"
+                        @click="togglePick(s)"
+                        class="catalog-card animate-fade-in"
+                        :class="isPicked(s) ? 'picked' : ''">
+                        <!-- Foto do modelo (se existir) ou ícone -->
+                        <div v-if="s.photo" class="w-full" style="aspect-ratio:16/10;overflow:hidden">
+                            <img :src="s.photo" class="w-full h-full object-cover" loading="lazy">
+                        </div>
+                        <div v-else class="w-full flex items-center justify-center text-5xl" style="aspect-ratio:16/10;background:var(--brand-pale)">
+                            {{ getIcon(s.description) }}
+                        </div>
+                        <div class="p-4">
+                            <p class="font-bold text-sm leading-snug mb-2">{{ s.description }}</p>
+                            <div class="flex items-center justify-between">
+                                <span class="text-lg font-black" style="color:#10b981">{{ formatCurrency(s.price) }}</span>
+                                <span class="text-[10px] font-bold px-2.5 py-1 rounded-full transition"
+                                    :style="isPicked(s) ? 'background:#e8faf3;color:#0d9165' : 'background:var(--surface-3);color:var(--ink-soft)'">
+                                    {{ isPicked(s) ? 'Selecionado ✓' : 'Toque p/ escolher' }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Inspirações (fotos do portfólio) -->
+                <div v-if="inspirations.length" class="mt-10">
+                    <h2 class="font-display text-xl font-bold mb-1">✨ Inspirações</h2>
+                    <p class="text-xs mb-4" style="color:var(--ink-soft)">Festas reais que já realizamos</p>
+                    <div class="flex gap-3 overflow-x-auto no-scrollbar pb-2" style="scroll-snap-type:x mandatory">
+                        <img v-for="p in inspirations" :key="p.id" :src="p.data"
+                            class="flex-shrink-0 rounded-2xl object-cover"
+                            style="width:160px;height:160px;scroll-snap-align:start;border:1px solid var(--border)" loading="lazy">
+                    </div>
+                </div>
+            </main>
+
+            <!-- CTA fixo -->
+            <div class="sticky-cta">
+                <div class="max-w-3xl mx-auto">
+                    <div v-if="picked.length" class="flex items-center justify-between mb-2 px-1">
+                        <span class="text-xs font-bold" style="color:var(--ink-soft)">{{ picked.length }} modelo(s) escolhido(s)</span>
+                        <span class="text-sm font-black" style="color:#10b981">{{ formatCurrency(pickedTotal) }}</span>
+                    </div>
+                    <button @click="requestQuote" class="btn-zap">
+                        <i class="fa-brands fa-whatsapp text-xl"></i>
+                        {{ picked.length ? 'Pedir orçamento destes modelos' : 'Falar com a gente no WhatsApp' }}
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script type="module">
+        import { db, collection, doc, getDoc, getDocs, query, where } from './js/firebase.js';
+        const { createApp, ref, computed, onMounted } = Vue;
+
+        createApp({
+            setup() {
+                const state = ref('loading');
+                const company = ref({});
+                const services = ref([]);
+                const inspirations = ref([]);
+                const search = ref('');
+                const picked = ref([]);
+
+                const uid = new URLSearchParams(window.location.search).get('uid');
+
+                const formatCurrency = (v) => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(parseFloat(v)||0);
+
+                const getIcon = (desc) => {
+                    const d = (desc || '').toLowerCase();
+                    if (d.includes('balo')) return '🎈';
+                    if (d.includes('flor')) return '🌸';
+                    if (d.includes('mesa')) return '🪑';
+                    if (d.includes('luz') || d.includes('led')) return '✨';
+                    if (d.includes('topo') || d.includes('bolo')) return '🎂';
+                    if (d.includes('painel')) return '🖼️';
+                    if (d.includes('arco')) return '🌈';
+                    if (d.includes('foto')) return '📸';
+                    if (d.includes('som') || d.includes('musi')) return '🎵';
+                    if (d.includes('pega') || d.includes('doce')) return '🍬';
+                    return '🎉';
+                };
+
+                const filteredServices = computed(() => {
+                    if (!search.value.trim()) return services.value;
+                    const t = search.value.toLowerCase();
+                    return services.value.filter(s => (s.description||'').toLowerCase().includes(t));
+                });
+
+                const isPicked = (s) => picked.value.some(p => p.id === s.id);
+                const togglePick = (s) => {
+                    const i = picked.value.findIndex(p => p.id === s.id);
+                    if (i >= 0) picked.value.splice(i, 1);
+                    else picked.value.push(s);
+                };
+                const pickedTotal = computed(() => picked.value.reduce((acc, s) => acc + (parseFloat(s.price)||0), 0));
+
+                onMounted(async () => {
+                    if (!uid) { state.value = 'error'; return; }
+                    try {
+                        const uDoc = await getDoc(doc(db, 'users', uid));
+                        if (uDoc.exists()) company.value = uDoc.data().companyConfig || {};
+
+                        const snap = await getDocs(query(collection(db, 'services'), where('userId', '==', uid)));
+                        services.value = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+                            .sort((a,b) => (a.description||'').localeCompare(b.description||''));
+
+                        // Inspirações: fotos em destaque do portfólio (máx 12)
+                        try {
+                            const photoSnap = await getDocs(query(collection(db, 'eventPhotos'), where('userId', '==', uid)));
+                            inspirations.value = photoSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+                                .filter(p => p.highlight)
+                                .sort((a,b) => (b.createdAt||'').localeCompare(a.createdAt||''))
+                                .slice(0, 12);
+                        } catch(e) { /* inspirações são opcionais */ }
+
+                        state.value = services.value.length || company.value.fantasia ? 'ready' : 'error';
+                    } catch(e) {
+                        console.error(e);
+                        state.value = 'error';
+                    }
+                });
+
+                const requestQuote = () => {
+                    const phone = (company.value.phone || '').replace(/\D/g, '');
+                    let msg;
+                    if (picked.value.length) {
+                        const items = picked.value.map(s => `• ${s.description} — ${formatCurrency(s.price)}`).join('\n');
+                        msg = `Olá! Vi o catálogo e gostaria de um orçamento com estes modelos:\n\n${items}\n\nTotal estimado: ${formatCurrency(pickedTotal.value)} 🎉`;
+                    } else {
+                        msg = 'Olá! Vi o catálogo de vocês e gostaria de fazer um orçamento 🎉';
+                    }
+                    if (phone) {
+                        window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+                    } else {
+                        navigator.clipboard.writeText(msg).then(() =>
+                            Swal && Swal.fire ? Swal.fire('Copiado!', 'Mensagem copiada. Envie para o organizador.', 'success') : alert('Mensagem copiada!'));
+                    }
+                };
+
+                return { state, company, services, filteredServices, inspirations, search, picked, pickedTotal, isPicked, togglePick, requestQuote, formatCurrency, getIcon };
+            }
+        }).mount('#catalog-app');
+    </script>
+</body>
+</html>
