@@ -180,7 +180,7 @@ createApp({
         const newClient = reactive({ name: '', phone: '', cpf: '', email: '' });
         const editingClientId = ref(null);
         const newService = reactive({ description: '', price: '', photo: '' });
-        const newExpense = reactive({ description: '', value: '', date: today, category: 'outros' });
+        const newExpense = reactive({ description: '', value: '', date: today, category: 'outros', appointmentId: '' });
         const tempServiceSelect = ref('');
         const tempApp = reactive({ clientId: '', date: '', time: '', location: { bairro: '' }, details: { entryFee: 0, balloonColors: '' }, notes: '', internalNotes: '', installments: 1, selectedServices: [], checklist: [] });
 
@@ -382,6 +382,7 @@ createApp({
             });
             onSnapshot(query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "pending")), (snap) => { pendingAppointments.value = snap.docs.map(sanitizeApp); pendingAppointments.value.forEach(a => fetchClientToCache(a.clientId)); }); 
             onSnapshot(query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "budget")), (snap) => { budgetList.value = snap.docs.map(sanitizeApp); budgetList.value.forEach(a => fetchClientToCache(a.clientId)); }); 
+            onSnapshot(query(collection(db, "reviews"), where("userId", "==", myId)), (snap) => { allReviews.value = snap.docs.map(d => ({ id: d.id, ...d.data() })); });
         };
         
         const searchHistory = async () => { if(!agendaFilter.start || !agendaFilter.end) return Swal.fire('Atenção', 'Selecione datas', 'warning'); const q = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("status", "==", agendaTab.value), where("date", ">=", agendaFilter.start), where("date", "<=", agendaFilter.end)); const snap = await getDocs(q); historyList.value = snap.docs.map(sanitizeApp); historyList.value.forEach(a => fetchClientToCache(a.clientId)); };
@@ -659,8 +660,8 @@ createApp({
         };
 
         const logout = () => { signOut(auth); window.location.href="index.html"; };
-        const openNewExpense = () => { editingExpenseId.value = null; Object.assign(newExpense, { description: '', value: '', date: today, category: 'outros' }); showExpenseModal.value = true; };
-        const openEditExpense = (expense) => { editingExpenseId.value = expense.id; Object.assign(newExpense, { description: expense.description, value: expense.value, date: expense.date, category: expense.category }); showExpenseModal.value = true; };
+        const openNewExpense = () => { editingExpenseId.value = null; Object.assign(newExpense, { description: '', value: '', date: today, category: 'outros', appointmentId: '' }); showExpenseModal.value = true; if (!expenseLinkOptions.value.length) loadExpenseLinkOptions(); };
+        const openEditExpense = (expense) => { editingExpenseId.value = expense.id; Object.assign(newExpense, { description: expense.description, value: expense.value, date: expense.date, category: expense.category, appointmentId: expense.appointmentId || '' }); showExpenseModal.value = true; if (!expenseLinkOptions.value.length) loadExpenseLinkOptions(); };
         
         const downloadReceiptImage = () => { html2canvas(document.getElementById('receipt-capture-area')).then(c => { const l = document.createElement('a'); l.download = 'Recibo.png'; l.href = c.toDataURL(); l.click(); }); };
         const openWhatsApp = (app) => { const cli = clientCache[app.clientId]; if (!cli || !cli.phone) return Swal.fire('Erro', 'Cliente sem telefone cadastrado.', 'error'); const phoneClean = cli.phone.replace(/\D/g, ''); const msg = `Olá ${cli.name}, aqui é da ${company.fantasia}. Segue o comprovante do seu agendamento para o dia ${formatDate(app.date)}.`; window.open(`https://wa.me/55${phoneClean}?text=${encodeURIComponent(msg)}`, '_blank'); };
@@ -1087,6 +1088,70 @@ createApp({
             navigator.clipboard.writeText(url).then(() => Swal.fire('Copiado!', 'Link do portfólio público copiado.', 'success'));
         };
 
+        // ─── PAINEL DE REPUTAÇÃO ──────────────────────────────
+        const allReviews = ref([]);
+        const reputationTotal = computed(() => allReviews.value.length);
+        const reputationAvg = computed(() => {
+            if (!allReviews.value.length) return 0;
+            return (allReviews.value.reduce((a, r) => a + (r.rating || 0), 0) / allReviews.value.length).toFixed(1);
+        });
+        const reputationDist = computed(() => {
+            const dist = [5,4,3,2,1].map(star => {
+                const count = allReviews.value.filter(r => r.rating === star).length;
+                const pct = allReviews.value.length ? Math.round(count / allReviews.value.length * 100) : 0;
+                return { star, count, pct };
+            });
+            return dist;
+        });
+        const reputationRecent = computed(() =>
+            allReviews.value
+                .filter(r => (r.comment || '').trim())
+                .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
+                .slice(0, 3)
+        );
+
+        // ─── LUCRATIVIDADE POR EVENTO ─────────────────────────
+        const expenseLinkOptions = ref([]);
+        const loadExpenseLinkOptions = async () => {
+            try {
+                const snap = await getDocs(query(collection(db, "appointments"), where("userId", "==", user.value.uid)));
+                expenseLinkOptions.value = snap.docs.map(sanitizeApp)
+                    .filter(a => a.status === 'pending' || a.status === 'concluded')
+                    .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+                    .slice(0, 60);
+                expenseLinkOptions.value.forEach(a => fetchClientToCache(a.clientId));
+            } catch(e) { console.error(e); }
+        };
+
+        const profitLoading = ref(false);
+        const profitRanking = ref([]);
+        const loadProfitability = async () => {
+            profitLoading.value = true;
+            try {
+                const [appSnap, expSnap] = await Promise.all([
+                    getDocs(query(collection(db, "appointments"), where("userId", "==", user.value.uid))),
+                    getDocs(query(collection(db, "expenses"), where("userId", "==", user.value.uid)))
+                ]);
+                const costByApp = {};
+                expSnap.docs.forEach(d => {
+                    const e = d.data();
+                    if (e.appointmentId) costByApp[e.appointmentId] = (costByApp[e.appointmentId] || 0) + toNum(e.value);
+                });
+                profitRanking.value = appSnap.docs.map(sanitizeApp)
+                    .filter(a => a.status === 'concluded' || a.status === 'pending')
+                    .map(a => {
+                        const revenue = toNum(a.totalServices);
+                        const cost = costByApp[a.id] || 0;
+                        const margin = revenue - cost;
+                        const marginPct = revenue > 0 ? Math.round(margin / revenue * 100) : 0;
+                        return { ...a, revenue, cost, margin, marginPct };
+                    })
+                    .sort((a, b) => b.margin - a.margin);
+                profitRanking.value.forEach(a => fetchClientToCache(a.clientId));
+            } catch(e) { console.error(e); }
+            finally { profitLoading.value = false; }
+        };
+
         // ─── INVENTORY CRUD ───────────────────────────────────
         const loadInventory = () => {
             if (!user.value) return;
@@ -1172,6 +1237,10 @@ createApp({
             // Galeria de fotos
             showGalleryModal, galleryApp, galleryPhotos, galleryLoading, uploadingPhoto,
             openGalleryModal, handlePhotoUpload, toggleHighlight, deletePhoto, copyPortfolioLink,
+            // Reputação
+            allReviews, reputationTotal, reputationAvg, reputationDist, reputationRecent,
+            // Lucratividade
+            expenseLinkOptions, profitLoading, profitRanking, loadProfitability,
         };
     }
 }).mount('#app');
