@@ -179,7 +179,7 @@ createApp({
         // Forms
         const newClient = reactive({ name: '', phone: '', cpf: '', email: '' });
         const editingClientId = ref(null);
-        const newService = reactive({ description: '', price: '' });
+        const newService = reactive({ description: '', price: '', photo: '' });
         const newExpense = reactive({ description: '', value: '', date: today, category: 'outros' });
         const tempServiceSelect = ref('');
         const tempApp = reactive({ clientId: '', date: '', time: '', location: { bairro: '' }, details: { entryFee: 0, balloonColors: '' }, notes: '', internalNotes: '', installments: 1, selectedServices: [], checklist: [] });
@@ -883,7 +883,30 @@ createApp({
                 Swal.fire('Salvo!', '', 'success'); 
             }
         };
-        const saveService = async () => { if(!newService.description || !newService.price) return; await addDoc(collection(db, "services"), { description: newService.description, price: toNum(newService.price), userId: user.value.uid }); newService.description = ''; newService.price = ''; showServiceModal.value = false; };
+        const saveService = async () => {
+            if(!newService.description || !newService.price) return;
+            await addDoc(collection(db, "services"), { description: newService.description, price: toNum(newService.price), photo: newService.photo || '', userId: user.value.uid });
+            newService.description = ''; newService.price = ''; newService.photo = '';
+            showServiceModal.value = false;
+            Swal.fire({ toast:true, position:'bottom', icon:'success', title:'Serviço salvo!', timer:2000, showConfirmButton:false });
+        };
+        const handleServicePhotoUpload = async (e) => {
+            const f = e.target.files[0];
+            if (!f || !f.type.startsWith('image/')) return;
+            try {
+                newService.photo = await compressImage(f, 800, 0.7);
+                if (newService.photo.length > 850000) {
+                    newService.photo = '';
+                    Swal.fire('Atenção', 'Foto muito grande mesmo comprimida. Tente outra.', 'warning');
+                }
+            } catch(err) { console.error(err); }
+            e.target.value = '';
+        };
+        const copyCatalogLink = () => {
+            const path = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+            const url = `${window.location.origin}${path}catalogo.html?uid=${user.value.uid}`;
+            navigator.clipboard.writeText(url).then(() => Swal.fire('Copiado!', 'Link do catálogo público copiado.', 'success'));
+        };
         const saveExpenseLogic = async () => { const data = { ...newExpense, value: toNum(newExpense.value), userId: user.value.uid }; if (editingExpenseId.value) { await updateDoc(doc(db, "expenses", editingExpenseId.value), data); } else { await addDoc(collection(db, "expenses"), data); } showExpenseModal.value = false; Swal.fire('Salvo','','success'); if (expensesFilter.start && expensesFilter.end) searchExpenses(); loadDashboardData(); };
         const saveCompany = () => { updateDoc(doc(db, "users", user.value.uid), { companyConfig: company }); Swal.fire('Salvo', '', 'success'); };
         const deleteService = async (id) => { await deleteDoc(doc(db, "services", id)); };
@@ -968,6 +991,102 @@ createApp({
     }
 };
 
+        // ─── GALERIA DE FOTOS DO EVENTO ───────────────────────
+        const showGalleryModal = ref(false);
+        const galleryApp = ref(null);
+        const galleryPhotos = ref([]);
+        const galleryLoading = ref(false);
+        const uploadingPhoto = ref(false);
+
+        const compressImage = (file, maxSize = 900, quality = 0.72) => new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    let { width, height } = img;
+                    if (width > maxSize || height > maxSize) {
+                        const ratio = Math.min(maxSize / width, maxSize / height);
+                        width = Math.round(width * ratio);
+                        height = Math.round(height * ratio);
+                    }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width; canvas.height = height;
+                    canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/jpeg', quality));
+                };
+                img.onerror = reject;
+                img.src = e.target.result;
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+
+        const openGalleryModal = async (app) => {
+            galleryApp.value = app;
+            galleryPhotos.value = [];
+            galleryLoading.value = true;
+            showGalleryModal.value = true;
+            try {
+                const snap = await getDocs(query(collection(db, 'eventPhotos'), where('appointmentId', '==', app.id)));
+                galleryPhotos.value = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+                    .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+            } catch(e) { console.error(e); }
+            finally { galleryLoading.value = false; }
+        };
+
+        const handlePhotoUpload = async (e) => {
+            const files = Array.from(e.target.files || []);
+            if (!files.length || !galleryApp.value) return;
+            uploadingPhoto.value = true;
+            try {
+                for (const file of files) {
+                    if (!file.type.startsWith('image/')) continue;
+                    const data = await compressImage(file);
+                    if (data.length > 950000) {
+                        Swal.fire('Atenção', `A foto "${file.name}" ficou grande demais mesmo comprimida e foi ignorada.`, 'warning');
+                        continue;
+                    }
+                    const docRef = await addDoc(collection(db, 'eventPhotos'), {
+                        appointmentId: galleryApp.value.id,
+                        clientId: galleryApp.value.clientId || '',
+                        userId: user.value.uid,
+                        data,
+                        highlight: false,
+                        createdAt: new Date().toISOString()
+                    });
+                    galleryPhotos.value.unshift({ id: docRef.id, appointmentId: galleryApp.value.id, clientId: galleryApp.value.clientId || '', userId: user.value.uid, data, highlight: false, createdAt: new Date().toISOString() });
+                }
+                Swal.fire({ toast:true, position:'bottom', icon:'success', title:'Fotos adicionadas!', timer:2000, showConfirmButton:false });
+            } catch(err) {
+                console.error(err);
+                Swal.fire('Erro', 'Não foi possível enviar as fotos.', 'error');
+            } finally {
+                uploadingPhoto.value = false;
+                e.target.value = '';
+            }
+        };
+
+        const toggleHighlight = async (photo) => {
+            try {
+                await updateDoc(doc(db, 'eventPhotos', photo.id), { highlight: !photo.highlight });
+                photo.highlight = !photo.highlight;
+                Swal.fire({ toast:true, position:'bottom', icon:'success', title: photo.highlight ? 'Adicionada ao portfólio ⭐' : 'Removida do portfólio', timer:1800, showConfirmButton:false });
+            } catch(e) { console.error(e); }
+        };
+
+        const deletePhoto = async (photoId) => {
+            const { isConfirmed } = await Swal.fire({ title:'Excluir foto?', text:'Não pode desfazer.', icon:'warning', showCancelButton:true, confirmButtonColor:'#dc2626' });
+            if (!isConfirmed) return;
+            await deleteDoc(doc(db, 'eventPhotos', photoId));
+            galleryPhotos.value = galleryPhotos.value.filter(p => p.id !== photoId);
+        };
+
+        const copyPortfolioLink = () => {
+            const path = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+            const url = `${window.location.origin}${path}portfolio.html?uid=${user.value.uid}`;
+            navigator.clipboard.writeText(url).then(() => Swal.fire('Copiado!', 'Link do portfólio público copiado.', 'success'));
+        };
+
         // ─── INVENTORY CRUD ───────────────────────────────────
         const loadInventory = () => {
             if (!user.value) return;
@@ -1015,7 +1134,7 @@ createApp({
             filteredSummary,
             expensesFilter, searchExpenses,
             showExpenseModal, newExpense, addExpense: saveExpenseLogic, saveExpenseLogic, openNewExpense, openEditExpense, deleteExpense, editingExpenseId,
-            startNewSchedule, editAppointment, saveAppointment, showAppointmentModal, showClientModal, showServiceModal, newService, saveService, deleteService,
+            startNewSchedule, editAppointment, saveAppointment, showAppointmentModal, showClientModal, showServiceModal, newService, saveService, deleteService, handleServicePhotoUpload, copyCatalogLink,
             newClient, saveClient, tempApp, tempServiceSelect, services, totalServices, finalBalance, isEditing, clientSearchTerm, filteredClientsSearch, selectClient,
             addServiceToApp, removeServiceFromApp, appointmentViewMode, calendarGrid, calendarTitle, changeCalendarMonth, selectCalendarDay, selectedCalendarDate, appointmentsOnSelectedDate, filteredListAppointments,
             catalogClientsList, catalogClientSearch, searchCatalogClients, openClientModal, openEditClient, editingClientId, deleteClient, currentReceipt, showReceipt, showReceiptModal,
@@ -1050,6 +1169,9 @@ createApp({
             getCatIcon, getCatColor,
             // Moodboard
             moodboardSearch, moodboardFiltered, getMoodboardIcon, isServiceSelected, toggleMoodboardService,
+            // Galeria de fotos
+            showGalleryModal, galleryApp, galleryPhotos, galleryLoading, uploadingPhoto,
+            openGalleryModal, handlePhotoUpload, toggleHighlight, deletePhoto, copyPortfolioLink,
         };
     }
 }).mount('#app');
