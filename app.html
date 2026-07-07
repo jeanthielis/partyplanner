@@ -598,8 +598,9 @@
                                         <button @click="changeStatus(app, 'cancelled')" class="w-8 h-8 rounded-lg flex items-center justify-center transition text-xs" style="background:rgba(220,38,38,0.08);color:#dc2626" title="Cancelar"><i class="fa-solid fa-xmark"></i></button>
                                         <button @click="changeStatus(app, 'concluded')" class="w-8 h-8 rounded-lg flex items-center justify-center transition text-xs" style="background:rgba(22,163,74,0.08);color:#16a34a" title="Concluir"><i class="fa-solid fa-check"></i></button>
                                     </div>
-                                    <div v-if="app.status === 'concluded' && !app.review?.rating" class="flex gap-1.5">
-                                        <button @click="copyReviewLink(app)" class="h-8 px-3 rounded-lg text-[10px] font-bold flex items-center gap-1 transition" style="background:rgba(217,119,6,0.08);color:#b45309;border:1px solid rgba(217,119,6,0.2)"><i class="fa-solid fa-star text-[8px]"></i> Pedir avaliação</button>
+                                    <div v-if="app.status === 'concluded'" class="flex gap-1.5">
+                                        <button @click="openGalleryModal(app)" class="h-8 px-3 rounded-lg text-[10px] font-bold flex items-center gap-1 transition" style="background:rgba(15,76,129,0.08);color:#0f4c81;border:1px solid rgba(15,76,129,0.2)"><i class="fa-solid fa-camera text-[8px]"></i> Fotos</button>
+                                        <button v-if="!app.review?.rating" @click="copyReviewLink(app)" class="h-8 px-3 rounded-lg text-[10px] font-bold flex items-center gap-1 transition" style="background:rgba(217,119,6,0.08);color:#b45309;border:1px solid rgba(217,119,6,0.2)"><i class="fa-solid fa-star text-[8px]"></i> Avaliação</button>
                                     </div>
                                 </div>
                             </div>
@@ -984,6 +985,18 @@
                                 <button @click="saveCompany" class="w-full h-11 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2" style="background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7)"><i class="fa-solid fa-file-contract"></i> Salvar Cláusulas</button>
                             </div>
 
+                            <!-- Portfólio Público -->
+                            <div class="border-t border-slate-100 pt-5 space-y-3">
+                                <div>
+                                    <p class="font-bold text-slate-800 text-sm mb-1">Portfólio Público 📸</p>
+                                    <p class="text-xs mb-3" style="color:var(--ink-soft)">Fotos marcadas com ⭐ na galeria dos eventos compõem seu portfólio. Compartilhe o link com novos clientes.</p>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    <button @click="copyPortfolioLink" class="h-11 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2" style="background:rgba(16,185,129,0.1);color:#0d9165;border:1px solid rgba(16,185,129,0.25)"><i class="fa-solid fa-images"></i> Link do Portfólio</button>
+                                    <button @click="copyCatalogLink" class="h-11 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2" style="background:rgba(15,76,129,0.08);color:#0f4c81;border:1px solid rgba(15,76,129,0.2)"><i class="fa-solid fa-book-open"></i> Link do Catálogo</button>
+                                </div>
+                            </div>
+
                             <!-- Log de Auditoria -->
                             <div class="border-t border-slate-100 pt-5">
                                 <button @click="loadAuditLog" class="h-11 w-full font-bold rounded-xl text-sm transition flex items-center justify-center gap-2" style="background:var(--surface-3);color:var(--ink-mid);border:1px solid var(--border)">
@@ -1095,6 +1108,54 @@
             </div>
         </div>
 
+        <!-- MODAL GALERIA DE FOTOS -->
+        <div v-if="showGalleryModal && galleryApp" class="fixed inset-0 z-[60] flex items-center justify-center p-4" style="background:rgba(16,42,67,0.6);backdrop-filter:blur(10px)">
+            <div class="rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-scale-in shadow-modal" style="background:white;border:1px solid var(--border)">
+                <div class="p-6 flex justify-between items-center flex-shrink-0" style="border-bottom:1px solid var(--border)">
+                    <div>
+                        <h2 class="text-xl font-bold flex items-center gap-2 text-slate-900">
+                            <i class="fa-solid fa-camera" style="color:var(--brand)"></i> Galeria do Evento
+                        </h2>
+                        <p class="text-xs mt-0.5" style="color:var(--ink-soft)">{{ getClientName(galleryApp.clientId) }} · {{ formatDate(galleryApp.date) }}</p>
+                    </div>
+                    <button @click="showGalleryModal=false" class="w-8 h-8 rounded-full flex items-center justify-center text-sm transition hover:text-red-500" style="background:var(--surface-3);color:var(--ink-soft)"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+
+                <div class="p-6 overflow-y-auto flex-1">
+                    <!-- Upload -->
+                    <label class="block mb-5 rounded-2xl p-6 text-center cursor-pointer transition hover-lift" style="border:2px dashed rgba(15,76,129,0.3);background:var(--brand-pale)">
+                        <input type="file" accept="image/*" multiple @change="handlePhotoUpload" class="hidden">
+                        <i v-if="uploadingPhoto" class="fa-solid fa-circle-notch fa-spin text-2xl mb-2 block" style="color:var(--brand)"></i>
+                        <i v-else class="fa-solid fa-cloud-arrow-up text-2xl mb-2 block" style="color:var(--brand)"></i>
+                        <p class="text-sm font-bold" style="color:var(--brand)">{{ uploadingPhoto ? 'Enviando...' : 'Adicionar fotos' }}</p>
+                        <p class="text-xs mt-1" style="color:var(--ink-soft)">Clique ou selecione várias · compressão automática</p>
+                    </label>
+
+                    <!-- Grid de fotos -->
+                    <div v-if="galleryLoading" class="text-center py-10" style="color:var(--ink-soft)"><i class="fa-solid fa-circle-notch fa-spin text-2xl"></i></div>
+                    <div v-else-if="galleryPhotos.length === 0" class="text-center py-10" style="color:var(--ink-soft)">
+                        <i class="fa-regular fa-images text-4xl mb-3 block opacity-30"></i>
+                        <p class="text-sm">Nenhuma foto ainda. Suba as primeiras!</p>
+                    </div>
+                    <div v-else class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        <div v-for="p in galleryPhotos" :key="p.id" class="relative rounded-2xl overflow-hidden group animate-fade-in" style="aspect-ratio:1;border:1px solid var(--border)">
+                            <img :src="p.data" class="w-full h-full object-cover">
+                            <div v-if="p.highlight" class="absolute top-2 left-2 w-7 h-7 rounded-full flex items-center justify-center text-xs shadow-lg" style="background:#10b981;color:white" title="No portfólio público"><i class="fa-solid fa-star"></i></div>
+                            <div class="absolute inset-x-0 bottom-0 p-2 flex justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition" style="background:linear-gradient(transparent,rgba(16,42,67,0.6))">
+                                <button @click="toggleHighlight(p)" class="w-8 h-8 rounded-lg flex items-center justify-center text-xs transition" :style="p.highlight ? 'background:#10b981;color:white' : 'background:white;color:#b45309'" :title="p.highlight ? 'Remover do portfólio' : 'Destacar no portfólio'"><i class="fa-solid fa-star"></i></button>
+                                <button @click="deletePhoto(p.id)" class="w-8 h-8 rounded-lg flex items-center justify-center text-xs transition" style="background:white;color:#dc2626" title="Excluir"><i class="fa-solid fa-trash"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-5 flex flex-col sm:flex-row gap-3 flex-shrink-0" style="border-top:1px solid var(--border)">
+                    <p class="text-xs flex-1 self-center" style="color:var(--ink-soft)"><i class="fa-solid fa-star mr-1" style="color:#10b981"></i>Fotos com estrela aparecem no seu portfólio público.</p>
+                    <button @click="copyPortfolioLink" class="h-11 px-5 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2" style="background:rgba(16,185,129,0.1);color:#0d9165;border:1px solid rgba(16,185,129,0.25)"><i class="fa-solid fa-link"></i> Copiar link do portfólio</button>
+                </div>
+            </div>
+        </div>
+
         <!-- MODAL INVENTÁRIO -->
         <div v-if="showInventoryModal" class="fixed inset-0 z-[60] flex items-center justify-center p-4" style="background:rgba(0,0,0,0.6);backdrop-filter:blur(10px)">
             <div class="rounded-3xl w-full max-w-md animate-scale-in shadow-modal" style="background:white;border:1px solid var(--border)">
@@ -1189,6 +1250,22 @@
                         <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10 text-sm font-bold">R$</span>
                         <input v-model="newService.price" type="number" placeholder="Preço *" class="input-light w-full h-14 pl-12 pr-4 rounded-2xl text-sm font-medium">
                     </div>
+                    <!-- Foto do modelo (catálogo) -->
+                    <label class="block rounded-2xl p-4 text-center cursor-pointer transition" style="border:2px dashed rgba(15,76,129,0.25);background:var(--brand-pale)">
+                        <input type="file" accept="image/*" @change="handleServicePhotoUpload" class="hidden">
+                        <div v-if="newService.photo" class="flex items-center gap-3 justify-center">
+                            <img :src="newService.photo" class="w-14 h-14 rounded-xl object-cover">
+                            <div class="text-left">
+                                <p class="text-xs font-bold" style="color:var(--brand)">Foto adicionada ✓</p>
+                                <p class="text-[10px]" style="color:var(--ink-soft)">Clique para trocar</p>
+                            </div>
+                        </div>
+                        <div v-else>
+                            <i class="fa-solid fa-image text-lg mb-1 block" style="color:var(--brand)"></i>
+                            <p class="text-xs font-bold" style="color:var(--brand)">Foto do modelo (opcional)</p>
+                            <p class="text-[10px] mt-0.5" style="color:var(--ink-soft)">Aparece no catálogo público</p>
+                        </div>
+                    </label>
                     <div class="flex gap-3 pt-2">
                         <button @click="showServiceModal=false" class="h-14 px-6 rounded-2xl font-bold transition" style="background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.5)">Cancelar</button>
                         <button @click="saveService" class="btn-primary flex-1 h-14 rounded-2xl flex items-center justify-center gap-2">
@@ -1243,7 +1320,7 @@
                 <div class="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white dark:bg-slate-900 z-10"><h2 class="text-xl font-bold text-slate-900 flex items-center gap-2"><i class="fa-solid fa-calendar-check text-brand-600"></i> {{ isEditing ? 'Editar' : 'Novo' }} Agendamento</h2><button @click="showAppointmentModal=false" class="w-8 h-8 rounded-full flex items-center justify-center hover:text-red-400 transition text-sm" style="background:var(--surface-3);color:var(--ink-soft)"><i class="fa-solid fa-xmark"></i></button></div>
                 <div class="p-6 space-y-5">
                     <div class="relative group"><label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block ml-1">Cliente</label><div class="relative w-full"><i class="fa-solid fa-user absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="clientSearchTerm" placeholder="Buscar cliente..." class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 placeholder-slate-400"></div><div v-if="filteredClientsSearch.length" class="absolute w-full bg-white dark:bg-slate-800 border dark:border-slate-700 shadow-xl max-h-40 overflow-y-auto z-20 mt-2 rounded-xl p-1"><div v-for="c in filteredClientsSearch" @click="selectClient(c)" class="p-3 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer rounded-lg text-sm font-medium transition text-slate-700 dark:text-slate-200">{{ c.name }}</div></div><button v-if="!tempApp.clientId" @click="showClientModal=true" class="text-xs text-brand-600 font-bold mt-2 hover:underline inline-flex items-center gap-1 ml-1"><i class="fa-solid fa-user-plus"></i> Cadastrar Novo</button></div>
-                    <div class="grid grid-cols-2 gap-4"><div><label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block ml-1">Data</label><div class="relative w-full"><i class="fa-solid fa-calendar absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="tempApp.date" type="date" class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-white"></div></div><div><label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block ml-1">Hora</label><div class="relative w-full"><i class="fa-solid fa-clock absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="tempApp.time" type="time" class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-white"></div></div></div>
+                    <div class="grid grid-cols-2 gap-4"><div><label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block ml-1">Data</label><div class="relative w-full"><i class="fa-solid fa-calendar absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="tempApp.date" type="date" class="input-light w-full h-14 pl-12 pr-4 rounded-2xl text-sm font-medium"></div></div><div><label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block ml-1">Hora</label><div class="relative w-full"><i class="fa-solid fa-clock absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="tempApp.time" type="time" class="input-light w-full h-14 pl-12 pr-4 rounded-2xl text-sm font-medium"></div></div></div>
                     <div><label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block ml-1">Local</label><div class="relative w-full"><i class="fa-solid fa-map-pin absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none"></i><input v-model="tempApp.location.bairro" placeholder="Endereço / Bairro" class="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-800 placeholder-slate-400"></div></div>
                     <div class="rounded-2xl p-5" style="background:var(--surface-2);border:1px solid var(--border)">
                                     <div class="flex justify-between items-center mb-4">
@@ -1325,7 +1402,7 @@
                             <div class="flex justify-between items-center">
                                 <span class="text-sm font-medium text-slate-500">Parcelar restante em:</span>
                                 <div class="flex items-center gap-2">
-                                    <select v-model="tempApp.installments" class="h-10 px-3 rounded-lg ring-1 ring-slate-300 focus:ring-brand-500 text-white dark:bg-slate-700 font-bold bg-white text-sm outline-none">
+                                    <select v-model="tempApp.installments" class="h-10 px-3 rounded-lg ring-1 ring-slate-300 focus:ring-brand-500 text-slate-800 dark:bg-slate-700 font-bold bg-white text-sm outline-none">
                                         <option v-for="n in [1,2,3,4,5,6,10,12]" :value="n">{{ n }}x</option>
                                     </select>
                                     <span class="font-bold text-brand-600 text-sm whitespace-nowrap">{{ formatCurrency(installmentValue) }}/parcela</span>
