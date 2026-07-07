@@ -496,6 +496,53 @@
                             </div>
                         </div>
 
+                        <!-- ═══ PAINEL DE REPUTAÇÃO ═══ -->
+                        <div v-if="reputationTotal > 0" class="section-card p-5 animate-fade-in">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-xl flex items-center justify-center" style="background:#fef9c3">
+                                        <i class="fa-solid fa-star text-sm" style="color:#ca8a04"></i>
+                                    </div>
+                                    <p class="text-sm font-bold" style="color:var(--ink)">Reputação</p>
+                                </div>
+                                <span class="pill" style="background:var(--surface-3);color:var(--ink-soft)">{{ reputationTotal }} avaliação(ões)</span>
+                            </div>
+
+                            <div class="flex flex-col sm:flex-row gap-5">
+                                <!-- Média geral -->
+                                <div class="flex flex-col items-center justify-center sm:w-36 flex-shrink-0 py-2">
+                                    <p class="text-5xl font-black leading-none" style="color:var(--ink)">{{ reputationAvg }}</p>
+                                    <div class="flex gap-0.5 mt-2">
+                                        <i v-for="n in 5" :key="n" class="fa-solid fa-star text-sm" :style="n <= Math.round(reputationAvg) ? 'color:#f59e0b' : 'color:#d5dfe8'"></i>
+                                    </div>
+                                    <p class="text-[10px] font-bold uppercase tracking-wider mt-2" style="color:var(--ink-soft)">média geral</p>
+                                </div>
+                                <!-- Distribuição -->
+                                <div class="flex-1 space-y-1.5 self-center">
+                                    <div v-for="d in reputationDist" :key="d.star" class="flex items-center gap-2">
+                                        <span class="text-[11px] font-bold w-3 text-right" style="color:var(--ink-soft)">{{ d.star }}</span>
+                                        <i class="fa-solid fa-star text-[9px]" style="color:#f59e0b"></i>
+                                        <div class="flex-1 h-2 rounded-full overflow-hidden" style="background:var(--surface-3)">
+                                            <div class="h-2 rounded-full transition-all duration-700" style="background:linear-gradient(90deg,#34d399,#10b981)" :style="'width:'+d.pct+'%'"></div>
+                                        </div>
+                                        <span class="text-[10px] font-bold w-7" style="color:var(--ink-soft)">{{ d.count }}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Últimos comentários -->
+                            <div v-if="reputationRecent.length" class="mt-4 pt-4 space-y-2.5" style="border-top:1px solid var(--border)">
+                                <p class="text-[10px] font-bold uppercase tracking-wider" style="color:var(--ink-soft)">Últimos comentários</p>
+                                <div v-for="r in reputationRecent" :key="r.id" class="p-3 rounded-xl" style="background:var(--surface-3)">
+                                    <div class="flex items-center gap-1 mb-1">
+                                        <i v-for="n in 5" :key="n" class="fa-solid fa-star text-[9px]" :style="n <= r.rating ? 'color:#f59e0b' : 'color:#d5dfe8'"></i>
+                                        <span class="text-[10px] ml-1.5" style="color:var(--ink-soft)">{{ formatDate(r.date) }}</span>
+                                    </div>
+                                    <p class="text-xs italic leading-relaxed" style="color:var(--ink-mid)">"{{ r.comment }}"</p>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="section-card overflow-hidden">
                             <div class="flex items-center justify-between px-5 py-4" style="border-bottom:1px solid var(--border)">
                                 <div class="flex items-center gap-3">
@@ -653,6 +700,7 @@
                             <button @click="financeTab='ranking'" :class="financeTab==='ranking' ? 'tab-btn active' : 'tab-btn'" class="flex-1 py-2.5 text-center">Despesas</button>
                             <button @click="financeTab='clients'; loadClientRanking()" :class="financeTab==='clients' ? 'tab-btn active' : 'tab-btn'" class="flex-1 py-2.5 text-center">Clientes</button>
                             <button @click="financeTab='chart'; loadMonthlyChart()" :class="financeTab==='chart' ? 'tab-btn active' : 'tab-btn'" class="flex-1 py-2.5 text-center">Mensal</button>
+                            <button @click="financeTab='profit'; loadProfitability()" :class="financeTab==='profit' ? 'tab-btn active' : 'tab-btn'" class="flex-1 py-2.5 text-center">Lucro</button>
                         </div>
                         <div class="section-card p-4 flex flex-wrap gap-3 items-end"><div class="flex-1 min-w-[130px]"><label class="text-[10px] font-bold uppercase tracking-wider mb-1.5 block ml-1" style="color:var(--ink-soft)">De</label><input type="date" v-model="expensesFilter.start" class="input-light w-full h-11 px-4 rounded-xl text-sm font-medium"></div><div class="flex-1 min-w-[130px]"><label class="text-[10px] font-bold uppercase tracking-wider mb-1.5 block ml-1" style="color:var(--ink-soft)">Até</label><input type="date" v-model="expensesFilter.end" class="input-light w-full h-11 px-4 rounded-xl text-sm font-medium"></div><button @click="searchExpenses" class="btn-primary h-11 px-6 rounded-xl"><i class="fa-solid fa-search"></i></button></div>
                         
@@ -732,6 +780,63 @@
                                     <span>Média mensal: <strong style="color:var(--ink)">{{ formatCurrency(monthlyChartData.reduce((a,m)=>a+m.value,0) / 6) }}</strong></span>
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- ═══ LUCRO POR EVENTO ═══ -->
+                        <div v-if="financeTab === 'profit'" class="space-y-4 animate-fade-in">
+                            <div v-if="profitLoading" class="text-center py-12" style="color:var(--ink-soft)"><i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2 block"></i>Calculando margens...</div>
+                            <div v-else-if="profitRanking.length === 0" class="section-card text-center py-14" style="color:var(--ink-soft)">
+                                <i class="fa-solid fa-chart-pie text-4xl mb-3 block opacity-30"></i>
+                                <p class="font-medium text-sm">Nenhum evento para analisar.</p>
+                                <p class="text-xs mt-1">Vincule despesas aos eventos no lançamento para ver a margem real.</p>
+                            </div>
+                            <template v-else>
+                                <!-- Resumo -->
+                                <div class="grid grid-cols-3 gap-3">
+                                    <div class="kpi-card p-3 text-center" style="background:linear-gradient(135deg,#edf4fa,#d8e8f5);border:1px solid rgba(15,76,129,0.2)">
+                                        <p class="text-[10px] font-bold uppercase mb-1" style="color:rgba(15,76,129,0.7)">Receita</p>
+                                        <p class="text-sm font-black" style="color:var(--brand)">{{ formatCurrency(profitRanking.reduce((a,e)=>a+e.revenue,0)) }}</p>
+                                    </div>
+                                    <div class="kpi-card p-3 text-center" style="background:linear-gradient(135deg,#fef2f2,#fee2e2);border:1px solid rgba(239,68,68,0.2)">
+                                        <p class="text-[10px] font-bold uppercase mb-1" style="color:rgba(220,38,38,0.7)">Custos vinculados</p>
+                                        <p class="text-sm font-black text-red-600">{{ formatCurrency(profitRanking.reduce((a,e)=>a+e.cost,0)) }}</p>
+                                    </div>
+                                    <div class="kpi-card p-3 text-center" style="background:linear-gradient(135deg,#e8faf3,#d1f5e8);border:1px solid rgba(16,185,129,0.25)">
+                                        <p class="text-[10px] font-bold uppercase mb-1" style="color:rgba(16,185,129,0.8)">Margem</p>
+                                        <p class="text-sm font-black text-emerald-600">{{ formatCurrency(profitRanking.reduce((a,e)=>a+e.margin,0)) }}</p>
+                                    </div>
+                                </div>
+
+                                <!-- Ranking -->
+                                <div class="section-card divide-y divide-slate-100 overflow-hidden">
+                                    <div v-for="(e, i) in profitRanking" :key="e.id" class="p-4 transition" onmouseover="this.style.background='var(--surface-3)'" onmouseout="this.style.background='transparent'">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <div class="flex items-center gap-3 min-w-0">
+                                                <div class="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black flex-shrink-0"
+                                                    :style="i===0?'background:#e8faf3;color:#0d9165':(i===profitRanking.length-1 && profitRanking.length>2 ?'background:#fef2f2;color:#dc2626':'background:var(--surface-3);color:var(--ink-soft)')">
+                                                    {{ i+1 }}º
+                                                </div>
+                                                <div class="min-w-0">
+                                                    <p class="font-bold text-sm truncate" style="color:var(--ink)">{{ getClientName(e.clientId) }}</p>
+                                                    <p class="text-[10px]" style="color:var(--ink-soft)">{{ formatDate(e.date) }} · {{ statusText(e.status) }}</p>
+                                                </div>
+                                            </div>
+                                            <div class="text-right flex-shrink-0 pl-3">
+                                                <p class="text-sm font-black" :class="e.margin >= 0 ? 'text-emerald-600' : 'text-red-600'">{{ formatCurrency(e.margin) }}</p>
+                                                <p class="text-[10px] font-bold" :class="e.marginPct >= 50 ? 'text-emerald-600' : (e.marginPct >= 0 ? 'text-amber-600' : 'text-red-600')">{{ e.marginPct }}% margem</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-3 pl-11">
+                                            <span class="text-[10px]" style="color:var(--ink-soft)">Receita <strong style="color:var(--brand)">{{ formatCurrency(e.revenue) }}</strong></span>
+                                            <span class="text-[10px]" style="color:var(--ink-soft)">Custo <strong class="text-red-500">{{ formatCurrency(e.cost) }}</strong></span>
+                                            <div class="flex-1 h-1.5 rounded-full overflow-hidden" style="background:#fee2e2">
+                                                <div class="h-1.5 rounded-full" style="background:linear-gradient(90deg,#34d399,#10b981)" :style="'width:'+Math.max(0,Math.min(100,e.marginPct))+'%'"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <p class="text-[11px] text-center" style="color:var(--ink-soft)"><i class="fa-solid fa-circle-info mr-1"></i>Só entram no custo as despesas vinculadas a um evento no lançamento.</p>
+                            </template>
                         </div>
                     </div>
 
@@ -1103,6 +1208,58 @@
                             <button @click="copyReviewLink(a)" class="flex-1 h-8 rounded-xl bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 text-[10px] font-bold flex items-center justify-center gap-1 hover:bg-yellow-100 transition border border-yellow-200 dark:border-yellow-800"><i class="fa-solid fa-link"></i> Copiar link</button>
                             <button @click="sendReviewWhatsApp(a)" class="flex-1 h-8 rounded-xl bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-[10px] font-bold flex items-center justify-center gap-1 hover:bg-green-100 transition border border-green-200 dark:border-green-800"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL DESPESA -->
+        <div v-if="showExpenseModal" class="fixed inset-0 z-[60] flex items-center justify-center p-4" style="background:rgba(16,42,67,0.6);backdrop-filter:blur(10px)">
+            <div class="rounded-3xl w-full max-w-md max-h-[92vh] overflow-y-auto animate-scale-in shadow-modal" style="background:white;border:1px solid var(--border)">
+                <div class="p-6 flex justify-between items-center sticky top-0 z-10" style="background:white;border-bottom:1px solid var(--border)">
+                    <h2 class="text-xl font-bold flex items-center gap-2 text-slate-900">
+                        <i class="fa-solid fa-wallet" style="color:#dc2626"></i>
+                        {{ editingExpenseId ? 'Editar Despesa' : 'Nova Despesa' }}
+                    </h2>
+                    <button @click="showExpenseModal=false" class="w-8 h-8 rounded-full flex items-center justify-center text-sm transition hover:text-red-500" style="background:var(--surface-3);color:var(--ink-soft)"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div class="relative">
+                        <i class="fa-solid fa-note-sticky absolute left-4 top-1/2 -translate-y-1/2 text-xs" style="color:var(--ink-soft)"></i>
+                        <input v-model="newExpense.description" placeholder="Descrição *" class="input-light w-full h-14 pl-11 pr-4 rounded-2xl text-sm font-medium">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="relative">
+                            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold pointer-events-none" style="color:var(--ink-soft)">R$</span>
+                            <input v-model="newExpense.value" type="number" step="0.01" placeholder="Valor *" class="input-light w-full h-14 pl-11 pr-3 rounded-2xl text-sm font-medium">
+                        </div>
+                        <input v-model="newExpense.date" type="date" class="input-light w-full h-14 px-4 rounded-2xl text-sm font-medium">
+                    </div>
+                    <!-- Categoria -->
+                    <div>
+                        <label class="text-[10px] font-bold uppercase tracking-wider mb-2 block ml-1" style="color:var(--ink-soft)">Categoria</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button v-for="cat in expenseCategories" :key="cat.id"
+                                @click="newExpense.category = cat.id"
+                                class="p-2.5 rounded-xl text-center transition"
+                                :style="newExpense.category === cat.id ? 'background:var(--brand-pale);border:1.5px solid var(--brand)' : 'background:var(--surface-3);border:1.5px solid transparent'">
+                                <i :class="'fa-solid '+cat.icon+' '+cat.color" class="text-sm block mb-1"></i>
+                                <span class="text-[9px] font-bold" :style="newExpense.category === cat.id ? 'color:var(--brand)' : 'color:var(--ink-soft)'">{{ cat.label }}</span>
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Vínculo a evento (lucratividade) -->
+                    <div>
+                        <label class="text-[10px] font-bold uppercase tracking-wider mb-2 block ml-1" style="color:var(--ink-soft)"><i class="fa-solid fa-link mr-1"></i>Vincular a evento (opcional)</label>
+                        <select v-model="newExpense.appointmentId" class="input-light w-full h-12 px-4 rounded-xl text-sm font-medium appearance-none">
+                            <option value="">— Despesa geral, sem vínculo —</option>
+                            <option v-for="a in expenseLinkOptions" :key="a.id" :value="a.id">{{ formatDate(a.date) }} · {{ getClientName(a.clientId) }} · {{ formatCurrency(a.totalServices) }}</option>
+                        </select>
+                        <p class="text-[10px] mt-1.5 ml-1" style="color:var(--ink-soft)">Despesas vinculadas entram no cálculo de lucro por evento.</p>
+                    </div>
+                    <div class="flex gap-3 pt-2">
+                        <button @click="showExpenseModal=false" class="h-14 px-6 rounded-2xl font-bold transition" style="background:var(--surface-3);color:var(--ink-soft)">Cancelar</button>
+                        <button @click="saveExpenseLogic" class="btn-primary flex-1 h-14 rounded-2xl flex items-center justify-center gap-2"><i class="fa-solid fa-check"></i> Salvar</button>
                     </div>
                 </div>
             </div>
