@@ -122,6 +122,21 @@
                             style="width:160px;height:160px;scroll-snap-align:start;border:1px solid var(--border)" loading="lazy">
                     </div>
                 </div>
+
+                <!-- Depoimentos (prova social) -->
+                <div v-if="testimonials.length" class="mt-10">
+                    <h2 class="font-display text-xl font-bold mb-1">💬 O que dizem nossos clientes</h2>
+                    <p class="text-xs mb-4" style="color:var(--ink-soft)">Avaliações reais de eventos realizados</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div v-for="t in testimonials" :key="t.id" class="rounded-2xl p-4 flex flex-col" style="background:white;border:1px solid var(--border)">
+                            <div class="flex gap-0.5 mb-2">
+                                <i v-for="n in 5" :key="n" class="fa-solid fa-star text-xs" :style="n <= t.rating ? 'color:#f59e0b' : 'color:#d5dfe8'"></i>
+                            </div>
+                            <p class="text-xs italic leading-relaxed flex-1" style="color:var(--ink)">"{{ t.comment }}"</p>
+                            <p class="text-[10px] font-bold mt-3 flex items-center gap-1" style="color:#10b981"><i class="fa-solid fa-circle-check"></i> Cliente verificado</p>
+                        </div>
+                    </div>
+                </div>
             </main>
 
             <!-- CTA fixo -->
@@ -154,6 +169,7 @@
                 const inspirations = ref([]);
                 const search = ref('');
                 const picked = ref([]);
+                const testimonials = ref([]);
 
                 const uid = new URLSearchParams(window.location.search).get('uid');
 
@@ -198,6 +214,15 @@
                         services.value = snap.docs.map(d => ({ id: d.id, ...d.data() }))
                             .sort((a,b) => (a.description||'').localeCompare(b.description||''));
 
+                        // Depoimentos: melhores avaliações com comentário (máx 3)
+                        try {
+                            const revSnap = await getDocs(query(collection(db, 'reviews'), where('userId', '==', uid)));
+                            testimonials.value = revSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+                                .filter(r => r.rating >= 4 && (r.comment || '').trim())
+                                .sort((a, b) => b.rating - a.rating || (b.createdAt || '').localeCompare(a.createdAt || ''))
+                                .slice(0, 3);
+                        } catch(e) { /* depoimentos são opcionais */ }
+
                         // Inspirações: fotos em destaque do portfólio (máx 12)
                         try {
                             const photoSnap = await getDocs(query(collection(db, 'eventPhotos'), where('userId', '==', uid)));
@@ -231,7 +256,7 @@
                     }
                 };
 
-                return { state, company, services, filteredServices, inspirations, search, picked, pickedTotal, isPicked, togglePick, requestQuote, formatCurrency, getIcon };
+                return { state, company, services, filteredServices, inspirations, testimonials, search, picked, pickedTotal, isPicked, togglePick, requestQuote, formatCurrency, getIcon };
             }
         }).mount('#catalog-app');
     </script>
