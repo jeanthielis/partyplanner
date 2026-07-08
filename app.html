@@ -496,6 +496,37 @@
                             </div>
                         </div>
 
+                        <!-- ═══ RADAR DE RECONTRATAÇÃO ═══ -->
+                        <div v-if="recontractRadar.length > 0" class="section-card overflow-hidden animate-fade-in" style="border:1.5px solid rgba(16,185,129,0.35)">
+                            <div class="flex items-center justify-between px-5 py-4" style="background:#e8faf3;border-bottom:1px solid rgba(16,185,129,0.2)">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-xl flex items-center justify-center" style="background:rgba(16,185,129,0.18)">
+                                        <i class="fa-solid fa-cake-candles text-sm" style="color:#0d9165"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-bold" style="color:#065f46">Radar de Recontratação</p>
+                                        <p class="text-[10px]" style="color:rgba(6,95,70,0.7)">Aniversários se aproximando — hora de oferecer a festa deste ano!</p>
+                                    </div>
+                                </div>
+                                <span class="pill" style="background:rgba(16,185,129,0.18);color:#065f46">{{ recontractRadar.length }} oportunidade(s)</span>
+                            </div>
+                            <div>
+                                <div v-for="item in recontractRadar" :key="item.id" class="flex items-center gap-3 px-5 py-3.5 transition" style="border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--surface-3)'" onmouseout="this.style.background='transparent'">
+                                    <div class="w-10 h-10 rounded-xl flex flex-col items-center justify-center flex-shrink-0" style="background:var(--surface-3)">
+                                        <span class="text-sm font-black" style="color:#0d9165">{{ item.monthsSince }}</span>
+                                        <span class="text-[7px] font-bold uppercase" style="color:var(--ink-soft)">meses</span>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="font-bold text-sm truncate" style="color:var(--ink)">{{ getClientName(item.clientId) }}</p>
+                                        <p class="text-[11px]" style="color:var(--ink-soft)">Última festa em {{ formatDate(item.date) }} · {{ formatCurrency(item.totalServices) }}</p>
+                                    </div>
+                                    <button @click="sendRecontractWhatsApp(item)" class="h-9 px-3.5 rounded-xl font-bold text-[11px] text-white flex items-center gap-1.5 flex-shrink-0 transition hover:opacity-90" style="background:#25d366">
+                                        <i class="fa-brands fa-whatsapp text-sm"></i> Oferecer festa
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- ═══ PAINEL DE REPUTAÇÃO ═══ -->
                         <div v-if="reputationTotal > 0" class="section-card p-5 animate-fade-in">
                             <div class="flex items-center justify-between mb-4">
@@ -1032,6 +1063,10 @@
                                 <div class="grid grid-cols-2 gap-4">
                                     <input v-model="company.email" placeholder="E-mail" class="input-light w-full h-14 px-4 rounded-2xl text-sm font-medium">
                                     <input v-model="company.phone" placeholder="Telefone" class="input-light w-full h-14 px-4 rounded-2xl text-sm font-medium">
+                                    <div class="relative col-span-2">
+                                        <i class="fa-brands fa-pix absolute left-4 top-1/2 -translate-y-1/2 text-sm" style="color:#0d9165"></i>
+                                        <input v-model="company.pixKey" placeholder="Chave PIX (CPF, telefone, e-mail ou aleatória)" class="input-light w-full h-14 pl-11 pr-4 rounded-2xl text-sm font-medium">
+                                    </div>
                                 </div>
                                 <input v-model="company.rua" placeholder="Endereço (Rua, Nº)" class="input-light w-full h-14 px-4 rounded-2xl text-sm font-medium">
                                 <input v-model="company.bairro" placeholder="Bairro" class="input-light w-full h-14 px-4 rounded-2xl text-sm font-medium">
