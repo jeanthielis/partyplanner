@@ -105,6 +105,9 @@ createApp({
                     .filter(a => a.status !== 'cancelled')
                     .sort((a,b) => b.date.localeCompare(a.date));
 
+                // Carrega fotos dos eventos do cliente
+                loadClientPhotos(docData.id);
+
                 // Se não carregou empresa via URL mas achou evento, carrega agora (backup)
                 if (appointments.value.length > 0 && !providerUid) {
                     const uDoc = await getDoc(doc(db, "users", appointments.value[0].userId));
@@ -407,6 +410,102 @@ createApp({
             appointments.value = [];
         };
 
+        // ── COBRANÇA PIX (BR Code EMV) ─────────────────────────
+        const showPixModal = ref(false);
+        const pixApp = ref(null);
+        const pixCode = ref('');
+        const pixCopied = ref(false);
+
+        const crc16 = (str) => {
+            let crc = 0xFFFF;
+            for (let i = 0; i < str.length; i++) {
+                crc ^= str.charCodeAt(i) << 8;
+                for (let j = 0; j < 8; j++) {
+                    crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) : (crc << 1);
+                    crc &= 0xFFFF;
+                }
+            }
+            return crc.toString(16).toUpperCase().padStart(4, '0');
+        };
+        const emv = (id, value) => id + String(value.length).padStart(2, '0') + value;
+        const sanitizePixText = (t, max) => (t || '')
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^A-Za-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim()
+            .toUpperCase().slice(0, max) || 'N A';
+
+        const buildPixPayload = (key, name, city, amount) => {
+            const merchantInfo = emv('00', 'br.gov.bcb.pix') + emv('01', key.trim());
+            let payload =
+                emv('00', '01') +
+                emv('26', merchantInfo) +
+                emv('52', '0000') +
+                emv('53', '986') +
+                (amount > 0 ? emv('54', amount.toFixed(2)) : '') +
+                emv('58', 'BR') +
+                emv('59', sanitizePixText(name, 25)) +
+                emv('60', sanitizePixText(city, 15)) +
+                emv('62', emv('05', '***')) +
+                '6304';
+            return payload + crc16(payload);
+        };
+
+        const openPixModal = (app) => {
+            if (!company.value.pixKey) return;
+            pixApp.value = app;
+            pixCopied.value = false;
+            const amount = parseFloat(app.finalBalance) || 0;
+            pixCode.value = buildPixPayload(company.value.pixKey, company.value.fantasia || 'Recebedor', company.value.cidade || 'BRASIL', amount);
+            showPixModal.value = true;
+            // Renderiza o QR após o modal montar
+            setTimeout(() => {
+                const el = document.getElementById('pix-qrcode');
+                if (el && window.QRCode) {
+                    el.innerHTML = '';
+                    new QRCode(el, { text: pixCode.value, width: 220, height: 220, correctLevel: QRCode.CorrectLevel.M });
+                }
+            }, 80);
+        };
+        const copyPixCode = () => {
+            navigator.clipboard.writeText(pixCode.value).then(() => {
+                pixCopied.value = true;
+                setTimeout(() => pixCopied.value = false, 2500);
+            });
+        };
+
+        // ── GALERIA DE FOTOS ───────────────────────────────────
+        const photosByApp = ref({});
+        const lightboxPhoto = ref(null);
+        const loadClientPhotos = async (clientId) => {
+            try {
+                const snap = await getDocs(query(collection(db, 'eventPhotos'), where('clientId', '==', clientId)));
+                const map = {};
+                snap.docs.forEach(d => {
+                    const p = { id: d.id, ...d.data() };
+                    if (!map[p.appointmentId]) map[p.appointmentId] = [];
+                    map[p.appointmentId].push(p);
+                });
+                Object.values(map).forEach(arr => arr.sort((a,b) => (b.createdAt||'').localeCompare(a.createdAt||'')));
+                photosByApp.value = map;
+            } catch(e) { console.error('Erro ao carregar fotos:', e); }
+        };
+        const openLightbox = (photo) => { lightboxPhoto.value = photo; };
+        const closeLightbox = () => { lightboxPhoto.value = null; };
+        const sharePhoto = async (photo) => {
+            try {
+                const blob = await (await fetch(photo.data)).blob();
+                const file = new File([blob], 'festa.jpg', { type: 'image/jpeg' });
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({ files: [file], title: 'Foto da minha festa 🎉' });
+                    return;
+                }
+            } catch(e) { /* fallback abaixo */ }
+            // Fallback: download direto
+            const a = document.createElement('a');
+            a.href = photo.data;
+            a.download = 'festa-' + Date.now() + '.jpg';
+            a.click();
+        };
+
         // ── COUNTDOWN ──────────────────────────────────────────
         const countdowns = ref({});
         const getDaysUntil = (dateStr) => {
@@ -453,6 +552,8 @@ createApp({
             getDay, getMonth, statusText, formatCurrency, formatDate, openSignature, openSupport,
             clearCanvas, saveSignature, downloadContract, openContractPreview, acceptAndSign,
             countdowns, getDaysUntil, defaultClauses,
+            photosByApp, lightboxPhoto, openLightbox, closeLightbox, sharePhoto,
+            showPixModal, pixApp, pixCode, pixCopied, openPixModal, copyPixCode,
         };
     }
 }).mount('#client-app');
