@@ -20,7 +20,7 @@ createApp({
         const authForm = reactive({ email: '', password: '', name: '' });
         
         // Empresa
-        const company = reactive({ fantasia: '', logo: '', signature: '', cnpj: '', email: '', phone: '', rua: '', bairro: '', cidade: '', estado: '', emailjs_service_id: '', emailjs_template_id: '', emailjs_public_key: '', primaryColor: '#4F46E5', contractClauses: '' });
+        const company = reactive({ fantasia: '', logo: '', signature: '', cnpj: '', email: '', phone: '', rua: '', bairro: '', cidade: '', estado: '', emailjs_service_id: '', emailjs_template_id: '', emailjs_public_key: '', primaryColor: '#4F46E5', contractClauses: '', pixKey: '' });
 
         // Ranking de clientes
         const clientRankingData = ref([]);
@@ -383,6 +383,7 @@ createApp({
             onSnapshot(query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "pending")), (snap) => { pendingAppointments.value = snap.docs.map(sanitizeApp); pendingAppointments.value.forEach(a => fetchClientToCache(a.clientId)); }); 
             onSnapshot(query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "budget")), (snap) => { budgetList.value = snap.docs.map(sanitizeApp); budgetList.value.forEach(a => fetchClientToCache(a.clientId)); }); 
             onSnapshot(query(collection(db, "reviews"), where("userId", "==", myId)), (snap) => { allReviews.value = snap.docs.map(d => ({ id: d.id, ...d.data() })); });
+            loadRecontractRadar();
         };
         
         const searchHistory = async () => { if(!agendaFilter.start || !agendaFilter.end) return Swal.fire('Atenção', 'Selecione datas', 'warning'); const q = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("status", "==", agendaTab.value), where("date", ">=", agendaFilter.start), where("date", "<=", agendaFilter.end)); const snap = await getDocs(q); historyList.value = snap.docs.map(sanitizeApp); historyList.value.forEach(a => fetchClientToCache(a.clientId)); };
@@ -1088,6 +1089,40 @@ createApp({
             navigator.clipboard.writeText(url).then(() => Swal.fire('Copiado!', 'Link do portfólio público copiado.', 'success'));
         };
 
+        // ─── RADAR DE RECONTRATAÇÃO ───────────────────────────
+        const recontractRadar = ref([]);
+        const loadRecontractRadar = async () => {
+            try {
+                const snap = await getDocs(query(collection(db, "appointments"), where("userId", "==", user.value.uid)));
+                const apps = snap.docs.map(sanitizeApp);
+                const now = new Date();
+                const lastByClient = {};   // último evento concluído por cliente
+                const hasFuture = {};      // cliente já tem evento pendente/futuro?
+                apps.forEach(a => {
+                    if (!a.clientId || !a.date) return;
+                    if (a.status === 'pending' || a.status === 'budget') { hasFuture[a.clientId] = true; return; }
+                    if (a.status !== 'concluded') return;
+                    if (!lastByClient[a.clientId] || a.date > lastByClient[a.clientId].date) lastByClient[a.clientId] = a;
+                });
+                recontractRadar.value = Object.values(lastByClient)
+                    .map(a => {
+                        const monthsSince = Math.floor((now - new Date(a.date + 'T00:00:00')) / (30.44 * 86400000));
+                        return { ...a, monthsSince };
+                    })
+                    .filter(a => a.monthsSince >= 10 && a.monthsSince <= 14 && !hasFuture[a.clientId])
+                    .sort((a, b) => b.monthsSince - a.monthsSince);
+                recontractRadar.value.forEach(a => fetchClientToCache(a.clientId));
+            } catch(e) { console.error('Radar:', e); }
+        };
+        const sendRecontractWhatsApp = (item) => {
+            const cli = clientCache[item.clientId];
+            if (!cli?.phone) return Swal.fire('Atenção', 'Cliente sem telefone cadastrado.', 'warning');
+            const phoneClean = cli.phone.replace(/\D/g, '');
+            const nome = (cli.name || '').split(' ')[0];
+            const msg = `Olá ${nome}! Tudo bem? 😊\n\nEstá chegando a época do aniversário de novo! 🎂 No ano passado tivemos o prazer de fazer a festa de vocês em ${formatDate(item.date)} e foi incrível.\n\nJá quer garantir a data deste ano? Temos novidades no catálogo e condições especiais para quem já é cliente! 🎉`;
+            window.open(`https://wa.me/55${phoneClean}?text=${encodeURIComponent(msg)}`, '_blank');
+        };
+
         // ─── PAINEL DE REPUTAÇÃO ──────────────────────────────
         const allReviews = ref([]);
         const reputationTotal = computed(() => allReviews.value.length);
@@ -1239,6 +1274,8 @@ createApp({
             openGalleryModal, handlePhotoUpload, toggleHighlight, deletePhoto, copyPortfolioLink,
             // Reputação
             allReviews, reputationTotal, reputationAvg, reputationDist, reputationRecent,
+            // Radar de recontratação
+            recontractRadar, loadRecontractRadar, sendRecontractWhatsApp,
             // Lucratividade
             expenseLinkOptions, profitLoading, profitRanking, loadProfitability,
         };
