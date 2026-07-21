@@ -881,8 +881,9 @@ createApp({
 
                 showClientModal.value = false; 
                 newClient.name = ''; newClient.phone = ''; newClient.cpf = ''; newClient.email = ''; 
-                if(view.value === 'registrations') searchCatalogClients(); 
-                Swal.fire('Salvo!', '', 'success'); 
+                // Limpa filtros de busca — sem exibir o cliente automaticamente
+                clientFilter.name = ''; clientFilter.cpf = ''; clientFilter.email = '';
+                Swal.fire({ toast:true, position:'bottom', icon:'success', title:'Cliente cadastrado!', timer:2000, showConfirmButton:false }); 
             }
         };
         const saveService = async () => {
@@ -1089,6 +1090,23 @@ createApp({
             navigator.clipboard.writeText(url).then(() => Swal.fire('Copiado!', 'Link do portfólio público copiado.', 'success'));
         };
 
+        // ─── CONFIRMAÇÃO DE CADASTRO + PREVIEW ────────────────
+        const sendRegistrationConfirmation = (c) => {
+            if (!c.phone) return Swal.fire('Atenção', 'Cliente sem telefone cadastrado.', 'warning');
+            const phoneClean = c.phone.replace(/\D/g, '');
+            const path = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+            const link = `${window.location.origin}${path}client.html?uid=${user.value.uid}`;
+            const nome = (c.name || '').split(' ')[0];
+            const acesso = c.cpf ? 'seu CPF' : (c.email ? 'seu e-mail' : 'seu CPF ou e-mail');
+            const msg = `Olá ${nome}! 🎉 Seu cadastro foi confirmado com sucesso na ${company.fantasia || 'nossa empresa'}!\n\nVocê já pode acessar sua Área do Cliente para acompanhar seus eventos, contratos e fotos:\n${link}\n\nPara entrar, use ${acesso}. Qualquer dúvida, é só chamar! 😊`;
+            window.open(`https://wa.me/55${phoneClean}?text=${encodeURIComponent(msg)}`, '_blank');
+        };
+        const previewClientArea = (c) => {
+            const path = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+            const url = `${window.location.origin}${path}client.html?uid=${user.value.uid}&cid=${c.id}&preview=1`;
+            window.open(url, '_blank');
+        };
+
         // ─── RADAR DE RECONTRATAÇÃO ───────────────────────────
         const recontractRadar = ref([]);
         const loadRecontractRadar = async () => {
@@ -1276,6 +1294,8 @@ createApp({
             allReviews, reputationTotal, reputationAvg, reputationDist, reputationRecent,
             // Radar de recontratação
             recontractRadar, loadRecontractRadar, sendRecontractWhatsApp,
+            // Confirmação de cadastro + preview
+            sendRegistrationConfirmation, previewClientArea,
             // Lucratividade
             expenseLinkOptions, profitLoading, profitRanking, loadProfitability,
         };
