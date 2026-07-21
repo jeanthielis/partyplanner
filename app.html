@@ -896,7 +896,7 @@
                                     </div>
                                     <div class="relative">
                                         <i class="fa-solid fa-id-card absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10"></i>
-                                        <input v-model="clientFilter.cpf" placeholder="CPF" class="w-full h-12 pl-12 pr-4 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-500 text-slate-800 placeholder-slate-400">
+                                        <input v-model="clientFilter.cpf" @input="clientFilter.cpf = maskCPF(clientFilter.cpf)" maxlength="14" placeholder="CPF" class="w-full h-12 pl-12 pr-4 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-500 text-slate-800 placeholder-slate-400">
                                     </div>
                                     <div class="relative">
                                         <i class="fa-solid fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10"></i>
@@ -941,6 +941,8 @@
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-1">
+                                        <button @click="sendRegistrationConfirmation(c)" class="text-slate-400 hover:text-green-500 p-2 rounded-lg hover:bg-green-50 transition" title="Enviar confirmação de cadastro"><i class="fa-brands fa-whatsapp"></i></button>
+                                        <button @click="previewClientArea(c)" class="text-slate-400 hover:text-blue-500 p-2 rounded-lg hover:bg-blue-50 transition" title="Ver área do cliente (somente leitura)"><i class="fa-solid fa-eye"></i></button>
                                         <button @click="openClientHistory(c)" class="text-slate-400 hover:text-purple-500 p-2 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 transition" title="Histórico"><i class="fa-solid fa-clock-rotate-left"></i></button>
                                         <button @click="openEditClient(c)" class="text-slate-400 hover:text-brand-500 p-2 rounded-lg hover:bg-brand-50 dark:hover:bg-brand-900/20 transition" title="Editar"><i class="fa-solid fa-pen-to-square"></i></button>
                                         <button @click="deleteClient(c.id)" class="text-slate-400 hover:text-red-500 p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition" title="Excluir"><i class="fa-solid fa-trash"></i></button>
@@ -1404,11 +1406,11 @@
                     </div>
                     <div class="relative">
                         <i class="fa-solid fa-phone absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10"></i>
-                        <input v-model="newClient.phone" placeholder="Telefone / WhatsApp" class="input-light w-full h-14 pl-12 pr-4 rounded-2xl text-sm font-medium">
+                        <input v-model="newClient.phone" @input="newClient.phone = maskPhone(newClient.phone)" maxlength="15" placeholder="(11) 99999-9999" class="input-light w-full h-14 pl-12 pr-4 rounded-2xl text-sm font-medium">
                     </div>
                     <div class="relative">
                         <i class="fa-solid fa-id-card absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10"></i>
-                        <input v-model="newClient.cpf" placeholder="CPF" class="input-light w-full h-14 pl-12 pr-4 rounded-2xl text-sm font-medium">
+                        <input v-model="newClient.cpf" @input="newClient.cpf = maskCPF(newClient.cpf)" maxlength="14" placeholder="000.000.000-00" class="input-light w-full h-14 pl-12 pr-4 rounded-2xl text-sm font-medium">
                     </div>
                     <div class="relative">
                         <i class="fa-solid fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10"></i>
