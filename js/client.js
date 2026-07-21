@@ -26,10 +26,33 @@ createApp({
         // URL Params
         const urlParams = new URLSearchParams(window.location.search);
         const providerUid = urlParams.get('uid');
+        const previewCid = urlParams.get('cid');
+        const isPreview = ref(urlParams.get('preview') === '1' && !!previewCid);
 
         // ============================================================
         // 1. INICIALIZAÇÃO
         // ============================================================
+        const loadPreview = async () => {
+            try {
+                if (!auth.currentUser) await signInAnonymously(auth);
+                const cDoc = await getDoc(doc(db, "clients", previewCid));
+                if (!cDoc.exists() || cDoc.data().userId !== providerUid) throw new Error("Cliente inválido");
+                clientData.value = { id: cDoc.id, ...cDoc.data() };
+
+                const appQ = query(collection(db, "appointments"), where("clientId", "==", cDoc.id), where("userId", "==", providerUid));
+                const appSnap = await getDocs(appQ);
+                appointments.value = appSnap.docs.map(sanitizeApp)
+                    .filter(a => a.status !== 'cancelled')
+                    .sort((a,b) => b.date.localeCompare(a.date));
+                loadClientPhotos(cDoc.id);
+                loadingState.value = 'portal';
+            } catch(e) {
+                console.error('Preview:', e);
+                isPreview.value = false;
+                loadingState.value = 'login';
+            }
+        };
+
         onMounted(async () => {
             // Tenta carregar dados da empresa (Logo/Nome) para a tela de login
             if (providerUid) {
@@ -41,6 +64,8 @@ createApp({
                 } catch (e) { console.error("Erro ao carregar empresa:", e); }
             }
             
+            // Modo preview (decorador): carrega o cliente direto, sem login
+            if (isPreview.value) { await loadPreview(); return; }
             // Libera a tela de login
             setTimeout(() => { loadingState.value = 'login'; }, 800);
         });
@@ -135,6 +160,13 @@ createApp({
             showContractModal.value = true;
         };
 
+        const guardPreview = () => {
+            if (isPreview.value) {
+                Swal.fire({ icon:'info', title:'Modo visualização', text:'A assinatura do contrato só pode ser feita pelo próprio cliente.', confirmButtonColor:'#0f4c81' });
+                return true;
+            }
+            return false;
+        };
         const acceptAndSign = () => {
             showContractModal.value = false;
             openSignature(contractApp.value);
@@ -450,11 +482,11 @@ createApp({
         };
 
         const openPixModal = (app) => {
-            if (!company.value.pixKey) return;
+            if (!company.pixKey) return;
             pixApp.value = app;
             pixCopied.value = false;
             const amount = parseFloat(app.finalBalance) || 0;
-            pixCode.value = buildPixPayload(company.value.pixKey, company.value.fantasia || 'Recebedor', company.value.cidade || 'BRASIL', amount);
+            pixCode.value = buildPixPayload(company.pixKey, company.fantasia || 'Recebedor', company.cidade || 'BRASIL', amount);
             showPixModal.value = true;
             // Renderiza o QR após o modal montar
             setTimeout(() => {
@@ -554,6 +586,7 @@ createApp({
             countdowns, getDaysUntil, defaultClauses,
             photosByApp, lightboxPhoto, openLightbox, closeLightbox, sharePhoto,
             showPixModal, pixApp, pixCode, pixCopied, openPixModal, copyPixCode,
+            isPreview, guardPreview,
         };
     }
 }).mount('#client-app');
