@@ -116,6 +116,15 @@
                 <button @click="logout" class="h-9 px-4 rounded-xl font-bold text-xs transition" style="background:rgba(220,38,38,0.07);color:#dc2626;border:1px solid rgba(220,38,38,0.15)">Sair</button>
             </header>
 
+            <!-- Banner modo preview -->
+            <div v-if="isPreview" class="mx-4 mt-4 rounded-2xl px-4 py-3 flex items-center gap-3 animate-fade-in" style="background:#fef9c3;border:1.5px solid rgba(202,138,4,0.3)">
+                <i class="fa-solid fa-eye text-lg" style="color:#b45309"></i>
+                <div class="flex-1">
+                    <p class="text-sm font-bold" style="color:#92400e">Modo visualização</p>
+                    <p class="text-[11px]" style="color:rgba(146,64,14,0.75)">Você está vendo a área como o cliente vê. Assinatura de contrato desabilitada.</p>
+                </div>
+            </div>
+
             <!-- Hero boas vindas -->
             <div class="mx-4 mt-5 rounded-3xl p-6 text-white relative overflow-hidden animate-fade-in" style="background:linear-gradient(135deg,#2d6da8,#0f4c81)">
                 <div class="absolute -top-6 -right-6 w-28 h-28 rounded-full opacity-20" style="background:white"></div>
@@ -261,8 +270,8 @@
                                 <p class="text-sm font-bold" style="color:#b45309">✍️ Assinatura pendente</p>
                                 <p class="text-xs mt-1" style="color:rgba(180,83,9,0.7)">Leia o contrato e assine digitalmente para confirmar.</p>
                             </div>
-                            <button @click="openContractPreview(app)" class="btn-cta">
-                                <i class="fa-solid fa-file-contract"></i> Ver Contrato e Assinar
+                            <button @click="openContractPreview(app)" class="btn-cta" :style="isPreview ? 'background:linear-gradient(135deg,#2d6da8,#0f4c81);box-shadow:0 4px 20px rgba(15,76,129,.3)' : ''">
+                                <i class="fa-solid fa-file-contract"></i> {{ isPreview ? 'Ver Contrato' : 'Ver Contrato e Assinar' }}
                             </button>
                         </div>
                     </div>
@@ -367,10 +376,15 @@
 
             <!-- Sticky bottom — botão de aceitar -->
             <div class="sticky-footer animate-slide-up">
-                <p class="text-center text-xs" style="color:var(--ink-soft)">Ao assinar, você confirma que leu e concorda com todas as cláusulas acima.</p>
-                <button @click="acceptAndSign" class="btn-cta">
-                    <i class="fa-solid fa-signature"></i> Li e aceito — Assinar Agora
-                </button>
+                <template v-if="!isPreview">
+                    <p class="text-center text-xs" style="color:var(--ink-soft)">Ao assinar, você confirma que leu e concorda com todas as cláusulas acima.</p>
+                    <button @click="acceptAndSign" class="btn-cta">
+                        <i class="fa-solid fa-signature"></i> Li e aceito — Assinar Agora
+                    </button>
+                </template>
+                <div v-else class="flex items-center justify-center gap-2 h-14 rounded-2xl font-bold text-sm" style="background:#fef9c3;color:#92400e;border:1.5px solid rgba(202,138,4,0.3)">
+                    <i class="fa-solid fa-eye"></i> Modo visualização — assinatura desabilitada
+                </div>
             </div>
         </div>
 
