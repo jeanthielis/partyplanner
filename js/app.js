@@ -1090,6 +1090,22 @@ createApp({
             navigator.clipboard.writeText(url).then(() => Swal.fire('Copiado!', 'Link do portfólio público copiado.', 'success'));
         };
 
+        // ─── ENVIAR AVALIAÇÃO A PARTIR DO CLIENTE ─────────────
+        const sendReviewLinkForClient = async (c) => {
+            if (!c.phone) return Swal.fire('Atenção', 'Cliente sem telefone cadastrado.', 'warning');
+            try {
+                const snap = await getDocs(query(collection(db, 'appointments'), where('clientId', '==', c.id)));
+                const candidate = snap.docs.map(sanitizeApp)
+                    .filter(a => a.status === 'concluded' && !a.review?.rating)
+                    .sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
+                if (!candidate) {
+                    return Swal.fire({ icon:'info', title:'Nada pendente', text:'Este cliente não tem eventos concluídos aguardando avaliação.', confirmButtonColor:'#0f4c81' });
+                }
+                clientCache[c.id] = c; // garante nome/telefone no cache
+                sendReviewWhatsApp(candidate);
+            } catch(e) { console.error(e); }
+        };
+
         // ─── CONFIRMAÇÃO DE CADASTRO + PREVIEW ────────────────
         const sendRegistrationConfirmation = (c) => {
             if (!c.phone) return Swal.fire('Atenção', 'Cliente sem telefone cadastrado.', 'warning');
@@ -1295,7 +1311,7 @@ createApp({
             // Radar de recontratação
             recontractRadar, loadRecontractRadar, sendRecontractWhatsApp,
             // Confirmação de cadastro + preview
-            sendRegistrationConfirmation, previewClientArea,
+            sendRegistrationConfirmation, previewClientArea, sendReviewLinkForClient,
             // Lucratividade
             expenseLinkOptions, profitLoading, profitRanking, loadProfitability,
         };
