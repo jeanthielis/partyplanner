@@ -407,6 +407,47 @@
                 <div class="p-5 md:p-8 max-w-5xl mx-auto space-y-6 relative z-10">
                     
                     <div v-if="view === 'dashboard'" class="space-y-5">
+
+                        <!-- ═══ RESUMO DO DIA ═══ -->
+                        <div class="rounded-3xl p-5 text-white relative overflow-hidden animate-fade-in" style="background:linear-gradient(135deg,#2d6da8,#0f4c81)">
+                            <div class="absolute -top-8 -right-8 w-32 h-32 rounded-full opacity-10" style="background:white"></div>
+                            <div class="relative z-10">
+                                <p class="font-display text-xl font-bold">{{ dayGreeting }}! 👋</p>
+                                <p class="text-sm mt-1 opacity-90">{{ daySummaryText }}</p>
+                                <div class="flex flex-wrap gap-2 mt-3">
+                                    <button v-if="todayEvents.length" @click="view='schedule'" class="h-8 px-3.5 rounded-xl text-[11px] font-bold transition flex items-center gap-1.5" style="background:rgba(255,255,255,0.18);color:white"><i class="fa-solid fa-calendar-day"></i> Ver eventos de hoje</button>
+                                    <button v-if="budgetList.length" @click="view='budgets'" class="h-8 px-3.5 rounded-xl text-[11px] font-bold transition flex items-center gap-1.5" style="background:rgba(255,255,255,0.18);color:white"><i class="fa-solid fa-file-invoice-dollar"></i> Responder orçamentos</button>
+                                    <button v-if="overdueEvents.length" @click="view='schedule'" class="h-8 px-3.5 rounded-xl text-[11px] font-bold transition flex items-center gap-1.5" style="background:rgba(252,211,77,0.25);color:#fef3c7"><i class="fa-solid fa-circle-dollar-to-slot"></i> Cobrar atrasados</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ═══ ONBOARDING GUIADO ═══ -->
+                        <div v-if="showOnboarding" class="section-card p-5 animate-fade-in" style="border:1.5px solid rgba(15,76,129,0.25)">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <p class="font-bold text-sm" style="color:var(--ink)">🚀 Primeiros passos</p>
+                                    <p class="text-xs mt-0.5" style="color:var(--ink-soft)">Complete para deixar tudo pronto ({{ onboardingProgress }}/3)</p>
+                                </div>
+                                <button @click="dismissOnboarding" class="text-[11px] font-bold transition" style="color:var(--ink-soft)" title="Dispensar">Dispensar ×</button>
+                            </div>
+                            <div class="progress-bar mb-4">
+                                <div class="progress-fill" :style="'width:'+(onboardingProgress/3*100)+'%'"></div>
+                            </div>
+                            <div class="space-y-2">
+                                <button v-for="s in onboardingSteps" :key="s.k" @click="!s.done && onboardingAction(s)"
+                                    class="w-full flex items-center gap-3 p-3 rounded-xl text-left transition"
+                                    :style="s.done ? 'background:#e8faf3;cursor:default' : 'background:var(--surface-3)'"
+                                    :class="!s.done ? 'hover-lift cursor-pointer' : ''">
+                                    <div class="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" :style="s.done ? 'background:#10b981;color:white' : 'background:var(--brand-pale);color:var(--brand)'">
+                                        <i :class="s.done ? 'fa-solid fa-check' : 'fa-solid '+s.icon" class="text-xs"></i>
+                                    </div>
+                                    <span class="text-sm font-medium flex-1" :style="s.done ? 'color:#0d9165;text-decoration:line-through;opacity:0.7' : 'color:var(--ink)'">{{ s.label }}</span>
+                                    <i v-if="!s.done" class="fa-solid fa-chevron-right text-xs" style="color:var(--ink-soft)"></i>
+                                </button>
+                            </div>
+                        </div>
+
                         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                             <div>
                                 <h2 class="font-display text-3xl font-bold tracking-tight" style="color:var(--ink)">Visão <span class="grad-text">Geral</span></h2>
@@ -1249,6 +1290,30 @@
                             <button @click="copyReviewLink(a)" class="flex-1 h-8 rounded-xl bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 text-[10px] font-bold flex items-center justify-center gap-1 hover:bg-yellow-100 transition border border-yellow-200 dark:border-yellow-800"><i class="fa-solid fa-link"></i> Copiar link</button>
                             <button @click="sendReviewWhatsApp(a)" class="flex-1 h-8 rounded-xl bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-[10px] font-bold flex items-center justify-center gap-1 hover:bg-green-100 transition border border-green-200 dark:border-green-800"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL ATALHOS DE TECLADO -->
+        <div v-if="showShortcutsModal" @click.self="showShortcutsModal=false" class="fixed inset-0 z-[70] flex items-center justify-center p-4" style="background:rgba(16,42,67,0.6);backdrop-filter:blur(10px)">
+            <div class="rounded-3xl w-full max-w-xs animate-scale-in shadow-modal" style="background:white;border:1px solid var(--border)">
+                <div class="p-5 flex justify-between items-center" style="border-bottom:1px solid var(--border)">
+                    <h2 class="text-base font-bold flex items-center gap-2 text-slate-900"><i class="fa-solid fa-keyboard" style="color:var(--brand)"></i> Atalhos</h2>
+                    <button @click="showShortcutsModal=false" class="w-8 h-8 rounded-full flex items-center justify-center text-sm" style="background:var(--surface-3);color:var(--ink-soft)"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="p-5 space-y-3">
+                    <div class="flex justify-between items-center text-sm">
+                        <span style="color:var(--ink-mid)">Novo agendamento</span>
+                        <kbd class="px-2.5 py-1 rounded-lg text-xs font-bold font-mono" style="background:var(--surface-3);color:var(--ink);border:1px solid var(--border-mid)">N</kbd>
+                    </div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span style="color:var(--ink-mid)">Fechar janela aberta</span>
+                        <kbd class="px-2.5 py-1 rounded-lg text-xs font-bold font-mono" style="background:var(--surface-3);color:var(--ink);border:1px solid var(--border-mid)">Esc</kbd>
+                    </div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span style="color:var(--ink-mid)">Este guia</span>
+                        <kbd class="px-2.5 py-1 rounded-lg text-xs font-bold font-mono" style="background:var(--surface-3);color:var(--ink);border:1px solid var(--border-mid)">?</kbd>
                     </div>
                 </div>
             </div>
