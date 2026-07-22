@@ -680,7 +680,8 @@
                                     </div>
                                     <div v-if="app.status === 'concluded'" class="flex gap-1.5">
                                         <button @click="openGalleryModal(app)" class="h-8 px-3 rounded-lg text-[10px] font-bold flex items-center gap-1 transition" style="background:rgba(15,76,129,0.08);color:#0f4c81;border:1px solid rgba(15,76,129,0.2)"><i class="fa-solid fa-camera text-[8px]"></i> Fotos</button>
-                                        <button v-if="!app.review?.rating" @click="copyReviewLink(app)" class="h-8 px-3 rounded-lg text-[10px] font-bold flex items-center gap-1 transition" style="background:rgba(217,119,6,0.08);color:#b45309;border:1px solid rgba(217,119,6,0.2)"><i class="fa-solid fa-star text-[8px]"></i> Avaliação</button>
+                                        <button v-if="!app.review?.rating" @click="sendReviewWhatsApp(app)" class="h-8 px-3 rounded-lg text-[10px] font-bold flex items-center gap-1 transition" style="background:rgba(37,211,102,0.12);color:#128c4b;border:1px solid rgba(37,211,102,0.3)" title="Enviar link de avaliação via WhatsApp"><i class="fa-brands fa-whatsapp text-[10px]"></i> Enviar avaliação</button>
+                                        <button v-if="!app.review?.rating" @click="copyReviewLink(app)" class="w-8 h-8 rounded-lg text-[10px] flex items-center justify-center transition" style="background:rgba(217,119,6,0.08);color:#b45309;border:1px solid rgba(217,119,6,0.2)" title="Copiar link de avaliação"><i class="fa-solid fa-link"></i></button>
                                     </div>
                                 </div>
                             </div>
@@ -942,6 +943,7 @@
                                     </div>
                                     <div class="flex items-center gap-1">
                                         <button @click="sendRegistrationConfirmation(c)" class="text-slate-400 hover:text-green-500 p-2 rounded-lg hover:bg-green-50 transition" title="Enviar confirmação de cadastro"><i class="fa-brands fa-whatsapp"></i></button>
+                                        <button @click="sendReviewLinkForClient(c)" class="text-slate-400 hover:text-yellow-500 p-2 rounded-lg hover:bg-yellow-50 transition" title="Enviar link de avaliação"><i class="fa-solid fa-star"></i></button>
                                         <button @click="previewClientArea(c)" class="text-slate-400 hover:text-blue-500 p-2 rounded-lg hover:bg-blue-50 transition" title="Ver área do cliente (somente leitura)"><i class="fa-solid fa-eye"></i></button>
                                         <button @click="openClientHistory(c)" class="text-slate-400 hover:text-purple-500 p-2 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 transition" title="Histórico"><i class="fa-solid fa-clock-rotate-left"></i></button>
                                         <button @click="openEditClient(c)" class="text-slate-400 hover:text-brand-500 p-2 rounded-lg hover:bg-brand-50 dark:hover:bg-brand-900/20 transition" title="Editar"><i class="fa-solid fa-pen-to-square"></i></button>
