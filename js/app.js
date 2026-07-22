@@ -384,6 +384,7 @@ createApp({
             onSnapshot(query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "budget")), (snap) => { budgetList.value = snap.docs.map(sanitizeApp); budgetList.value.forEach(a => fetchClientToCache(a.clientId)); }); 
             onSnapshot(query(collection(db, "reviews"), where("userId", "==", myId)), (snap) => { allReviews.value = snap.docs.map(d => ({ id: d.id, ...d.data() })); });
             loadRecontractRadar();
+            checkOnboarding();
         };
         
         const searchHistory = async () => { if(!agendaFilter.start || !agendaFilter.end) return Swal.fire('Atenção', 'Selecione datas', 'warning'); const q = query(collection(db, "appointments"), where("userId", "==", user.value.uid), where("status", "==", agendaTab.value), where("date", ">=", agendaFilter.start), where("date", "<=", agendaFilter.end)); const snap = await getDocs(q); historyList.value = snap.docs.map(sanitizeApp); historyList.value.forEach(a => fetchClientToCache(a.clientId)); };
@@ -1090,6 +1091,77 @@ createApp({
             navigator.clipboard.writeText(url).then(() => Swal.fire('Copiado!', 'Link do portfólio público copiado.', 'success'));
         };
 
+        // ─── RESUMO DO DIA ────────────────────────────────────
+        const dayGreeting = computed(() => {
+            const h = new Date().getHours();
+            return h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
+        });
+        const todayEvents = computed(() => pendingAppointments.value.filter(a => a.date === today));
+        const daySummaryText = computed(() => {
+            const parts = [];
+            const ev = todayEvents.value.length;
+            const bud = budgetList.value.length;
+            const over = overdueEvents.value.length;
+            if (ev) parts.push(`${ev} evento${ev>1?'s':''} hoje`);
+            if (bud) parts.push(`${bud} orçamento${bud>1?'s':''} aguardando resposta`);
+            if (over) parts.push(`${over} pagamento${over>1?'s':''} em atraso`);
+            if (!parts.length) return 'Nenhuma pendência para hoje. Aproveite para prospectar! ✨';
+            return 'Você tem ' + parts.join(', ').replace(/, ([^,]*)$/, ' e $1') + '.';
+        });
+
+        // ─── ONBOARDING GUIADO ────────────────────────────────
+        const onboardingDismissed = ref(false);
+        const hasClients = ref(true);       // otimista até checar
+        const hasAppointments = ref(true);
+        const checkOnboarding = async () => {
+            onboardingDismissed.value = localStorage.getItem('pp_onboarding_' + user.value.uid) === '1';
+            if (onboardingDismissed.value) return;
+            try {
+                const [cSnap, aSnap] = await Promise.all([
+                    getDocs(query(collection(db, 'clients'), where('userId', '==', user.value.uid))),
+                    getDocs(query(collection(db, 'appointments'), where('userId', '==', user.value.uid)))
+                ]);
+                hasClients.value = !cSnap.empty;
+                hasAppointments.value = !aSnap.empty;
+            } catch(e) { console.error(e); }
+        };
+        const onboardingSteps = computed(() => [
+            { k:'service', label:'Cadastre seu primeiro serviço', icon:'fa-tag',      done: services.value.length > 0 },
+            { k:'client',  label:'Cadastre seu primeiro cliente', icon:'fa-user-plus', done: hasClients.value },
+            { k:'event',   label:'Crie seu primeiro agendamento', icon:'fa-calendar-plus', done: hasAppointments.value },
+        ]);
+        const onboardingProgress = computed(() => onboardingSteps.value.filter(s => s.done).length);
+        const showOnboarding = computed(() => !onboardingDismissed.value && onboardingProgress.value < 3);
+        const dismissOnboarding = () => {
+            onboardingDismissed.value = true;
+            localStorage.setItem('pp_onboarding_' + user.value.uid, '1');
+        };
+        const onboardingAction = (step) => {
+            if (step.k === 'service') { view.value = 'registrations'; registrationTab.value = 'services'; showServiceModal.value = true; }
+            else if (step.k === 'client') { view.value = 'registrations'; registrationTab.value = 'clients'; showClientModal.value = true; }
+            else { startNewSchedule(); }
+        };
+
+        // ─── ATALHOS DE TECLADO ───────────────────────────────
+        const showShortcutsModal = ref(false);
+        const closeTopModal = () => {
+            const modals = [showShortcutsModal, showGalleryModal, showInventoryModal, showExpenseModal, showClientHistoryModal, showClientModal, showServiceModal, showGoalModal, showAppointmentModal, showReceiptModal, showSignatureModal];
+            for (const m of modals) {
+                if (m.value) { m.value = false; return true; }
+            }
+            return false;
+        };
+        const handleKeydown = (e) => {
+            if (!user.value) return;
+            const tag = (e.target.tagName || '').toLowerCase();
+            const typing = tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable;
+            if (e.key === 'Escape') { closeTopModal(); return; }
+            if (typing) return;
+            if (e.key === 'n' || e.key === 'N') { e.preventDefault(); startNewSchedule(); }
+            else if (e.key === '?') { e.preventDefault(); showShortcutsModal.value = true; }
+        };
+        window.addEventListener('keydown', handleKeydown);
+
         // ─── ENVIAR AVALIAÇÃO A PARTIR DO CLIENTE ─────────────
         const sendReviewLinkForClient = async (c) => {
             if (!c.phone) return Swal.fire('Atenção', 'Cliente sem telefone cadastrado.', 'warning');
@@ -1312,6 +1384,12 @@ createApp({
             recontractRadar, loadRecontractRadar, sendRecontractWhatsApp,
             // Confirmação de cadastro + preview
             sendRegistrationConfirmation, previewClientArea, sendReviewLinkForClient,
+            // Resumo do dia
+            dayGreeting, todayEvents, daySummaryText,
+            // Onboarding
+            showOnboarding, onboardingSteps, onboardingProgress, dismissOnboarding, onboardingAction,
+            // Atalhos
+            showShortcutsModal,
             // Lucratividade
             expenseLinkOptions, profitLoading, profitRanking, loadProfitability,
         };
