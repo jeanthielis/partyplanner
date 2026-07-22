@@ -13,7 +13,7 @@ body, button, input, select, textarea { transition: background-color 0.2s ease, 
 /* ── Scrollbar global ── */
 ::-webkit-scrollbar          { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track    { background: transparent; }
-::-webkit-scrollbar-thumb    { background: rgba(15,76,129,0.25); border-radius: 99px; }
+::-webkit-scrollbar-thumb    { background: rgba(52,211,153,0.3); border-radius: 99px; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
 /* ── Canvas touch ── */
@@ -75,7 +75,7 @@ canvas { touch-action: none; }
 }
 .hover-lift:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 28px rgba(16,42,67,0.12);
+  box-shadow: 0 8px 28px rgba(0,0,0,0.12);
 }
 .hover-scale:hover  { transform: scale(1.03); }
 .hover-bright:hover { filter: brightness(1.06); }
@@ -83,17 +83,17 @@ canvas { touch-action: none; }
 /* ══════════════════════════════════
    SOMBRAS (shadow system)
    ══════════════════════════════════ */
-.shadow-xs  { box-shadow: 0 1px 3px rgba(16,42,67,0.06); }
-.shadow-card{ box-shadow: 0 1px 4px rgba(16,42,67,0.06), 0 4px 16px rgba(16,42,67,0.05); }
-.shadow-pop { box-shadow: 0 4px 16px rgba(16,42,67,0.08), 0 12px 36px rgba(16,42,67,0.08); }
-.shadow-modal{ box-shadow: 0 8px 32px rgba(16,42,67,0.10), 0 24px 64px rgba(16,42,67,0.12); }
-.shadow-brand{ box-shadow: 0 4px 16px rgba(15,76,129,0.25), 0 8px 32px rgba(15,76,129,0.15); }
+.shadow-xs  { box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.shadow-card{ box-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.05); }
+.shadow-pop { box-shadow: 0 4px 16px rgba(0,0,0,0.08), 0 12px 36px rgba(0,0,0,0.08); }
+.shadow-modal{ box-shadow: 0 8px 32px rgba(0,0,0,0.10), 0 24px 64px rgba(0,0,0,0.12); }
+.shadow-brand{ box-shadow: 0 4px 16px rgba(52,211,153,0.3), 0 8px 32px rgba(52,211,153,0.2); }
 
 /* ══════════════════════════════════
    SKELETON / LOADING
    ══════════════════════════════════ */
 .skeleton {
-  background: linear-gradient(90deg, #eef2f6 25%, #e3eaf1 50%, #eef2f6 75%);
+  background: linear-gradient(90deg, #26334a 25%, #2f3e58 50%, #26334a 75%);
   background-size: 200% auto;
   animation: shimmer 1.4s linear infinite;
   border-radius: 8px;
@@ -113,25 +113,25 @@ canvas { touch-action: none; }
   gap: 12px;
 }
 .moodboard-card {
-  border: 2px solid var(--border, rgba(16,42,67,0.08));
+  border: 2px solid var(--border, rgba(0,0,0,0.08));
   border-radius: 16px;
   padding: 16px 12px;
   cursor: pointer;
   transition: all 0.18s ease;
-  background: white;
+  background: var(--surface, #1f2937);
   text-align: center;
   position: relative;
   overflow: hidden;
 }
 .moodboard-card:hover {
-  border-color: var(--brand, #0f4c81);
-  box-shadow: 0 4px 20px rgba(15,76,129,0.14);
+  border-color: var(--brand, #34d399);
+  box-shadow: 0 4px 20px rgba(52,211,153,0.2);
   transform: translateY(-2px);
 }
 .moodboard-card.selected {
-  border-color: var(--brand, #0f4c81);
-  background: var(--brand-pale, #edf4fa);
-  box-shadow: 0 0 0 3px rgba(15,76,129,0.15), 0 4px 20px rgba(15,76,129,0.18);
+  border-color: var(--brand, #34d399);
+  background: var(--brand-pale, rgba(52,211,153,0.1));
+  box-shadow: 0 0 0 3px rgba(52,211,153,0.2), 0 4px 20px rgba(52,211,153,0.22);
 }
 .moodboard-card.selected::after {
   content: '✓';
@@ -139,7 +139,7 @@ canvas { touch-action: none; }
   top: 6px; right: 8px;
   font-size: 11px;
   font-weight: 900;
-  color: var(--brand, #0f4c81);
+  color: var(--brand, #34d399);
 }
 
 /* ══════════════════════════════════
@@ -159,7 +159,7 @@ canvas { touch-action: none; }
   flex-direction: column;
   border-radius: 16px;
   overflow: hidden;
-  background: #f2f6fa;
+  background: #0f1626;
 }
 .kanban-col-header {
   padding: 14px 16px;
@@ -179,20 +179,20 @@ canvas { touch-action: none; }
   gap: 8px;
 }
 .kanban-card {
-  background: white;
+  background: #26334a;
   border-radius: 12px;
   padding: 12px 14px;
-  box-shadow: 0 1px 4px rgba(16,42,67,0.07);
-  border: 1px solid rgba(16,42,67,0.07);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+  border: 1px solid rgba(0,0,0,0.07);
   transition: all 0.18s ease;
   cursor: grab;
 }
 .kanban-card:hover {
-  box-shadow: 0 4px 16px rgba(16,42,67,0.10);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.10);
   transform: translateY(-1px);
 }
 .kanban-card:active { cursor: grabbing; opacity: 0.85; }
-.kanban-drag-over { outline: 2px dashed rgba(15,76,129,0.5); outline-offset: 4px; }
+.kanban-drag-over { outline: 2px dashed rgba(52,211,153,0.5); outline-offset: 4px; }
 
 /* ══════════════════════════════════
    INVENTÁRIO / ACERVO
@@ -204,14 +204,14 @@ canvas { touch-action: none; }
 }
 .inventory-card {
   border-radius: 16px;
-  background: white;
-  border: 1px solid rgba(16,42,67,0.08);
-  box-shadow: 0 1px 4px rgba(16,42,67,0.05);
+  background: var(--surface, #1f2937);
+  border: 1px solid rgba(0,0,0,0.08);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
   overflow: hidden;
   transition: all 0.18s ease;
 }
 .inventory-card:hover {
-  box-shadow: 0 4px 20px rgba(16,42,67,0.10);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.10);
   transform: translateY(-2px);
 }
 .inventory-badge {
@@ -233,11 +233,11 @@ canvas { touch-action: none; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: white;
+  background: var(--surface, #1f2937);
   border-radius: 16px;
   padding: 12px 10px 8px;
   min-width: 64px;
-  box-shadow: 0 2px 8px rgba(16,42,67,0.08);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
   animation: countdown-tick 1s ease-in-out infinite;
 }
 .countdown-num {
@@ -254,7 +254,7 @@ canvas { touch-action: none; }
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #8ba3b8;
+  color: #8b98ab;
   margin-top: 2px;
 }
 
@@ -268,3 +268,10 @@ canvas { touch-action: none; }
    TOASTS customizados (Swal)
    ══════════════════════════════════ */
 .swal2-toast { border-radius: 14px !important; font-family: Inter, sans-serif !important; }
+
+/* ══ SweetAlert2 dark neon ══ */
+.swal2-popup { background: #1f2937 !important; color: #f9fafb !important; border-radius: 20px !important; border: 1px solid rgba(249,250,251,0.08) !important; }
+.swal2-title { color: #f9fafb !important; }
+.swal2-html-container { color: #cbd5e1 !important; }
+.swal2-confirm { background: linear-gradient(135deg,#34d399,#10b981) !important; box-shadow: 0 0 16px rgba(52,211,153,0.3) !important; }
+.swal2-toast { background: #1f2937 !important; color: #f9fafb !important; }
