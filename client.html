@@ -10,7 +10,7 @@
     <meta property="og:type"        content="website">
     <meta property="og:title"       content="🎉 Seu evento está confirmado!">
     <meta property="og:description" content="Acesse sua área exclusiva para ver os detalhes do evento e assinar o contrato digital.">
-    <meta name="theme-color" content="#0a0f1e">
+    <meta name="theme-color" content="#6b8a68">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -28,7 +28,7 @@
                 extend: {
                     fontFamily: { sans: ['Inter','sans-serif'], display: ['Syne','sans-serif'] },
                     colors: {
-                        brand: { 50:'#ecfdf5', 100:'#d1fae5', 300:'#6ee7b7', 500:'#10b981', 600:'#059669', 700:'#047857' }
+                        brand: { 50:'#f2f5f0', 100:'#e2eadf', 300:'#a8c0a3', 500:'#6b8a68', 600:'#55724f', 700:'#43603f' }
                     }
                 }
             }
@@ -36,23 +36,23 @@
     </script>
     <style>
         :root {
-            --brand:#34d399; --brand-mid:#10b981; --brand-light:#6ee7b7;
-            --brand-pale:rgba(52,211,153,0.10);
-            --ink:#f9fafb; --ink-soft:#8b98ab;
-            --surface:#1f2937; --surface-2:#0a0f1e; --surface-3:#283548;
-            --border:rgba(249,250,251,0.08);
+            --brand:#6b8a68; --brand-mid:#55724f; --brand-light:#8aa887;
+            --brand-pale:#eef2ec;
+            --ink:#2d3a2c; --ink-soft:#96a190;
+            --surface:#ffffff; --surface-2:#faf9f5; --surface-3:#f2efe6;
+            --border:#e8e5db;
         }
         [v-cloak]{display:none}
         body{background:var(--surface-2);font-family:Inter,sans-serif;color:var(--ink)}
         .input-client{background:var(--surface-3);border:1.5px solid var(--border);border-radius:16px;width:100%;padding:0 1.25rem;height:56px;font-size:15px;font-weight:500;outline:none;transition:all .18s ease;color:var(--ink)}
-        .input-client:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(15,76,129,.12);background:#223045}
+        .input-client:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(15,76,129,.12);background:white}
         .input-client::placeholder{color:var(--ink-soft)}
-        .btn-cta{background:linear-gradient(135deg,#34d399,#10b981);color:white;font-weight:800;font-size:17px;border:none;border-radius:20px;width:100%;height:60px;cursor:pointer;transition:all .18s ease;box-shadow:0 4px 20px rgba(16,185,129,.35);display:flex;align-items:center;justify-content:center;gap:10px;letter-spacing:-.01em}
-        .btn-cta:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(16,185,129,.45)}
+        .btn-cta{background:linear-gradient(135deg,#8aa887,#55724f);color:white;font-weight:800;font-size:17px;border:none;border-radius:20px;width:100%;height:60px;cursor:pointer;transition:all .18s ease;box-shadow:0 4px 20px rgba(107,138,104,.35);display:flex;align-items:center;justify-content:center;gap:10px;letter-spacing:-.01em}
+        .btn-cta:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(107,138,104,.45)}
         .btn-cta:active{transform:scale(.98)}
         .btn-cta:disabled{opacity:.55;transform:none;box-shadow:none;cursor:not-allowed}
         .pill-status{display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border-radius:99px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
-        .sticky-footer{position:fixed;bottom:0;left:0;right:0;padding:12px 20px 20px;background:rgba(10,15,30,.95);backdrop-filter:blur(16px);border-top:1px solid var(--border);z-index:50;display:flex;flex-direction:column;gap:8px}
+        .sticky-footer{position:fixed;bottom:0;left:0;right:0;padding:12px 20px 20px;background:rgba(255,255,255,.96);backdrop-filter:blur(16px);border-top:1px solid var(--border);z-index:50;display:flex;flex-direction:column;gap:8px}
         @supports(padding:max(0px)){.sticky-footer{padding-bottom:max(20px,env(safe-area-inset-bottom))}}
     </style>
 </head>
@@ -62,7 +62,7 @@
 
         <!-- ═══ LOADING ═══ -->
         <div v-if="loadingState === 'global'" class="fixed inset-0 z-[100] flex flex-col items-center justify-center" style="background:var(--surface-2)">
-            <div class="w-20 h-20 rounded-3xl flex items-center justify-center mb-5 shadow-brand" style="background:linear-gradient(135deg,#10b981,#0891b2)">
+            <div class="w-20 h-20 rounded-3xl flex items-center justify-center mb-5 shadow-brand" style="background:linear-gradient(135deg,#8aa887,#55724f)">
                 <i class="fa-solid fa-wand-magic-sparkles text-3xl text-white animate-pulse-soft"></i>
             </div>
             <p class="font-display text-lg font-bold" style="color:var(--ink)">Buscando seu evento...</p>
@@ -75,7 +75,7 @@
                 <div v-if="company.logo" class="w-24 h-24 rounded-3xl overflow-hidden mx-auto mb-4 shadow-pop border-4" style="border-color:var(--surface-3)">
                     <img :src="company.logo" class="w-full h-full object-cover">
                 </div>
-                <div v-else class="w-20 h-20 rounded-3xl mx-auto flex items-center justify-center mb-4 shadow-brand" style="background:linear-gradient(135deg,#10b981,#0891b2)">
+                <div v-else class="w-20 h-20 rounded-3xl mx-auto flex items-center justify-center mb-4 shadow-brand" style="background:linear-gradient(135deg,#8aa887,#55724f)">
                     <i class="fa-solid fa-wand-magic-sparkles text-3xl text-white"></i>
                 </div>
                 <h1 class="font-display text-3xl font-bold" style="color:var(--ink)">{{ company.fantasia || 'Área do Cliente' }}</h1>
@@ -83,7 +83,7 @@
             </div>
 
             <div class="w-full max-w-sm animate-slide-up delay-1">
-                <div class="rounded-3xl p-8" style="background:var(--surface);border:1px solid var(--border);box-shadow:0 4px 24px rgba(0,0,0,0.4)">
+                <div class="rounded-3xl p-8" style="background:var(--surface);border:1px solid var(--border);box-shadow:0 4px 24px rgba(45,58,44,0.08)">
                     <form @submit.prevent="handleAccess" class="space-y-4">
                         <div class="relative">
                             <i class="fa-solid fa-id-card absolute left-4 top-1/2 -translate-y-1/2 text-sm" style="color:var(--ink-soft)"></i>
@@ -104,29 +104,29 @@
         <div v-if="loadingState === 'portal'" class="flex flex-col min-h-screen">
 
             <!-- Header fixo -->
-            <header class="sticky top-0 z-30 px-5 py-4 flex justify-between items-center" style="background:rgba(10,15,30,0.92);backdrop-filter:blur(16px);border-bottom:1px solid var(--border)">
+            <header class="sticky top-0 z-30 px-5 py-4 flex justify-between items-center" style="background:rgba(250,249,245,0.94);backdrop-filter:blur(16px);border-bottom:1px solid var(--border)">
                 <div class="flex items-center gap-3">
                     <img v-if="company.logo" :src="company.logo" class="w-9 h-9 rounded-xl object-cover shadow-xs">
-                    <div v-else class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:linear-gradient(135deg,#10b981,#0891b2)"><i class="fa-solid fa-wand-magic-sparkles text-white text-sm"></i></div>
+                    <div v-else class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:linear-gradient(135deg,#8aa887,#55724f)"><i class="fa-solid fa-wand-magic-sparkles text-white text-sm"></i></div>
                     <div>
                         <p class="font-bold text-sm leading-none" style="color:var(--ink)">{{ company.fantasia }}</p>
                         <p class="text-[11px] mt-0.5" style="color:var(--ink-soft)">Área do Cliente</p>
                     </div>
                 </div>
-                <button @click="logout" class="h-9 px-4 rounded-xl font-bold text-xs transition" style="background:rgba(220,38,38,0.07);color:#f87171;border:1px solid rgba(220,38,38,0.15)">Sair</button>
+                <button @click="logout" class="h-9 px-4 rounded-xl font-bold text-xs transition" style="background:rgba(220,38,38,0.07);color:#b0402f;border:1px solid rgba(220,38,38,0.15)">Sair</button>
             </header>
 
             <!-- Banner modo preview -->
-            <div v-if="isPreview" class="mx-4 mt-4 rounded-2xl px-4 py-3 flex items-center gap-3 animate-fade-in" style="background:rgba(250,204,21,0.12);border:1.5px solid rgba(202,138,4,0.3)">
-                <i class="fa-solid fa-eye text-lg" style="color:#fbbf24"></i>
+            <div v-if="isPreview" class="mx-4 mt-4 rounded-2xl px-4 py-3 flex items-center gap-3 animate-fade-in" style="background:rgba(138,100,16,0.10);border:1.5px solid rgba(202,138,4,0.3)">
+                <i class="fa-solid fa-eye text-lg" style="color:#8a6410"></i>
                 <div class="flex-1">
-                    <p class="text-sm font-bold" style="color:#fcd34d">Modo visualização</p>
+                    <p class="text-sm font-bold" style="color:#8a6410">Modo visualização</p>
                     <p class="text-[11px]" style="color:rgba(146,64,14,0.75)">Você está vendo a área como o cliente vê. Assinatura de contrato desabilitada.</p>
                 </div>
             </div>
 
             <!-- Hero boas vindas -->
-            <div class="mx-4 mt-5 rounded-3xl p-6 text-white relative overflow-hidden animate-fade-in" style="background:linear-gradient(135deg,#10b981,#0891b2)">
+            <div class="mx-4 mt-5 rounded-3xl p-6 text-white relative overflow-hidden animate-fade-in" style="background:linear-gradient(135deg,#8aa887,#55724f)">
                 <div class="absolute -top-6 -right-6 w-28 h-28 rounded-full opacity-20" style="background:white"></div>
                 <div class="absolute -bottom-4 -left-4 w-20 h-20 rounded-full opacity-10" style="background:white"></div>
                 <div class="relative z-10">
@@ -151,7 +151,7 @@
                     <!-- Cabeçalho do card -->
                     <div class="px-5 pt-5 pb-4 flex justify-between items-start" style="border-bottom:1px solid var(--border)">
                         <div class="flex items-center gap-4">
-                            <div class="w-14 h-14 rounded-2xl flex flex-col items-center justify-center text-white flex-shrink-0 shadow-brand" style="background:linear-gradient(135deg,#10b981,#0891b2)">
+                            <div class="w-14 h-14 rounded-2xl flex flex-col items-center justify-center text-white flex-shrink-0 shadow-brand" style="background:linear-gradient(135deg,#8aa887,#55724f)">
                                 <span class="text-[10px] font-bold uppercase opacity-80">{{ getMonth(app.date) }}</span>
                                 <span class="text-2xl font-black leading-none">{{ getDay(app.date) }}</span>
                             </div>
@@ -160,7 +160,7 @@
                                 <p class="text-sm flex items-center gap-1 mt-0.5" style="color:var(--ink-soft)"><i class="fa-solid fa-map-pin text-xs" style="color:var(--brand)"></i> {{ app.location?.bairro }}</p>
                             </div>
                         </div>
-                        <span class="pill-status" :style="app.status==='concluded'?'background:rgba(74,222,128,0.14);color:#4ade80':app.status==='budget'?'background:rgba(250,204,21,0.12);color:#fbbf24':'background:var(--brand-pale);color:var(--brand-mid)'">
+                        <span class="pill-status" :style="app.status==='concluded'?'background:rgba(107,138,104,0.13);color:#3f6e3a':app.status==='budget'?'background:rgba(138,100,16,0.10);color:#8a6410':'background:var(--brand-pale);color:var(--brand-mid)'">
                             {{ statusText(app.status) }}
                         </span>
                     </div>
@@ -213,7 +213,7 @@
                         </div>
                         <div v-if="app.details?.entryFee > 0" class="flex justify-between text-sm mb-1">
                             <span style="color:var(--ink-soft)">Sinal pago</span>
-                            <span class="font-semibold text-green-400">- {{ formatCurrency(app.details.entryFee) }}</span>
+                            <span class="font-semibold text-[#3f6e3a]">- {{ formatCurrency(app.details.entryFee) }}</span>
                         </div>
                         <div class="flex justify-between text-base font-black mt-2 pt-2" style="border-top:1px solid var(--border)">
                             <span style="color:var(--ink)">A pagar</span>
@@ -222,7 +222,7 @@
                         <button v-if="app.finalBalance > 0 && company.pixKey && app.status !== 'cancelled'"
                             @click="openPixModal(app)"
                             class="w-full h-12 mt-3 rounded-2xl font-bold text-sm text-white flex items-center justify-center gap-2 transition active:scale-95"
-                            style="background:linear-gradient(135deg,#34d399,#10b981);box-shadow:0 4px 14px rgba(16,185,129,.3)">
+                            style="background:linear-gradient(135deg,#8aa887,#55724f);box-shadow:0 4px 14px rgba(107,138,104,.3)">
                             <i class="fa-brands fa-pix"></i> Pagar com PIX
                         </button>
                     </div>
@@ -231,7 +231,7 @@
                     <div v-if="photosByApp[app.id]?.length" class="px-5 py-4" style="border-bottom:1px solid var(--border)">
                         <div class="flex justify-between items-center mb-3">
                             <p class="text-[11px] font-bold uppercase tracking-wider" style="color:var(--ink-soft)">📸 Fotos da sua festa</p>
-                            <span class="text-[11px] font-bold" style="color:#10b981">{{ photosByApp[app.id].length }} foto(s)</span>
+                            <span class="text-[11px] font-bold" style="color:#55724f">{{ photosByApp[app.id].length }} foto(s)</span>
                         </div>
                         <div class="flex gap-2.5 overflow-x-auto no-scrollbar pb-1" style="scroll-snap-type:x mandatory">
                             <div v-for="p in photosByApp[app.id]" :key="p.id"
@@ -248,7 +248,7 @@
                     <div class="px-5 py-5">
                         <!-- JÁ ASSINADO -->
                         <div v-if="app.clientSignature" class="text-center">
-                            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-xl mb-4 text-sm font-bold" style="background:rgba(74,222,128,0.14);color:#4ade80">
+                            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-xl mb-4 text-sm font-bold" style="background:rgba(107,138,104,0.13);color:#3f6e3a">
                                 <i class="fa-solid fa-circle-check"></i> Contrato assinado com sucesso!
                             </div>
                             <div class="p-4 rounded-2xl mb-4" style="background:var(--surface-3);border:1px solid var(--border)">
@@ -266,11 +266,11 @@
 
                         <!-- AGUARDANDO ASSINATURA -->
                         <div v-else>
-                            <div class="p-4 rounded-2xl mb-4 text-center" style="background:rgba(250,204,21,0.12);border:1px solid rgba(202,138,4,0.2)">
-                                <p class="text-sm font-bold" style="color:#fbbf24">✍️ Assinatura pendente</p>
+                            <div class="p-4 rounded-2xl mb-4 text-center" style="background:rgba(138,100,16,0.10);border:1px solid rgba(202,138,4,0.2)">
+                                <p class="text-sm font-bold" style="color:#8a6410">✍️ Assinatura pendente</p>
                                 <p class="text-xs mt-1" style="color:rgba(180,83,9,0.7)">Leia o contrato e assine digitalmente para confirmar.</p>
                             </div>
-                            <button @click="openContractPreview(app)" class="btn-cta" :style="isPreview ? 'background:linear-gradient(135deg,#10b981,#0891b2);box-shadow:0 4px 20px rgba(15,76,129,.3)' : ''">
+                            <button @click="openContractPreview(app)" class="btn-cta" :style="isPreview ? 'background:linear-gradient(135deg,#8aa887,#55724f);box-shadow:0 4px 20px rgba(15,76,129,.3)' : ''">
                                 <i class="fa-solid fa-file-contract"></i> {{ isPreview ? 'Ver Contrato' : 'Ver Contrato e Assinar' }}
                             </button>
                         </div>
@@ -329,7 +329,7 @@
 
                 <!-- Serviços -->
                 <div v-if="contractApp?.selectedServices?.length" class="rounded-2xl overflow-hidden" style="border:1px solid var(--border)">
-                    <div class="flex justify-between px-5 py-3 text-xs font-black uppercase" style="background:#0f1626;color:#a7f3d0;border-bottom:1px solid rgba(52,211,153,0.25)">
+                    <div class="flex justify-between px-5 py-3 text-xs font-black uppercase" style="background:#33402f;color:#e8f0e5">
                         <span>Serviço</span><span>Valor</span>
                     </div>
                     <div v-for="s in contractApp.selectedServices" :key="s.description" class="flex justify-between px-5 py-3.5 text-sm" style="border-top:1px solid var(--border)">
@@ -346,7 +346,7 @@
                     </div>
                     <div class="flex justify-between text-sm">
                         <span style="color:var(--ink-soft)">Sinal / Entrada</span>
-                        <span class="font-bold text-green-400">{{ formatCurrency(contractApp.details?.entryFee || 0) }}</span>
+                        <span class="font-bold text-[#3f6e3a]">{{ formatCurrency(contractApp.details?.entryFee || 0) }}</span>
                     </div>
                     <div class="flex justify-between pt-3 mt-2" style="border-top:1px solid rgba(255,92,53,0.2)">
                         <span class="font-black" style="color:var(--ink)">Restante a Pagar</span>
@@ -382,23 +382,23 @@
                         <i class="fa-solid fa-signature"></i> Li e aceito — Assinar Agora
                     </button>
                 </template>
-                <div v-else class="flex items-center justify-center gap-2 h-14 rounded-2xl font-bold text-sm" style="background:rgba(250,204,21,0.12);color:#fcd34d;border:1.5px solid rgba(202,138,4,0.3)">
+                <div v-else class="flex items-center justify-center gap-2 h-14 rounded-2xl font-bold text-sm" style="background:rgba(138,100,16,0.10);color:#8a6410;border:1.5px solid rgba(202,138,4,0.3)">
                     <i class="fa-solid fa-eye"></i> Modo visualização — assinatura desabilitada
                 </div>
             </div>
         </div>
 
         <!-- ═══ MODAL PIX ═══ -->
-        <div v-if="showPixModal && pixApp" @click.self="showPixModal=false" class="fixed inset-0 z-[85] flex flex-col items-center justify-end sm:justify-center p-0 sm:p-4" style="background:rgba(16,42,67,0.7);backdrop-filter:blur(8px)">
-            <div class="w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl p-6 animate-slide-up" style="background:var(--surface);box-shadow:0 8px 40px rgba(0,0,0,0.5)">
+        <div v-if="showPixModal && pixApp" @click.self="showPixModal=false" class="fixed inset-0 z-[85] flex flex-col items-center justify-end sm:justify-center p-0 sm:p-4" style="background:rgba(45,58,44,0.5);backdrop-filter:blur(8px)">
+            <div class="w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl p-6 animate-slide-up" style="background:var(--surface);box-shadow:0 8px 32px rgba(45,58,44,0.12)">
                 <div class="w-10 h-1 rounded-full mx-auto mb-5 sm:hidden" style="background:var(--border)"></div>
                 <div class="flex justify-between items-center mb-1">
                     <h3 class="font-display text-xl font-bold flex items-center gap-2" style="color:var(--ink)">
-                        <i class="fa-brands fa-pix" style="color:#10b981"></i> Pagar com PIX
+                        <i class="fa-brands fa-pix" style="color:#55724f"></i> Pagar com PIX
                     </h3>
                     <button @click="showPixModal=false" class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:var(--surface-3);color:var(--ink-soft)"><i class="fa-solid fa-xmark"></i></button>
                 </div>
-                <p class="text-sm mb-4" style="color:var(--ink-soft)">Valor: <strong style="color:#34d399">{{ formatCurrency(pixApp.finalBalance) }}</strong> · {{ company.fantasia }}</p>
+                <p class="text-sm mb-4" style="color:var(--ink-soft)">Valor: <strong style="color:#55724f">{{ formatCurrency(pixApp.finalBalance) }}</strong> · {{ company.fantasia }}</p>
 
                 <!-- QR Code -->
                 <div class="flex justify-center mb-4">
@@ -408,7 +408,7 @@
 
                 <!-- Copia e cola -->
                 <div class="rounded-xl p-3 mb-3 text-[10px] font-mono break-all leading-relaxed" style="background:var(--surface-3);color:var(--ink-soft);max-height:64px;overflow:hidden">{{ pixCode }}</div>
-                <button @click="copyPixCode" class="w-full h-14 rounded-2xl font-bold text-white flex items-center justify-center gap-2 transition active:scale-95" :style="pixCopied ? 'background:#0d9165' : 'background:linear-gradient(135deg,#34d399,#10b981);box-shadow:0 4px 14px rgba(16,185,129,.3)'">
+                <button @click="copyPixCode" class="w-full h-14 rounded-2xl font-bold text-white flex items-center justify-center gap-2 transition active:scale-95" :style="pixCopied ? 'background:#0d9165' : 'background:linear-gradient(135deg,#8aa887,#55724f);box-shadow:0 4px 14px rgba(107,138,104,.3)'">
                     <i :class="pixCopied ? 'fa-solid fa-check' : 'fa-solid fa-copy'"></i>
                     {{ pixCopied ? 'Código copiado!' : 'Copiar código PIX' }}
                 </button>
@@ -417,7 +417,7 @@
         </div>
 
         <!-- ═══ LIGHTBOX DE FOTO ═══ -->
-        <div v-if="lightboxPhoto" @click.self="closeLightbox" class="fixed inset-0 z-[90] flex flex-col items-center justify-center p-4" style="background:rgba(16,42,67,0.92);backdrop-filter:blur(8px)">
+        <div v-if="lightboxPhoto" @click.self="closeLightbox" class="fixed inset-0 z-[90] flex flex-col items-center justify-center p-4" style="background:rgba(45,58,44,0.9);backdrop-filter:blur(8px)">
             <button @click="closeLightbox" class="absolute top-4 right-4 w-11 h-11 rounded-full flex items-center justify-center text-white z-10" style="background:rgba(255,255,255,0.15)">
                 <i class="fa-solid fa-xmark text-lg"></i>
             </button>
@@ -431,7 +431,7 @@
         </div>
 
         <!-- ═══ MODAL ASSINATURA ═══ -->
-        <div v-if="showSignModal" class="fixed inset-0 z-[80] flex flex-col items-end justify-end" style="background:rgba(26,16,24,0.6);backdrop-filter:blur(8px)">
+        <div v-if="showSignModal" class="fixed inset-0 z-[80] flex flex-col items-end justify-end" style="background:rgba(45,58,44,0.45);backdrop-filter:blur(8px)">
             <div class="w-full rounded-t-3xl p-6 animate-slide-up shadow-modal" style="background:var(--surface)">
                 <div class="w-10 h-1 rounded-full mx-auto mb-5" style="background:var(--border)"></div>
                 <div class="flex justify-between items-center mb-4">
