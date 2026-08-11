@@ -18,17 +18,17 @@
         tailwind.config = {
             theme: { extend: {
                 fontFamily: { sans:['Inter','sans-serif'], display:['Syne','sans-serif'] },
-                colors: { primary:'#6b8a68', secondary:'#55724f', darkbg:'#2d3a2c' }
+                colors: { primary:'#f59e0b', secondary:'#d97706', darkbg:'#0f172a' }
             }}
         }
     </script>
     <style>
         :root{
-            --brand:#6b8a68;--brand-mid:#55724f;--brand-light:#8aa887;
-            --brand-pale:#eef2ec;
-            --ink:#2d3a2c;--ink-mid:#55614f;--ink-soft:#96a190;
-            --surface:#ffffff;--surface-2:#faf9f5;--surface-3:#f2efe6;
-            --border:#e8e5db;--border-mid:#d8d4c5;
+            --brand:#f59e0b;--brand-mid:#d97706;--brand-light:#fbbf24;
+            --brand-pale:#fef3c7;
+            --ink:#0f172a;--ink-mid:#475569;--ink-soft:#94a3b8;
+            --surface:#ffffff;--surface-2:#f8fafc;--surface-3:#eef2f6;
+            --border:#e2e8f0;--border-mid:#d8d4c5;
         }
         [v-cloak]{display:none}
         body{font-family:Inter,sans-serif;background:var(--surface-2);color:var(--ink)}
@@ -60,7 +60,7 @@
     <header class="flex-shrink-0 h-16 px-4 md:px-8 flex justify-between items-center z-30" style="background:var(--surface);border-bottom:1px solid var(--border);box-shadow:0 1px 4px rgba(16,42,67,0.05)">
         <div class="flex items-center gap-3">
             <button @click="showMobileMenu=!showMobileMenu" class="md:hidden w-9 h-9 rounded-xl flex items-center justify-center" style="background:var(--surface-3);color:var(--ink-soft)"><i class="fa-solid fa-bars"></i></button>
-            <div class="w-9 h-9 rounded-xl flex items-center justify-center shadow-brand" style="background:linear-gradient(135deg,#8aa887,#55724f)"><i class="fa-solid fa-rocket text-white text-sm"></i></div>
+            <div class="w-9 h-9 rounded-xl flex items-center justify-center shadow-brand" style="background:linear-gradient(135deg,#f59e0b,#d97706)"><i class="fa-solid fa-rocket text-white text-sm"></i></div>
             <span class="font-display text-xl font-bold" style="color:var(--ink)">Admin<span style="color:var(--brand)">Pro</span></span>
         </div>
         <div class="flex items-center gap-3">
@@ -87,7 +87,7 @@
                 <button @click="currentView='logs';showMobileMenu=false" :class="currentView==='logs'?'nav-link active':'nav-link'" class="w-full text-left"><i class="fa-solid fa-shield-halved w-4"></i> Audit Logs</button>
             </nav>
             <div class="p-4" style="border-top:1px solid var(--border)">
-                <button @click="logout" class="w-full py-2.5 text-sm font-bold rounded-xl transition flex items-center justify-center gap-2" style="background:rgba(176,64,47,0.09);color:#b0402f"><i class="fa-solid fa-right-from-bracket"></i> Sair</button>
+                <button @click="logout" class="w-full py-2.5 text-sm font-bold rounded-xl transition flex items-center justify-center gap-2" style="background:rgba(176,64,47,0.09);color:#b91c1c"><i class="fa-solid fa-right-from-bracket"></i> Sair</button>
             </div>
         </aside>
 
@@ -104,7 +104,7 @@
                     <div class="kpi-card hover-lift">
                         <p class="text-[10px] font-bold uppercase tracking-wider mb-2" style="color:var(--ink-soft)">MRR</p>
                         <p class="text-2xl font-black" style="color:var(--ink)">R$ {{ formatCurrency(mrr) }}</p>
-                        <span class="text-[11px] font-bold text-[#3f6e3a] flex items-center gap-1 mt-1"><i class="fa-solid fa-arrow-trend-up"></i> +12% este mês</span>
+                        <span class="text-[11px] font-bold text-[#15803d] flex items-center gap-1 mt-1"><i class="fa-solid fa-arrow-trend-up"></i> +12% este mês</span>
                     </div>
                     <div class="kpi-card hover-lift delay-1">
                         <p class="text-[10px] font-bold uppercase tracking-wider mb-2" style="color:var(--ink-soft)">Usuários</p>
@@ -118,8 +118,8 @@
                     </div>
                     <div class="kpi-card hover-lift delay-3" style="background:rgba(176,64,47,0.08);border-color:rgba(220,38,38,0.2)">
                         <p class="text-[10px] font-bold uppercase tracking-wider mb-2" style="color:rgba(220,38,38,0.7)">Churn Risk</p>
-                        <p class="text-2xl font-black text-[#b0402f]">{{ inactiveUsers }}</p>
-                        <span class="text-[11px] text-[#b0402f]">Inativos &gt; 3 dias</span>
+                        <p class="text-2xl font-black text-[#b91c1c]">{{ inactiveUsers }}</p>
+                        <span class="text-[11px] text-[#b91c1c]">Inativos &gt; 3 dias</span>
                     </div>
                 </div>
 
@@ -152,7 +152,7 @@
                                 <h3 class="font-bold" style="color:var(--ink)">{{ u.displayName }}</h3>
                                 <p class="text-xs mt-0.5" style="color:var(--ink-soft)">{{ u.email }}</p>
                             </div>
-                            <button @click="toggleStatus(u)" class="badge" :style="u.status==='active'?'background:rgba(107,138,104,0.12);color:#3f6e3a':'background:rgba(138,100,16,0.10);color:#8a6410'">{{ u.status }}</button>
+                            <button @click="toggleStatus(u)" class="badge" :style="u.status==='active'?'background:rgba(245,158,11,0.12);color:#15803d':'background:rgba(138,100,16,0.10);color:#b45309'">{{ u.status }}</button>
                         </div>
                         <div class="flex gap-2 pt-3" style="border-top:1px solid var(--border)">
                             <button @click="openEditModal(u)" class="flex-1 py-2 text-xs font-bold rounded-xl transition" style="background:var(--brand-pale);color:var(--brand-mid)"><i class="fa-solid fa-pen mr-1"></i>Editar</button>
@@ -172,7 +172,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="u in filteredUsers" :key="u.id" class="transition hover-lift" style="border-top:1px solid var(--border)" onmouseover="this.style.background='#f2efe6'" onmouseout="this.style.background='transparent'">
+                            <tr v-for="u in filteredUsers" :key="u.id" class="transition hover-lift" style="border-top:1px solid var(--border)" onmouseover="this.style.background='#eef2f6'" onmouseout="this.style.background='transparent'">
                                 <td class="p-4 pl-6">
                                     <div class="font-bold" style="color:var(--ink)">{{ u.displayName }}</div>
                                     <div class="text-xs" style="color:var(--ink-soft)">{{ u.email }}</div>
@@ -182,7 +182,7 @@
                                     <button @click="createStripeSession(u)" class="text-[10px] font-bold mt-1 px-2 py-1 rounded-lg text-white transition" style="background:#635bff"><i class="fa-brands fa-stripe mr-1"></i>Stripe</button>
                                 </td>
                                 <td class="p-4">
-                                    <button @click="toggleStatus(u)" class="badge transition hover:opacity-80" :style="u.status==='active'?'background:rgba(107,138,104,0.12);color:#3f6e3a':'background:rgba(138,100,16,0.10);color:#8a6410'">{{ u.status }}</button>
+                                    <button @click="toggleStatus(u)" class="badge transition hover:opacity-80" :style="u.status==='active'?'background:rgba(245,158,11,0.12);color:#15803d':'background:rgba(138,100,16,0.10);color:#b45309'">{{ u.status }}</button>
                                 </td>
                                 <td class="p-4 pr-6">
                                     <div class="flex justify-end gap-2">
@@ -216,7 +216,7 @@
                                 <div class="w-2.5 h-2.5 rounded-full" style="background:#60a5fa"></div>
                                 <span style="color:var(--ink)">Novos Trial</span>
                             </div>
-                            <span class="badge" style="background:rgba(47,93,149,0.10);color:#2f5d95">{{ crmColumns.latest?.length || 0 }}</span>
+                            <span class="badge" style="background:rgba(47,93,149,0.10);color:#1d4ed8">{{ crmColumns.latest?.length || 0 }}</span>
                         </div>
                         <div class="kanban-col-body">
                             <div v-for="u in crmColumns.latest" :key="u.id"
@@ -226,7 +226,7 @@
                                 <div class="font-bold text-sm mb-0.5" style="color:var(--ink)">{{ u.displayName }}</div>
                                 <div class="text-[11px] mb-3" style="color:var(--ink-soft)">{{ u.email }}</div>
                                 <div class="text-[10px] font-bold mb-3" style="color:var(--ink-soft)">Entrou {{ timeSince(u.createdAt) }}</div>
-                                <button @click="addQuickNote(u,'zap')" class="w-full py-2 text-xs font-bold rounded-xl transition" style="background:rgba(107,138,104,0.12);color:#3f6e3a"><i class="fa-brands fa-whatsapp mr-1"></i> Boas-vindas</button>
+                                <button @click="addQuickNote(u,'zap')" class="w-full py-2 text-xs font-bold rounded-xl transition" style="background:rgba(245,158,11,0.12);color:#15803d"><i class="fa-brands fa-whatsapp mr-1"></i> Boas-vindas</button>
                             </div>
                             <div v-if="!crmColumns.latest?.length" class="text-center py-6 text-xs rounded-xl" style="color:var(--ink-soft);border:2px dashed var(--border)">Nenhum novo trial</div>
                         </div>
@@ -238,9 +238,9 @@
                         <div class="kanban-col-header" style="background:rgba(138,100,16,0.08)">
                             <div class="flex items-center gap-2">
                                 <div class="w-2.5 h-2.5 rounded-full" style="background:#facc15"></div>
-                                <span style="color:#8a6410">Engajados</span>
+                                <span style="color:#b45309">Engajados</span>
                             </div>
-                            <span class="badge" style="background:rgba(138,100,16,0.10);color:#8a6410">{{ crmColumns.engaged?.length || 0 }}</span>
+                            <span class="badge" style="background:rgba(138,100,16,0.10);color:#b45309">{{ crmColumns.engaged?.length || 0 }}</span>
                         </div>
                         <div class="kanban-col-body">
                             <div v-for="u in crmColumns.engaged" :key="u.id"
@@ -249,8 +249,8 @@
                                  @dragstart="onKanbanDragStart($event, u, 'engaged')">
                                 <div class="font-bold text-sm mb-0.5" style="color:var(--ink)">{{ u.displayName }}</div>
                                 <div class="text-[11px] mb-1" style="color:var(--ink-soft)">{{ u.email }}</div>
-                                <div class="text-[10px] font-bold mb-3" style="color:#8a6410">⏱ {{ getTrialDaysLeft(u) }} dias restantes</div>
-                                <button @click="createStripeSession(u)" class="w-full py-2 text-xs font-bold rounded-xl text-white transition shadow-brand" style="background:linear-gradient(135deg,#8aa887,#55724f)">Enviar Link de Pagamento</button>
+                                <div class="text-[10px] font-bold mb-3" style="color:#b45309">⏱ {{ getTrialDaysLeft(u) }} dias restantes</div>
+                                <button @click="createStripeSession(u)" class="w-full py-2 text-xs font-bold rounded-xl text-white transition shadow-brand" style="background:linear-gradient(135deg,#f59e0b,#d97706)">Enviar Link de Pagamento</button>
                             </div>
                             <div v-if="!crmColumns.engaged?.length" class="text-center py-6 text-xs rounded-xl" style="color:var(--ink-soft);border:2px dashed var(--border)">Nenhum engajado</div>
                         </div>
@@ -262,9 +262,9 @@
                         <div class="kanban-col-header" style="background:rgba(160,90,26,0.08)">
                             <div class="flex items-center gap-2">
                                 <div class="w-2.5 h-2.5 rounded-full" style="background:#fb923c"></div>
-                                <span style="color:#a05a1a">Vencendo</span>
+                                <span style="color:#c2410c">Vencendo</span>
                             </div>
-                            <span class="badge" style="background:rgba(160,90,26,0.10);color:#a05a1a">{{ crmColumns.warning?.length || 0 }}</span>
+                            <span class="badge" style="background:rgba(160,90,26,0.10);color:#c2410c">{{ crmColumns.warning?.length || 0 }}</span>
                         </div>
                         <div class="kanban-col-body">
                             <div v-for="u in crmColumns.warning" :key="u.id"
@@ -274,9 +274,9 @@
                                  style="border-left:3px solid #fb923c">
                                 <div class="font-bold text-sm mb-0.5" style="color:var(--ink)">{{ u.displayName }}</div>
                                 <div class="text-[11px] mb-1" style="color:var(--ink-soft)">{{ u.email }}</div>
-                                <div class="text-[10px] font-bold text-[#b0402f] mb-3">🚨 {{ getTrialDaysLeft(u) }} dias</div>
+                                <div class="text-[10px] font-bold text-[#b91c1c] mb-3">🚨 {{ getTrialDaysLeft(u) }} dias</div>
                                 <div class="flex gap-2">
-                                    <button @click="createStripeSession(u)" class="flex-1 py-2 text-xs font-bold rounded-xl text-white" style="background:linear-gradient(135deg,#8aa887,#55724f)">Link</button>
+                                    <button @click="createStripeSession(u)" class="flex-1 py-2 text-xs font-bold rounded-xl text-white" style="background:linear-gradient(135deg,#f59e0b,#d97706)">Link</button>
                                     <button @click="addQuickNote(u,'followup')" class="flex-1 py-2 text-xs font-bold rounded-xl" style="background:var(--surface-3);color:var(--ink-mid)">Follow-up</button>
                                 </div>
                             </div>
@@ -287,12 +287,12 @@
                     <!-- Coluna: PRO -->
                     <div class="kanban-col" style="background:var(--surface)"
                          @dragover.prevent @drop="onKanbanDrop($event,'pro')">
-                        <div class="kanban-col-header" style="background:rgba(107,138,104,0.10)">
+                        <div class="kanban-col-header" style="background:rgba(245,158,11,0.10)">
                             <div class="flex items-center gap-2">
                                 <div class="w-2.5 h-2.5 rounded-full" style="background:#22c55e"></div>
-                                <span style="color:#3f6e3a">Clientes PRO</span>
+                                <span style="color:#15803d">Clientes PRO</span>
                             </div>
-                            <span class="badge" style="background:rgba(107,138,104,0.16);color:#3f6e3a">{{ crmColumns.pro?.length || 0 }}</span>
+                            <span class="badge" style="background:rgba(245,158,11,0.16);color:#15803d">{{ crmColumns.pro?.length || 0 }}</span>
                         </div>
                         <div class="kanban-col-body">
                             <div v-for="u in crmColumns.pro" :key="u.id"
@@ -303,7 +303,7 @@
                                 <div class="font-bold text-sm mb-0.5" style="color:var(--ink)">{{ u.displayName }}</div>
                                 <div class="text-[11px] mb-1" style="color:var(--ink-soft)">{{ u.email }}</div>
                                 <div class="flex items-center justify-between mt-2">
-                                    <span class="badge" style="background:rgba(107,138,104,0.16);color:#3f6e3a">PRO Ativo</span>
+                                    <span class="badge" style="background:rgba(245,158,11,0.16);color:#15803d">PRO Ativo</span>
                                     <span class="text-[10px]" style="color:var(--ink-soft)">{{ u.planExpiresAt || 'Sem data' }}</span>
                                 </div>
                             </div>
@@ -317,9 +317,9 @@
                         <div class="kanban-col-header" style="background:rgba(176,64,47,0.09)">
                             <div class="flex items-center gap-2">
                                 <div class="w-2.5 h-2.5 rounded-full" style="background:#ef4444"></div>
-                                <span style="color:#b0402f">Cancelados</span>
+                                <span style="color:#b91c1c">Cancelados</span>
                             </div>
-                            <span class="badge" style="background:rgba(176,64,47,0.12);color:#b0402f">{{ crmColumns.churned?.length || 0 }}</span>
+                            <span class="badge" style="background:rgba(176,64,47,0.12);color:#b91c1c">{{ crmColumns.churned?.length || 0 }}</span>
                         </div>
                         <div class="kanban-col-body">
                             <div v-for="u in crmColumns.churned" :key="u.id"
@@ -329,7 +329,7 @@
                                  style="border-left:3px solid #ef4444;opacity:0.85">
                                 <div class="font-bold text-sm mb-0.5" style="color:var(--ink)">{{ u.displayName }}</div>
                                 <div class="text-[11px] mb-1" style="color:var(--ink-soft)">{{ u.email }}</div>
-                                <div v-if="u.churnReason" class="text-[10px] px-2 py-1 rounded-lg mt-2" style="background:#fee2e2;color:#b0402f">{{ u.churnReason }}</div>
+                                <div v-if="u.churnReason" class="text-[10px] px-2 py-1 rounded-lg mt-2" style="background:#fee2e2;color:#b91c1c">{{ u.churnReason }}</div>
                                 <button @click="recordChurnReason(u)" class="w-full mt-2 py-1.5 text-[10px] font-bold rounded-lg transition" style="background:var(--surface-3);color:var(--ink-soft)"><i class="fa-solid fa-pen mr-1"></i>Motivo</button>
                             </div>
                             <div v-if="!crmColumns.churned?.length" class="text-center py-6 text-xs rounded-xl" style="color:var(--ink-soft);border:2px dashed var(--border)">Nenhum cancelamento</div>
@@ -348,18 +348,18 @@
                 <!-- KPIs de Churn -->
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div class="kpi-card hover-lift" style="background:rgba(176,64,47,0.08);border-color:rgba(220,38,38,0.2)">
-                        <p class="text-[10px] font-bold uppercase tracking-wider mb-2 text-[#b0402f]">Taxa de Churn</p>
-                        <p class="text-2xl font-black text-[#b0402f]">{{ churnRate }}%</p>
-                        <p class="text-[11px] text-[#b0402f]">do total de usuários</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider mb-2 text-[#b91c1c]">Taxa de Churn</p>
+                        <p class="text-2xl font-black text-[#b91c1c]">{{ churnRate }}%</p>
+                        <p class="text-[11px] text-[#b91c1c]">do total de usuários</p>
                     </div>
                     <div class="kpi-card hover-lift" style="background:rgba(160,90,26,0.08);border-color:rgba(251,146,60,0.2)">
-                        <p class="text-[10px] font-bold uppercase tracking-wider mb-2 text-[#a05a1a]">Em Risco</p>
-                        <p class="text-2xl font-black text-[#a05a1a]">{{ inactiveUsers }}</p>
-                        <p class="text-[11px] text-[#a05a1a]">inativos há 3+ dias</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider mb-2 text-[#c2410c]">Em Risco</p>
+                        <p class="text-2xl font-black text-[#c2410c]">{{ inactiveUsers }}</p>
+                        <p class="text-[11px] text-[#c2410c]">inativos há 3+ dias</p>
                     </div>
-                    <div class="kpi-card hover-lift" style="background:rgba(107,138,104,0.10);border-color:rgba(34,197,94,0.2)">
+                    <div class="kpi-card hover-lift" style="background:rgba(245,158,11,0.10);border-color:rgba(34,197,94,0.2)">
                         <p class="text-[10px] font-bold uppercase tracking-wider mb-2 text-green-500">Retidos</p>
-                        <p class="text-2xl font-black text-[#3f6e3a]">{{ crmColumns.pro?.length || 0 }}</p>
+                        <p class="text-2xl font-black text-[#15803d]">{{ crmColumns.pro?.length || 0 }}</p>
                         <p class="text-[11px] text-green-500">clientes PRO ativos</p>
                     </div>
                     <div class="kpi-card hover-lift">
@@ -384,7 +384,7 @@
                                     <span class="font-bold" style="color:var(--ink-soft)">{{ r.count }}x ({{ r.pct }}%)</span>
                                 </div>
                                 <div class="h-2 rounded-full" style="background:var(--surface-3)">
-                                    <div class="h-2 rounded-full transition-all duration-700" style="background:linear-gradient(90deg,#8aa887,#6b8a68)" :style="'width:'+r.pct+'%'"></div>
+                                    <div class="h-2 rounded-full transition-all duration-700" style="background:linear-gradient(90deg,#fbbf24,#f59e0b)" :style="'width:'+r.pct+'%'"></div>
                                 </div>
                             </div>
                         </div>
@@ -412,13 +412,13 @@
                 <div class="kpi-card">
                     <h3 class="font-bold mb-4" style="color:var(--ink)">Histórico de Cancelamentos</h3>
                     <div v-if="crmColumns.churned?.length === 0" class="text-center py-8" style="color:var(--ink-soft)">
-                        <i class="fa-solid fa-check-circle text-3xl mb-2 block text-[#3f6e3a]"></i>
+                        <i class="fa-solid fa-check-circle text-3xl mb-2 block text-[#15803d]"></i>
                         <p class="text-sm font-medium">Ótimo! Nenhum cancelamento registrado ainda.</p>
                     </div>
                     <div v-else class="space-y-3">
                         <div v-for="u in crmColumns.churned" :key="u.id" class="flex items-center gap-4 p-4 rounded-xl" style="background:var(--surface-3)">
                             <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style="background:rgba(176,64,47,0.09)">
-                                <i class="fa-solid fa-heart-crack text-[#b0402f]"></i>
+                                <i class="fa-solid fa-heart-crack text-[#b91c1c]"></i>
                             </div>
                             <div class="flex-1 min-w-0">
                                 <p class="font-bold text-sm" style="color:var(--ink)">{{ u.displayName }}</p>
