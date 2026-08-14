@@ -776,7 +776,7 @@
                             </div>
                         </div>
                         
-                         <div v-if="appointmentViewMode === 'calendar'" class="bg-white p-6 rounded-2xl shadow-sm border border-[#e2e8f0] dark:border-slate-800"><div class="flex justify-between items-center mb-6"><button @click="changeCalendarMonth(-1)"><i class="fa-solid fa-chevron-left text-[#94a3b8]"></i></button><h3 class="font-bold text-lg capitalize text-[#0f172a]">{{ calendarTitle }}</h3><button @click="changeCalendarMonth(1)"><i class="fa-solid fa-chevron-right text-[#94a3b8]"></i></button></div><div class="grid grid-cols-7 gap-1 text-center text-xs font-bold text-[#94a3b8] mb-2 uppercase"><div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div></div><div class="grid grid-cols-7 gap-2"><div v-for="d in calendarGrid" @click="selectCalendarDay(d)" class="h-10 md:h-14 border rounded-xl flex flex-col items-center justify-center cursor-pointer transition" :class="d.date===selectedCalendarDate?'bg-brand-500 border-brand-500 text-white shadow-lg font-black':(d.day?'bg-[#eef2f6] border-[#e2e8f0] text-[#334155] dark:text-slate-300 hover:border-brand-500':'border-transparent')"><span v-if="d.day" class="text-sm font-bold">{{ d.day }}</span><div v-if="d.hasEvent" class="w-1.5 h-1.5 rounded-full mt-1" :class="d.date===selectedCalendarDate?'bg-[#334155]':'bg-emerald-400'"></div></div></div><div v-if="selectedCalendarDate" class="mt-6 pt-4 border-t border-[#e2e8f0] dark:border-slate-800"><h4 class="text-xs font-bold text-[#94a3b8] uppercase mb-3">{{ formatDate(selectedCalendarDate) }}</h4><div v-if="appointmentsOnSelectedDate.length===0" class="text-sm text-[#94a3b8]">Vazio.</div><div v-for="app in appointmentsOnSelectedDate" @click="showReceipt(app)" class="flex justify-between p-3 bg-[#eef2f6] rounded-xl mb-2 cursor-pointer border border-[#e2e8f0] hover:border-brand-500 transition"><div class="text-sm font-bold text-[#0f172a]">{{ getClientName(app.clientId) }}</div><div class="text-sm font-bold text-brand-600">{{ formatCurrency(app.totalServices) }}</div></div></div></div>
+                         <div v-if="appointmentViewMode === 'calendar'" class="bg-white p-6 rounded-2xl shadow-sm border border-[#e2e8f0] dark:border-slate-800"><div class="flex justify-between items-center mb-6"><button @click="changeCalendarMonth(-1)"><i class="fa-solid fa-chevron-left text-[#94a3b8]"></i></button><h3 class="font-bold text-lg capitalize text-[#0f172a]">{{ calendarTitle }}</h3><button @click="changeCalendarMonth(1)"><i class="fa-solid fa-chevron-right text-[#94a3b8]"></i></button></div><div class="grid grid-cols-7 gap-1 text-center text-xs font-bold text-[#94a3b8] mb-2 uppercase"><div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div></div><div class="grid grid-cols-7 gap-2"><div v-for="d in calendarGrid" @click="selectCalendarDay(d)" class="h-10 md:h-14 border rounded-xl flex flex-col items-center justify-center cursor-pointer transition relative" :class="d.date===selectedCalendarDate?'bg-brand-500 border-brand-500 text-white shadow-lg font-black':(d.isBlocked?'bg-slate-200 border-slate-300 text-slate-400':(d.day?'bg-[#eef2f6] border-[#e2e8f0] text-[#334155] dark:text-slate-300 hover:border-brand-500':'border-transparent'))" :title="d.isBlocked?blockReasonFor(d.date):''"><span v-if="d.day" class="text-sm font-bold" :class="d.isBlocked?'line-through':''">{{ d.day }}</span><i v-if="d.isBlocked" class="fa-solid fa-lock text-[7px] absolute top-1 right-1" style="color:#94a3b8"></i><div v-if="d.hasEvent" class="w-1.5 h-1.5 rounded-full mt-1" :class="d.date===selectedCalendarDate?'bg-white':'bg-amber-400'"></div></div></div><div v-if="selectedCalendarDate" class="mt-6 pt-4 border-t border-[#e2e8f0] dark:border-slate-800"><div class="flex items-center justify-between mb-3"><h4 class="text-xs font-bold text-[#94a3b8] uppercase">{{ formatDate(selectedCalendarDate) }}</h4><button v-if="!isDateBlocked(selectedCalendarDate) && appointmentsOnSelectedDate.length===0" @click="openBlockModal" class="text-[11px] font-bold flex items-center gap-1 transition" style="color:#94a3b8"><i class="fa-solid fa-lock text-[9px]"></i> Bloquear dia</button><button v-else-if="isDateBlocked(selectedCalendarDate)" @click="removeBlockedDate(selectedCalendarDate)" class="text-[11px] font-bold flex items-center gap-1 transition" style="color:#d97706"><i class="fa-solid fa-lock-open text-[9px]"></i> Desbloquear</button></div><div v-if="isDateBlocked(selectedCalendarDate)" class="text-sm p-3 rounded-xl mb-2 flex items-center gap-2" style="background:#f1f5f9;color:#475569"><i class="fa-solid fa-lock"></i> Data indisponível: {{ blockReasonFor(selectedCalendarDate) }}</div><div v-if="appointmentsOnSelectedDate.length===0 && !isDateBlocked(selectedCalendarDate)" class="text-sm text-[#94a3b8]">Vazio.</div><div v-for="app in appointmentsOnSelectedDate" @click="showReceipt(app)" class="flex justify-between p-3 bg-[#eef2f6] rounded-xl mb-2 cursor-pointer border border-[#e2e8f0] hover:border-brand-500 transition"><div class="text-sm font-bold text-[#0f172a]">{{ getClientName(app.clientId) }}</div><div class="text-sm font-bold text-brand-600">{{ formatCurrency(app.totalServices) }}</div></div></div></div>
                     </div>
 
                     <div v-if="view === 'budgets'" class="space-y-5 animate-fade-in">
@@ -1389,6 +1389,65 @@
             </div>
         </div>
 
+        <!-- MODAL INFO DO SERVIÇO -->
+        <div v-if="showServiceInfoModal && serviceInfo" @click.self="showServiceInfoModal=false" class="fixed inset-0 z-[70] flex items-center justify-center p-4" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px)">
+            <div class="rounded-3xl w-full max-w-sm animate-scale-in shadow-modal" style="background:white;border:1px solid var(--border)">
+                <div class="p-6" style="border-bottom:1px solid var(--border)">
+                    <div class="flex justify-between items-start">
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl" style="background:var(--surface-3)">{{ getMoodboardIcon(serviceInfo.description) }}</div>
+                            <div>
+                                <h2 class="text-lg font-bold" style="color:var(--ink)">{{ serviceInfo.description }}</h2>
+                                <p class="text-xl font-black" style="color:var(--brand-mid)">{{ formatCurrency(serviceInfo.price) }}</p>
+                            </div>
+                        </div>
+                        <button @click="showServiceInfoModal=false" class="w-8 h-8 rounded-full flex items-center justify-center text-sm" style="background:var(--surface-3);color:var(--ink-soft)"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                </div>
+                <div class="p-6 space-y-3">
+                    <div v-if="serviceInfo.category">
+                        <p class="text-[10px] font-bold uppercase tracking-wider mb-1" style="color:var(--ink-soft)">Categoria</p>
+                        <p class="text-sm font-medium" style="color:var(--ink)">{{ serviceInfo.category }}</p>
+                    </div>
+                    <div v-if="serviceInfo.description2 || serviceInfo.notes">
+                        <p class="text-[10px] font-bold uppercase tracking-wider mb-1" style="color:var(--ink-soft)">Descrição</p>
+                        <p class="text-sm" style="color:var(--ink-mid)">{{ serviceInfo.description2 || serviceInfo.notes }}</p>
+                    </div>
+                    <img v-if="serviceInfo.photo" :src="serviceInfo.photo" class="w-full rounded-2xl object-cover" style="max-height:200px">
+                    <p v-if="!serviceInfo.category && !serviceInfo.description2 && !serviceInfo.notes && !serviceInfo.photo" class="text-sm text-center py-2" style="color:var(--ink-soft)">Sem informações adicionais cadastradas para este serviço.</p>
+                    <button @click="toggleMoodboardService(serviceInfo); showServiceInfoModal=false" class="btn-primary w-full h-12 rounded-2xl flex items-center justify-center gap-2 mt-2">
+                        <i class="fa-solid" :class="isServiceSelected(serviceInfo) ? 'fa-check' : 'fa-plus'"></i>
+                        {{ isServiceSelected(serviceInfo) ? 'Já adicionado' : 'Adicionar ao agendamento' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL BLOQUEIO DE AGENDA -->
+        <div v-if="showBlockModal" @click.self="showBlockModal=false" class="fixed inset-0 z-[70] flex items-center justify-center p-4" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px)">
+            <div class="rounded-3xl w-full max-w-sm animate-scale-in shadow-modal" style="background:white;border:1px solid var(--border)">
+                <div class="p-6 flex justify-between items-center" style="border-bottom:1px solid var(--border)">
+                    <h2 class="text-lg font-bold flex items-center gap-2" style="color:var(--ink)"><i class="fa-solid fa-lock" style="color:var(--ink-soft)"></i> Bloquear data</h2>
+                    <button @click="showBlockModal=false" class="w-8 h-8 rounded-full flex items-center justify-center text-sm" style="background:var(--surface-3);color:var(--ink-soft)"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="p-6 space-y-4">
+                    <p class="text-xs" style="color:var(--ink-soft)">Marque um dia como indisponível (férias, compromisso pessoal, etc). Datas bloqueadas não aceitam novos agendamentos.</p>
+                    <div>
+                        <label class="text-[10px] font-bold uppercase tracking-wider mb-1.5 block ml-1" style="color:var(--ink-soft)">Data</label>
+                        <input v-model="newBlock.date" type="date" class="input-light w-full h-13 px-4 rounded-2xl text-sm font-medium" style="height:52px">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold uppercase tracking-wider mb-1.5 block ml-1" style="color:var(--ink-soft)">Motivo (opcional)</label>
+                        <input v-model="newBlock.reason" placeholder="Ex: Férias, compromisso pessoal" class="input-light w-full h-13 px-4 rounded-2xl text-sm font-medium" style="height:52px">
+                    </div>
+                    <div class="flex gap-3 pt-1">
+                        <button @click="showBlockModal=false" class="h-13 px-5 rounded-2xl font-bold" style="height:52px;background:var(--surface-3);color:var(--ink-soft)">Cancelar</button>
+                        <button @click="saveBlockedDate" class="btn-primary flex-1 rounded-2xl flex items-center justify-center gap-2" style="height:52px"><i class="fa-solid fa-lock"></i> Bloquear</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- MODAL DESPESA -->
         <div v-if="showExpenseModal" class="fixed inset-0 z-[60] flex items-center justify-center p-4" style="background:rgba(16,42,67,0.6);backdrop-filter:blur(10px)">
             <div class="rounded-3xl w-full max-w-md max-h-[92vh] overflow-y-auto animate-scale-in shadow-modal" style="background:var(--surface);border:1px solid var(--border)">
@@ -1543,7 +1602,7 @@
                     </div>
                     <div class="relative">
                         <i class="fa-solid fa-phone absolute left-4 top-1/2 -translate-y-1/2 text-[#94a3b8] pointer-events-none z-10"></i>
-                        <input v-model="newClient.phone" @input="newClient.phone = maskPhone(newClient.phone)" maxlength="15" placeholder="(11) 99999-9999" class="input-light w-full h-14 pl-12 pr-4 rounded-2xl text-sm font-medium">
+                        <input v-model="newClient.phone" @input="newClient.phone = maskPhone(newClient.phone)" @paste="setTimeout(() => newClient.phone = maskPhone(newClient.phone), 10)" maxlength="15" placeholder="(11) 99999-9999" class="input-light w-full h-14 pl-12 pr-4 rounded-2xl text-sm font-medium">
                     </div>
                     <div class="relative">
                         <i class="fa-solid fa-id-card absolute left-4 top-1/2 -translate-y-1/2 text-[#94a3b8] pointer-events-none z-10"></i>
@@ -1681,28 +1740,33 @@
                                     <div v-else class="moodboard-grid mb-4">
                                         <div v-for="s in moodboardFiltered" :key="s.id"
                                             @click="toggleMoodboardService(s)"
-                                            class="moodboard-card"
+                                            class="moodboard-card relative"
                                             :class="isServiceSelected(s) ? 'selected' : ''">
+                                            <button @click.stop="openServiceInfo(s)" class="absolute top-1.5 right-1.5 w-5 h-5 rounded-full flex items-center justify-center transition z-10" style="background:var(--surface-3);color:var(--ink-soft)" title="Ver detalhes"><i class="fa-solid fa-info text-[9px]"></i></button>
                                             <div class="text-xl mb-2">{{ getMoodboardIcon(s.description) }}</div>
                                             <p class="text-xs font-bold leading-snug mb-1" style="color:var(--ink)">{{ s.description }}</p>
-                                            <p class="text-xs font-black" style="color:var(--brand)">{{ formatCurrency(s.price) }}</p>
+                                            <p class="text-xs font-black" style="color:var(--brand-mid)">{{ formatCurrency(s.price) }}</p>
                                         </div>
                                     </div>
 
                                     <!-- Selecionados -->
                                     <div v-if="tempApp.selectedServices.length" class="space-y-1.5">
                                         <p class="text-[10px] font-bold uppercase tracking-wider mb-2" style="color:var(--ink-soft)">Selecionados ({{ tempApp.selectedServices.length }})</p>
-                                        <div v-for="(s,i) in tempApp.selectedServices" :key="i" class="flex justify-between items-center text-sm p-3 rounded-xl animate-fade-in" style="background:var(--surface);border:1px solid var(--border)">
-                                            <span class="truncate pr-2 font-medium" style="color:var(--ink)">{{ s.description }}</span>
-                                            <div class="flex gap-2 items-center flex-shrink-0">
-                                                <span class="font-black text-sm" style="color:var(--brand)">{{ formatCurrency(s.price) }}</span>
-                                                <button @click="removeServiceFromApp(i)" class="w-6 h-6 rounded-lg flex items-center justify-center transition" style="background:rgba(176,64,47,0.10);color:#b91c1c"><i class="fa-solid fa-xmark text-xs"></i></button>
+                                        <div v-for="(s,i) in tempApp.selectedServices" :key="i" class="flex justify-between items-center text-sm p-3 rounded-xl animate-fade-in gap-2" style="background:var(--surface);border:1px solid var(--border)">
+                                            <span class="truncate font-medium flex-1" style="color:var(--ink)">{{ s.description }}</span>
+                                            <!-- Quantidade -->
+                                            <div class="flex items-center gap-1 flex-shrink-0">
+                                                <button @click="decServiceQty(i)" class="w-6 h-6 rounded-lg flex items-center justify-center transition" style="background:var(--surface-3);color:var(--ink-mid)"><i class="fa-solid fa-minus text-[9px]"></i></button>
+                                                <span class="w-6 text-center font-bold text-xs" style="color:var(--ink)">{{ s.qty || 1 }}</span>
+                                                <button @click="incServiceQty(i)" class="w-6 h-6 rounded-lg flex items-center justify-center transition" style="background:var(--surface-3);color:var(--ink-mid)"><i class="fa-solid fa-plus text-[9px]"></i></button>
                                             </div>
+                                            <span class="font-black text-sm w-20 text-right flex-shrink-0" style="color:var(--brand-mid)">{{ formatCurrency(serviceLineTotal(s)) }}</span>
+                                            <button @click="removeServiceFromApp(i)" class="w-6 h-6 rounded-lg flex items-center justify-center transition flex-shrink-0" style="background:rgba(176,64,47,0.10);color:#b91c1c"><i class="fa-solid fa-xmark text-xs"></i></button>
                                         </div>
                                     </div>
                                     <div v-else class="text-center py-3 text-xs" style="color:var(--ink-soft)">Clique nos cards acima para selecionar serviços</div>
                                 </div>
-                    <div><label class="text-[11px] font-bold text-[#94a3b8] uppercase tracking-wider mb-1.5 block ml-1">Cores dos Balões</label><div class="relative w-full"><i class="fa-solid fa-palette absolute left-4 top-1/2 -translate-y-1/2 text-[#94a3b8] z-10 pointer-events-none"></i><input v-model="tempApp.details.balloonColors" placeholder="Ex: Azul Royal e Prata" class="w-full h-14 pl-12 pr-4 bg-[#eef2f6] dark:bg-[#334155] border border-[#e2e8f0] rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-amber-400 transition-all text-[#0f172a] placeholder-slate-400"></div></div>
+                    <div><label class="text-[11px] font-bold text-[#94a3b8] uppercase tracking-wider mb-1.5 block ml-1">Cores dos Balões</label><div class="relative w-full"><i class="fa-solid fa-palette absolute left-4 top-1/2 -translate-y-1/2 text-[#94a3b8] z-10 pointer-events-none"></i><input v-model="tempApp.details.balloonColors" @change="syncBalloonChecklist" placeholder="Ex: Azul Royal, Prata, Dourado" class="w-full h-14 pl-12 pr-4 bg-[#eef2f6] dark:bg-[#334155] border border-[#e2e8f0] rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-amber-400 transition-all text-[#0f172a] placeholder-slate-400"></div></div>
 
                     <!-- CHECKLIST DO EVENTO -->
                     <div class="bg-[#eef2f6] p-4 rounded-2xl border border-dashed border-slate-300 dark:border-[#e2e8f0] space-y-3">
@@ -1733,7 +1797,9 @@
                     <div><label class="text-[11px] font-bold text-[#94a3b8] uppercase tracking-wider mb-1.5 block ml-1">Observações para o Cliente</label><textarea v-model="tempApp.notes" placeholder="Detalhes visíveis no recibo..." class="w-full bg-[#eef2f6] dark:bg-[#334155] border border-[#e2e8f0] rounded-2xl p-4 text-sm font-medium outline-none focus:ring-2 focus:ring-amber-400 transition-all text-[#0f172a] placeholder-slate-400 resize-none h-24"></textarea></div>
                     <div><label class="text-[11px] font-bold text-orange-500 uppercase tracking-wider mb-1.5 block ml-1 flex items-center gap-1.5"><i class="fa-solid fa-lock text-[10px]"></i> Notas Internas (visível só para você)</label><textarea v-model="tempApp.internalNotes" placeholder="Anotações privadas sobre o evento..." class="w-full bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-800 rounded-2xl p-4 text-sm font-medium outline-none focus:ring-2 focus:ring-orange-400 transition-all text-[#0f172a] placeholder-slate-400 resize-none h-20"></textarea></div>
                     <div class="bg-brand-50 dark:bg-[#eef2f6] p-5 rounded-2xl border border-brand-100 dark:border-[#e2e8f0] space-y-3">
-                        <div class="flex justify-between text-sm text-slate-600 dark:text-slate-300"><span>Valor Total:</span> <strong class="text-lg text-white">{{ formatCurrency(totalServices) }}</strong></div>
+                        <div class="flex justify-between text-sm" style="color:var(--ink-mid)"><span>Subtotal:</span> <strong class="text-sm" style="color:var(--ink)">{{ formatCurrency(servicesSubtotal) }}</strong></div>
+                        <div class="flex justify-between items-center"><span class="text-sm font-medium text-[#94a3b8]">Desconto (R$):</span> <input v-model="tempApp.details.discount" type="number" min="0" placeholder="0" class="w-32 h-10 p-2 rounded-lg text-right ring-1 ring-[#d8d4c5] focus:ring-amber-400 font-bold shadow-inner" style="background:#eef2f6;border:1px solid #d8d4c5;color:#b45309"></div>
+                        <div class="flex justify-between text-sm border-t border-brand-200 dark:border-[#d8d4c5] pt-3" style="color:var(--ink-mid)"><span>Valor Total:</span> <strong class="text-lg" style="color:var(--ink)">{{ formatCurrency(totalServices) }}</strong></div>
                         <div class="flex justify-between items-center"><span class="text-sm font-medium text-[#94a3b8]">Sinal (Entrada):</span> <input v-model="tempApp.details.entryFee" type="number" class="w-32 h-10 p-2 rounded-lg text-right border-none ring-1 ring-[#d8d4c5] focus:ring-amber-400 text-[#0f172a] font-bold shadow-inner" style="background:#eef2f6;border:1px solid #d8d4c5"></div>
                         <div class="flex justify-between text-brand-700 dark:text-brand-600 font-bold border-t border-brand-200 dark:border-[#d8d4c5] pt-3 text-lg"><span>Restante:</span> <span>{{ formatCurrency(finalBalance) }}</span></div>
                         <!-- Parcelamento -->
