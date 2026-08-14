@@ -1,9 +1,10 @@
 const { createApp, ref, computed, reactive, onMounted, watch } = Vue;
 
 import { 
-    db, auth, 
+    db, auth, functions,
     collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDocs, query, where, setDoc, getDoc, orderBy, limit,
-    signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged
+    signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged,
+    httpsCallable
 } from './firebase.js';
 
 createApp({
@@ -51,6 +52,9 @@ createApp({
         const dashboardMonth = ref(new Date().toISOString().slice(0, 7));
         const isLoadingDashboard = ref(false);
         const services = ref([]);
+        const showServiceInfoModal = ref(false);
+        const serviceInfo = ref(null);
+        const openServiceInfo = (s) => { serviceInfo.value = s; showServiceInfoModal.value = true; };
         const pendingAppointments = ref([]);
         const budgetList = ref([]); 
         const historyList = ref([]); 
@@ -145,7 +149,7 @@ createApp({
             if (idx >= 0) {
                 tempApp.selectedServices.splice(idx, 1);
             } else {
-                tempApp.selectedServices.push({ description: s.description, price: s.price });
+                tempApp.selectedServices.push({ description: s.description, price: s.price, qty: 1 });
             }
         };
         const agendaTab = ref('pending');
@@ -177,12 +181,12 @@ createApp({
         const signatureMode = ref('company');
 
         // Forms
-        const newClient = reactive({ name: '', phone: '', cpf: '', email: '' });
+        const newClient = reactive({ name: '', phone: '', cpf: '', email: '', consent: false });
         const editingClientId = ref(null);
         const newService = reactive({ description: '', price: '', photo: '' });
         const newExpense = reactive({ description: '', value: '', date: today, category: 'outros', appointmentId: '' });
         const tempServiceSelect = ref('');
-        const tempApp = reactive({ clientId: '', date: '', time: '', location: { bairro: '' }, details: { entryFee: 0, balloonColors: '' }, notes: '', internalNotes: '', installments: 1, selectedServices: [], checklist: [] });
+        const tempApp = reactive({ clientId: '', date: '', time: '', location: { bairro: '' }, details: { entryFee: 0, balloonColors: '' }, discount: 0, notes: '', internalNotes: '', installments: 1, selectedServices: [], checklist: [] });
 
         const expenseCategories = [
             { id: 'combustivel', label: 'Combustível', icon: 'fa-gas-pump', color: 'text-orange-500', bg: 'bg-orange-100' },
@@ -214,6 +218,7 @@ createApp({
                         syncData();
                         const uDoc = await getDoc(doc(db, "users", u.uid));
                         if (uDoc.exists() && uDoc.data().companyConfig) {
+                    if (uDoc.exists()) weeklyReportOptOut.value = uDoc.data().weeklyReportOptOut === true;
                             Object.assign(company, uDoc.data().companyConfig);
                             applyThemeColor(company.primaryColor);
                         }
@@ -237,7 +242,21 @@ createApp({
         const statusText = (s) => s === 'budget' ? 'Orçamento' : (s==='concluded'?'Concluído':(s==='cancelled'?'Cancelado':'Pendente'));
         const getClientName = (id) => clientCache[id]?.name || 'Cliente';
         const getCategoryIcon = (id) => expenseCategories.find(c=>c.id===id)?.icon || 'fa-tag';
-        const maskPhone = (v) => { if(!v) return ""; v=v.replace(/\D/g,"").replace(/^(\d{2})(\d)/g,"($1) $2").replace(/(\d)(\d{4})$/,"$1-$2"); return v; };
+        // Normaliza telefone: remove +55 / 55 colado do WhatsApp, mantém DDD + número
+        const normalizePhoneDigits = (raw) => {
+            let d = (raw || "").replace(/\D/g, "");
+            // Remove DDI 55 quando o número tem 12–13 dígitos (55 + DDD + 8/9 dígitos)
+            if (d.startsWith("55") && d.length >= 12) d = d.slice(2);
+            return d.slice(0, 11); // DDD (2) + até 9 dígitos
+        };
+        const maskPhone = (v) => {
+            let d = normalizePhoneDigits(v);
+            if (!d) return "";
+            if (d.length <= 2) return "(" + d;
+            if (d.length <= 6) return "(" + d.slice(0,2) + ") " + d.slice(2);
+            if (d.length <= 10) return "(" + d.slice(0,2) + ") " + d.slice(2,6) + "-" + d.slice(6);
+            return "(" + d.slice(0,2) + ") " + d.slice(2,7) + "-" + d.slice(7);
+        };
         const maskCPF = (v) => { if(!v) return ""; v=v.replace(/\D/g,"").replace(/(\d{3})(\d)/,"$1.$2").replace(/(\d{3})(\d)/,"$1.$2").replace(/(\d{3})(\d{1,2})$/,"$1-$2"); return v; };
 
         const statementList = computed(() => { 
@@ -265,7 +284,8 @@ createApp({
             }).sort((a, b) => b.value - a.value);
         });
 
-        const totalServices = computed(() => tempApp.selectedServices.reduce((s,i) => s + toNum(i.price), 0));
+        const servicesSubtotal = computed(() => tempApp.selectedServices.reduce((s,i) => s + toNum(i.price) * (toNum(i.qty) || 1), 0));
+        const totalServices = computed(() => Math.max(0, servicesSubtotal.value - toNum(tempApp.details?.discount || tempApp.discount)));
         const finalBalance = computed(() => totalServices.value - toNum(tempApp.details.entryFee));
         const kpiRevenue = computed(() => dashboardData.appointments.filter(a => a.status !== 'budget').reduce((acc, a) => acc + toNum(a.totalServices), 0));
         const kpiExpenses = computed(() => dashboardData.expenses.reduce((acc, e) => acc + toNum(e.value), 0));
@@ -310,7 +330,7 @@ createApp({
             return pendingAppointments.value.filter(a => a.date >= startStr && a.date <= endStr).sort((a,b) => a.date.localeCompare(b.date)).slice(0,6); 
         });
         
-        const calendarGrid = computed(() => { const year = calendarCursor.value.getFullYear(); const month = calendarCursor.value.getMonth(); const firstDay = new Date(year, month, 1).getDay(); const daysInMonth = new Date(year, month + 1, 0).getDate(); const days = []; for (let i = 0; i < firstDay; i++) days.push({ day: '', date: null }); for (let i = 1; i <= daysInMonth; i++) { const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`; days.push({ day: i, date: dateStr, hasEvent: pendingAppointments.value.some(a => a.date === dateStr) }); } return days; });
+        const calendarGrid = computed(() => { const year = calendarCursor.value.getFullYear(); const month = calendarCursor.value.getMonth(); const firstDay = new Date(year, month, 1).getDay(); const daysInMonth = new Date(year, month + 1, 0).getDate(); const days = []; for (let i = 0; i < firstDay; i++) days.push({ day: '', date: null }); for (let i = 1; i <= daysInMonth; i++) { const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`; days.push({ day: i, date: dateStr, hasEvent: pendingAppointments.value.some(a => a.date === dateStr), isBlocked: blockedDates.value.some(b => b.date === dateStr) }); } return days; });
         const appointmentsOnSelectedDate = computed(() => pendingAppointments.value.filter(a => a.date === selectedCalendarDate.value));
         const calendarTitle = computed(() => `${['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'][calendarCursor.value.getMonth()]} ${calendarCursor.value.getFullYear()}`);
         
@@ -384,6 +404,7 @@ createApp({
             onSnapshot(query(collection(db, "appointments"), where("userId", "==", myId), where("status", "==", "budget")), (snap) => { budgetList.value = snap.docs.map(sanitizeApp); budgetList.value.forEach(a => fetchClientToCache(a.clientId)); }); 
             onSnapshot(query(collection(db, "reviews"), where("userId", "==", myId)), (snap) => { allReviews.value = snap.docs.map(d => ({ id: d.id, ...d.data() })); });
             loadRecontractRadar();
+            loadBlockedDates();
             checkOnboarding();
         };
         
@@ -479,6 +500,19 @@ createApp({
             newChecklistItem.value = '';
         };
         const removeChecklistItem = (i) => tempApp.checklist.splice(i, 1);
+        const syncBalloonChecklist = () => {
+            const raw = tempApp.details?.balloonColors || '';
+            const cores = raw.split(/[,;/&]| e /i).map(x => x.trim()).filter(Boolean);
+            if (!tempApp.checklist) tempApp.checklist = [];
+            // Marca itens auto anteriores para reconciliar
+            tempApp.checklist = tempApp.checklist.filter(it => !it.autoBalloon || cores.some(c => `Balões: ${c}` === it.text));
+            cores.forEach(cor => {
+                const label = `Balões: ${cor}`;
+                if (!tempApp.checklist.some(it => it.text === label)) {
+                    tempApp.checklist.push({ text: label, done: false, autoBalloon: true });
+                }
+            });
+        };
         const toggleChecklistItem = (i) => { tempApp.checklist[i].done = !tempApp.checklist[i].done; };
         const checklistProgress = computed(() => {
             const list = tempApp.checklist || [];
@@ -612,6 +646,7 @@ createApp({
         };
 
         const saveAppointment = async () => {
+            if (isDateBlocked(tempApp.date)) { Swal.fire('Data bloqueada', 'Esta data está marcada como indisponível na sua agenda. Desbloqueie antes de agendar.', 'warning'); return; }
             const data = { ...tempApp, totalServices: totalServices.value, finalBalance: finalBalance.value, userId: user.value.uid, status: 'pending' };
             let appId = editingId.value;
             if (isEditing.value) {
@@ -676,6 +711,9 @@ createApp({
         
         const addServiceToApp = () => { if(tempServiceSelect.value) tempApp.selectedServices.push(tempServiceSelect.value); tempServiceSelect.value=''; };
         const removeServiceFromApp = (i) => tempApp.selectedServices.splice(i,1);
+        const incServiceQty = (i) => { const s = tempApp.selectedServices[i]; s.qty = (toNum(s.qty)||1) + 1; };
+        const decServiceQty = (i) => { const s = tempApp.selectedServices[i]; s.qty = Math.max(1, (toNum(s.qty)||1) - 1); };
+        const serviceLineTotal = (s) => toNum(s.price) * (toNum(s.qty)||1);
         const saveMonthlyGoal = async () => {
             const val = toNum(tempGoal.value);
             if (!val || val <= 0) return Swal.fire('Atenção', 'Informe um valor válido.', 'warning');
@@ -772,7 +810,7 @@ createApp({
             } catch(e) { Swal.fire('Erro', 'Não foi possível carregar o log.', 'error'); }
         };
 
-        const startNewSchedule = () => { isEditing.value=false; clientSearchTerm.value = ''; selectedClientNameLock.value = ''; Object.assign(tempApp, { clientId:'', date:'', time:'', location:{bairro:''}, details:{entryFee:0, balloonColors:''}, notes:'', internalNotes:'', installments: 1, selectedServices:[],checklist:[]}); showAppointmentModal.value = true; };
+        const startNewSchedule = () => { isEditing.value=false; clientSearchTerm.value = ''; selectedClientNameLock.value = ''; Object.assign(tempApp, { clientId:'', date:'', time:'', location:{bairro:''}, details:{entryFee:0, balloonColors:''}, discount:0, notes:'', internalNotes:'', installments: 1, selectedServices:[],checklist:[]}); showAppointmentModal.value = true; };
         const editAppointment = (app) => { isEditing.value=true; editingId.value=app.id; Object.assign(tempApp, JSON.parse(JSON.stringify(app))); if (!tempApp.internalNotes) tempApp.internalNotes = ''; if (!tempApp.installments) tempApp.installments = 1; clientSearchTerm.value = getClientName(app.clientId); selectedClientNameLock.value = getClientName(app.clientId); showAppointmentModal.value=true; };
         
         let canvasContext = null; let isDrawing = false;
@@ -840,7 +878,7 @@ createApp({
         const approveBudget = async (app) => { const { isConfirmed } = await Swal.fire({ title: 'Aprovar Orçamento?', text: 'Mover para Agenda?', icon: 'question', showCancelButton: true, confirmButtonColor: '#4F46E5' }); if (isConfirmed) { await updateDoc(doc(db, "appointments", app.id), { status: 'pending' }); Swal.fire('Aprovado!', '', 'success'); view.value = 'schedule'; } };
         const openClientModal = () => { 
             editingClientId.value = null;
-            newClient.name = ''; newClient.phone = ''; newClient.cpf = ''; newClient.email = '';
+            newClient.name = ''; newClient.phone = ''; newClient.cpf = ''; newClient.email = ''; newClient.consent = false;
             showClientModal.value = true; 
         };
 
@@ -854,7 +892,8 @@ createApp({
         };
 
         const saveClient = async () => { 
-            if(!newClient.name) return; 
+            if(!newClient.name) return;
+            if (!editingClientId.value && !newClient.consent) return Swal.fire('Consentimento necessário', 'Confirme que o cliente autorizou o uso dos dados (LGPD).', 'warning'); 
 
             if (editingClientId.value) {
                 // Editar cliente existente
@@ -864,13 +903,13 @@ createApp({
                 // Atualiza cache
                 clientCache[editingClientId.value] = { ...clientCache[editingClientId.value], name: newClient.name, phone: newClient.phone, cpf: newClient.cpf, email: newClient.email };
                 showClientModal.value = false;
-                newClient.name = ''; newClient.phone = ''; newClient.cpf = ''; newClient.email = '';
+                newClient.name = ''; newClient.phone = ''; newClient.cpf = ''; newClient.email = ''; newClient.consent = false;
                 editingClientId.value = null;
                 if(view.value === 'registrations') searchCatalogClients();
                 Swal.fire('Atualizado!', 'Dados do cliente salvos.', 'success');
             } else {
                 // Novo cliente
-                const docRef = await addDoc(collection(db, "clients"), { name: newClient.name, phone: newClient.phone, cpf: newClient.cpf, email: newClient.email, userId: user.value.uid }); 
+                const docRef = await addDoc(collection(db, "clients"), { name: newClient.name, phone: newClient.phone, cpf: newClient.cpf, email: newClient.email, userId: user.value.uid, consent: { accepted: true, at: new Date().toISOString() } }); 
                 
                 const savedClient = { id: docRef.id, name: newClient.name, phone: newClient.phone, cpf: newClient.cpf, email: newClient.email, userId: user.value.uid };
                 
@@ -881,7 +920,7 @@ createApp({
                 }
 
                 showClientModal.value = false; 
-                newClient.name = ''; newClient.phone = ''; newClient.cpf = ''; newClient.email = ''; 
+                newClient.name = ''; newClient.phone = ''; newClient.cpf = ''; newClient.email = ''; newClient.consent = false; 
                 // Limpa filtros de busca — sem exibir o cliente automaticamente
                 clientFilter.name = ''; clientFilter.cpf = ''; clientFilter.email = '';
                 Swal.fire({ toast:true, position:'bottom', icon:'success', title:'Cliente cadastrado!', timer:2000, showConfirmButton:false }); 
@@ -913,6 +952,29 @@ createApp({
         };
         const saveExpenseLogic = async () => { const data = { ...newExpense, value: toNum(newExpense.value), userId: user.value.uid }; if (editingExpenseId.value) { await updateDoc(doc(db, "expenses", editingExpenseId.value), data); } else { await addDoc(collection(db, "expenses"), data); } showExpenseModal.value = false; Swal.fire('Salvo','','success'); if (expensesFilter.start && expensesFilter.end) searchExpenses(); loadDashboardData(); };
         const saveCompany = () => { updateDoc(doc(db, "users", user.value.uid), { companyConfig: company }); Swal.fire('Salvo', '', 'success'); };
+
+        // ─── RELATÓRIO SEMANAL POR E-MAIL ─────────────────────
+        const sendingReport = ref(false);
+        const weeklyReportOptOut = ref(false);
+        const sendWeeklyReportNow = async () => {
+            sendingReport.value = true;
+            try {
+                const fn = httpsCallable(functions, 'sendWeeklyReportNow');
+                const res = await fn();
+                if (res.data?.ok) {
+                    Swal.fire({ icon:'success', title:'Enviado!', text: res.data.message, confirmButtonColor:'#6b8a68' });
+                } else {
+                    Swal.fire({ icon:'info', title:'Sem eventos', text: res.data?.message || 'Nada para enviar agora.', confirmButtonColor:'#6b8a68' });
+                }
+            } catch(e) {
+                console.error(e);
+                Swal.fire({ icon:'error', title:'Ops', text:'Não foi possível enviar. Verifique se as Cloud Functions estão publicadas.', confirmButtonColor:'#6b8a68' });
+            } finally { sendingReport.value = false; }
+        };
+        const toggleWeeklyReport = async () => {
+            weeklyReportOptOut.value = !weeklyReportOptOut.value;
+            try { await updateDoc(doc(db, "users", user.value.uid), { weeklyReportOptOut: weeklyReportOptOut.value }); } catch(e) { console.error(e); }
+        };
         const deleteService = async (id) => { await deleteDoc(doc(db, "services", id)); };
         const deleteExpense = async (id) => { const { isConfirmed } = await Swal.fire({ title: 'Excluir?', text: 'Não pode desfazer.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33' }); if (isConfirmed) { await deleteDoc(doc(db, "expenses", id)); if (expensesFilter.start && expensesFilter.end) searchExpenses(); loadDashboardData(); Swal.fire('Excluído!', '', 'success'); } };
         const changeStatus = async (app, status) => {
@@ -949,6 +1011,36 @@ createApp({
         const toggleDarkMode = () => { isDark.value=!isDark.value; document.documentElement.classList.toggle('dark'); };
         const changeCalendarMonth = (off) => { const d = new Date(calendarCursor.value); d.setMonth(d.getMonth() + off); calendarCursor.value = d; };
         const selectCalendarDay = (d) => { if(d.day) selectedCalendarDate.value = d.date; };
+
+        // ─── BLOQUEIO DE AGENDA ───────────────────────────────
+        const blockedDates = ref([]);
+        const loadBlockedDates = () => {
+            onSnapshot(query(collection(db, "blockedDates"), where("userId", "==", user.value.uid)), (snap) => {
+                blockedDates.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            });
+        };
+        const isDateBlocked = (dateStr) => blockedDates.value.some(b => b.date === dateStr);
+        const blockReasonFor = (dateStr) => { const b = blockedDates.value.find(x => x.date === dateStr); return b ? b.reason : ''; };
+        const newBlock = reactive({ date: '', reason: '' });
+        const showBlockModal = ref(false);
+        const openBlockModal = () => { newBlock.date = selectedCalendarDate.value || today; newBlock.reason = ''; showBlockModal.value = true; };
+        const saveBlockedDate = async () => {
+            if (!newBlock.date) return Swal.fire('Atenção', 'Escolha uma data.', 'warning');
+            // impede bloquear data que já tem evento
+            if (pendingAppointments.value.some(a => a.date === newBlock.date)) {
+                return Swal.fire('Atenção', 'Já existe evento marcado nesta data. Cancele o evento antes de bloquear.', 'warning');
+            }
+            try {
+                await addDoc(collection(db, "blockedDates"), { userId: user.value.uid, date: newBlock.date, reason: newBlock.reason || 'Indisponível' });
+                showBlockModal.value = false;
+                Swal.fire({ toast:true, position:'bottom', icon:'success', title:'Data bloqueada', timer:1800, showConfirmButton:false });
+            } catch(e) { console.error(e); }
+        };
+        const removeBlockedDate = async (dateStr) => {
+            const b = blockedDates.value.find(x => x.date === dateStr);
+            if (!b) return;
+            try { await deleteDoc(doc(db, "blockedDates", b.id)); Swal.fire({ toast:true, position:'bottom', icon:'success', title:'Bloqueio removido', timer:1500, showConfirmButton:false }); } catch(e) { console.error(e); }
+        };
         const deleteClient = async (id) => { 
     const cli = catalogClientsList.value.find(c => c.id === id); 
     
@@ -1191,7 +1283,8 @@ createApp({
         };
         const previewClientArea = (c) => {
             const path = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
-            const url = `${window.location.origin}${path}client.html?uid=${user.value.uid}&cid=${c.id}&preview=1`;
+            const exp = (Date.now() + 30 * 60 * 1000).toString(36);
+            const url = `${window.location.origin}${path}client.html?uid=${user.value.uid}&cid=${c.id}&preview=1&exp=${exp}`;
             window.open(url, '_blank');
         };
 
@@ -1342,12 +1435,12 @@ createApp({
             showExpenseModal, newExpense, addExpense: saveExpenseLogic, saveExpenseLogic, openNewExpense, openEditExpense, deleteExpense, editingExpenseId,
             startNewSchedule, editAppointment, saveAppointment, showAppointmentModal, showClientModal, showServiceModal, newService, saveService, deleteService, handleServicePhotoUpload, copyCatalogLink,
             newClient, saveClient, tempApp, tempServiceSelect, services, totalServices, finalBalance, isEditing, clientSearchTerm, filteredClientsSearch, selectClient,
-            addServiceToApp, removeServiceFromApp, appointmentViewMode, calendarGrid, calendarTitle, changeCalendarMonth, selectCalendarDay, selectedCalendarDate, appointmentsOnSelectedDate, filteredListAppointments,
+            addServiceToApp, removeServiceFromApp, appointmentViewMode, calendarGrid, calendarTitle, changeCalendarMonth, selectCalendarDay, selectedCalendarDate, appointmentsOnSelectedDate, blockedDates, isDateBlocked, blockReasonFor, newBlock, showBlockModal, openBlockModal, saveBlockedDate, removeBlockedDate, filteredListAppointments,
             catalogClientsList, catalogClientSearch, searchCatalogClients, openClientModal, openEditClient, editingClientId, deleteClient, currentReceipt, showReceipt, showReceiptModal,
             catalogClientsDisplayList, catalogSearched, clientFilter, clearClientFilter,
             serviceSearch, serviceMaxPrice, servicesDisplayList, servicesSearched, searchServices, clearServiceFilter,
-            company, handleLogoUpload, saveCompany, downloadReceiptImage, generateContractPDF, openWhatsApp, formatCurrency, formatDate, getDay, getMonth, statusText, getClientName,
-            toggleDarkMode, expenseCategories, expensesByCategoryStats, agendaTab, agendaFilter, searchHistory, changeStatus, registrationTab, kpiPendingReceivables, totalAppointmentsCount, topExpenseCategory, getCategoryIcon, maskPhone, maskCPF,
+            company, handleLogoUpload, saveCompany, sendWeeklyReportNow, sendingReport, weeklyReportOptOut, toggleWeeklyReport, downloadReceiptImage, generateContractPDF, openWhatsApp, formatCurrency, formatDate, getDay, getMonth, statusText, getClientName,
+            toggleDarkMode, expenseCategories, expensesByCategoryStats, agendaTab, agendaFilter, searchHistory, changeStatus, registrationTab, kpiPendingReceivables, totalAppointmentsCount, topExpenseCategory, getCategoryIcon, maskPhone, maskCPF, normalizePhoneDigits, servicesSubtotal, incServiceQty, decServiceQty, serviceLineTotal, syncBalloonChecklist, showServiceInfoModal, serviceInfo, openServiceInfo,
             copyClientLink, budgetList, saveAsBudget, approveBudget, pendingAppointments,
             openSignatureModal, clearSignature, saveSignature, showSignatureModal,
             downloadClientReceipt,
