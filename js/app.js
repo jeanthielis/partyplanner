@@ -1013,7 +1013,26 @@ createApp({
         const handleLogoUpload = (e) => { const f = e.target.files[0]; if(f){ const r=new FileReader(); r.onload=x=>{company.logo=x.target.result; updateDoc(doc(db,"users",user.value.uid),{companyConfig:company});}; r.readAsDataURL(f); }};
         const toggleDarkMode = () => { isDark.value=!isDark.value; document.documentElement.classList.toggle('dark'); };
         const changeCalendarMonth = (off) => { const d = new Date(calendarCursor.value); d.setMonth(d.getMonth() + off); calendarCursor.value = d; };
-        const selectCalendarDay = (d) => { if(d.day) selectedCalendarDate.value = d.date; };
+        const showDayActionModal = ref(false);
+        const selectCalendarDay = (d) => {
+            if (!d.day) return;
+            selectedCalendarDate.value = d.date;
+            // Dia livre (sem evento e sem bloqueio) → abre o menu de ação
+            const temEvento = pendingAppointments.value.some(a => a.date === d.date);
+            if (!temEvento && !isDateBlocked(d.date)) {
+                showDayActionModal.value = true;
+            }
+        };
+        // Ações do menu do dia
+        const scheduleForSelectedDay = () => {
+            showDayActionModal.value = false;
+            startNewSchedule();
+            tempApp.date = selectedCalendarDate.value; // já preenche a data escolhida
+        };
+        const blockSelectedDay = () => {
+            showDayActionModal.value = false;
+            openBlockModal();
+        };
 
         // ─── BLOQUEIO DE AGENDA ───────────────────────────────
         const blockedDates = ref([]);
@@ -1240,7 +1259,7 @@ createApp({
         // ─── ATALHOS DE TECLADO ───────────────────────────────
         const showShortcutsModal = ref(false);
         const closeTopModal = () => {
-            const modals = [showShortcutsModal, showServiceInfoModal, showServicePickerModal, showBalloonModal, showBlockModal, showGalleryModal, showInventoryModal, showExpenseModal, showClientHistoryModal, showClientModal, showServiceModal, showGoalModal, showAppointmentModal, showReceiptModal, showSignatureModal];
+            const modals = [showShortcutsModal, showDayActionModal, showServiceInfoModal, showServicePickerModal, showBalloonModal, showBlockModal, showGalleryModal, showInventoryModal, showExpenseModal, showClientHistoryModal, showClientModal, showServiceModal, showGoalModal, showAppointmentModal, showReceiptModal, showSignatureModal];
             for (const m of modals) {
                 if (m.value) { m.value = false; return true; }
             }
@@ -1438,7 +1457,7 @@ createApp({
             showExpenseModal, newExpense, addExpense: saveExpenseLogic, saveExpenseLogic, openNewExpense, openEditExpense, deleteExpense, editingExpenseId,
             startNewSchedule, editAppointment, saveAppointment, showAppointmentModal, showClientModal, showServiceModal, newService, saveService, deleteService, handleServicePhotoUpload, copyCatalogLink,
             newClient, saveClient, tempApp, tempServiceSelect, services, totalServices, finalBalance, isEditing, clientSearchTerm, filteredClientsSearch, selectClient,
-            addServiceToApp, removeServiceFromApp, appointmentViewMode, calendarGrid, calendarTitle, changeCalendarMonth, selectCalendarDay, selectedCalendarDate, appointmentsOnSelectedDate, blockedDates, isDateBlocked, blockReasonFor, newBlock, showBlockModal, openBlockModal, saveBlockedDate, removeBlockedDate, filteredListAppointments,
+            addServiceToApp, removeServiceFromApp, appointmentViewMode, calendarGrid, calendarTitle, changeCalendarMonth, selectCalendarDay, selectedCalendarDate, appointmentsOnSelectedDate, showDayActionModal, scheduleForSelectedDay, blockSelectedDay, blockedDates, isDateBlocked, blockReasonFor, newBlock, showBlockModal, openBlockModal, saveBlockedDate, removeBlockedDate, filteredListAppointments,
             catalogClientsList, catalogClientSearch, searchCatalogClients, openClientModal, openEditClient, editingClientId, deleteClient, currentReceipt, showReceipt, showReceiptModal,
             catalogClientsDisplayList, catalogSearched, clientFilter, clearClientFilter,
             serviceSearch, serviceMaxPrice, servicesDisplayList, servicesSearched, searchServices, clearServiceFilter,
