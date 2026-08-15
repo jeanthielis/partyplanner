@@ -1,7 +1,7 @@
 const { createApp, ref, computed, reactive, onMounted, watch } = Vue;
 
 import { 
-    db, auth, functions,
+    db, auth, functions, messaging, getToken, onMessage,
     collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDocs, query, where, setDoc, getDoc, orderBy, limit,
     signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged,
     httpsCallable
@@ -221,7 +221,8 @@ createApp({
                         syncData();
                         const uDoc = await getDoc(doc(db, "users", u.uid));
                         if (uDoc.exists() && uDoc.data().companyConfig) {
-                    if (uDoc.exists()) weeklyReportOptOut.value = uDoc.data().weeklyReportOptOut === true;
+                    if (uDoc.exists()) { weeklyReportOptOut.value = uDoc.data().weeklyReportOptOut === true; pushEnabled.value = uDoc.data().pushEnabled === true; }
+                    initForegroundPush();
                             Object.assign(company, uDoc.data().companyConfig);
                             applyThemeColor(company.primaryColor);
                         }
@@ -956,6 +957,47 @@ createApp({
         const saveExpenseLogic = async () => { const data = { ...newExpense, value: toNum(newExpense.value), userId: user.value.uid }; if (editingExpenseId.value) { await updateDoc(doc(db, "expenses", editingExpenseId.value), data); } else { await addDoc(collection(db, "expenses"), data); } showExpenseModal.value = false; Swal.fire('Salvo','','success'); if (expensesFilter.start && expensesFilter.end) searchExpenses(); loadDashboardData(); };
         const saveCompany = () => { updateDoc(doc(db, "users", user.value.uid), { companyConfig: company }); Swal.fire('Salvo', '', 'success'); };
 
+        // ─── NOTIFICAÇÕES PUSH (FCM) ──────────────────────────
+        const pushEnabled = ref(false);
+        const pushLoading = ref(false);
+        // Chave pública VAPID do Firebase Console → Cloud Messaging → Web Push certificates
+        const VAPID_KEY = 'COLE_SUA_CHAVE_VAPID_AQUI';
+        const enablePush = async () => {
+            if (!messaging) return Swal.fire('Indisponível', 'Seu navegador não suporta notificações push.', 'info');
+            pushLoading.value = true;
+            try {
+                const permission = await Notification.requestPermission();
+                if (permission !== 'granted') {
+                    pushLoading.value = false;
+                    return Swal.fire('Permissão negada', 'Você precisa permitir notificações no navegador.', 'warning');
+                }
+                const reg = await navigator.serviceWorker.ready;
+                const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
+                if (token) {
+                    await updateDoc(doc(db, "users", user.value.uid), { fcmToken: token, pushEnabled: true });
+                    pushEnabled.value = true;
+                    Swal.fire({ icon:'success', title:'Notificações ativadas!', text:'Você será avisado no dia dos seus eventos.', confirmButtonColor:'#f59e0b' });
+                }
+            } catch(e) {
+                console.error('Push:', e);
+                Swal.fire('Ops', 'Não foi possível ativar. Verifique se a chave VAPID está configurada.', 'error');
+            } finally { pushLoading.value = false; }
+        };
+        const disablePush = async () => {
+            try { await updateDoc(doc(db, "users", user.value.uid), { pushEnabled: false }); pushEnabled.value = false; } catch(e) { console.error(e); }
+        };
+        const togglePush = () => { pushEnabled.value ? disablePush() : enablePush(); };
+        // Notificação em foreground (app aberto)
+        const initForegroundPush = () => {
+            if (!messaging) return;
+            try {
+                onMessage(messaging, (payload) => {
+                    const n = payload.notification || {};
+                    Swal.fire({ toast:true, position:'top', icon:'info', title: n.title || 'Tem evento hoje!', text: n.body || '', timer:6000, showConfirmButton:false });
+                });
+            } catch(e) {}
+        };
+
         // ─── RELATÓRIO SEMANAL POR E-MAIL ─────────────────────
         const sendingReport = ref(false);
         const weeklyReportOptOut = ref(false);
@@ -1461,7 +1503,7 @@ createApp({
             catalogClientsList, catalogClientSearch, searchCatalogClients, openClientModal, openEditClient, editingClientId, deleteClient, currentReceipt, showReceipt, showReceiptModal,
             catalogClientsDisplayList, catalogSearched, clientFilter, clearClientFilter,
             serviceSearch, serviceMaxPrice, servicesDisplayList, servicesSearched, searchServices, clearServiceFilter,
-            company, handleLogoUpload, saveCompany, sendWeeklyReportNow, sendingReport, weeklyReportOptOut, toggleWeeklyReport, downloadReceiptImage, generateContractPDF, openWhatsApp, formatCurrency, formatDate, getDay, getMonth, statusText, getClientName,
+            company, handleLogoUpload, saveCompany, sendWeeklyReportNow, sendingReport, weeklyReportOptOut, toggleWeeklyReport, pushEnabled, pushLoading, togglePush, downloadReceiptImage, generateContractPDF, openWhatsApp, formatCurrency, formatDate, getDay, getMonth, statusText, getClientName,
             toggleDarkMode, expenseCategories, expensesByCategoryStats, agendaTab, agendaFilter, searchHistory, changeStatus, registrationTab, kpiPendingReceivables, totalAppointmentsCount, topExpenseCategory, getCategoryIcon, maskPhone, maskCPF, normalizePhoneDigits, servicesSubtotal, incServiceQty, decServiceQty, serviceLineTotal, syncBalloonChecklist, showServiceInfoModal, serviceInfo, openServiceInfo, showServicePickerModal, showBalloonModal,
             copyClientLink, budgetList, saveAsBudget, approveBudget, pendingAppointments,
             openSignatureModal, clearSignature, saveSignature, showSignatureModal,
