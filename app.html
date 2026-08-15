@@ -1389,6 +1389,92 @@
             </div>
         </div>
 
+        <!-- MODAL PICKER DE SERVIÇOS -->
+        <div v-if="showServicePickerModal" @click.self="showServicePickerModal=false" class="fixed inset-0 z-[75] flex items-end sm:items-center justify-center p-0 sm:p-4" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px)">
+            <div class="w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl max-h-[90vh] flex flex-col animate-slide-up shadow-modal" style="background:white;border:1px solid var(--border)">
+                <div class="p-5 flex justify-between items-center sticky top-0 z-10" style="background:white;border-bottom:1px solid var(--border)">
+                    <h2 class="text-lg font-bold flex items-center gap-2" style="color:var(--ink)"><i class="fa-solid fa-wand-magic-sparkles" style="color:var(--brand-mid)"></i> Escolher serviços</h2>
+                    <button @click="showServiceModal=true" class="text-xs font-bold flex items-center gap-1 mr-auto ml-4" style="color:var(--brand-mid)"><i class="fa-solid fa-plus"></i> Novo</button>
+                    <button @click="showServicePickerModal=false" class="w-8 h-8 rounded-full flex items-center justify-center text-sm" style="background:var(--surface-3);color:var(--ink-soft)"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="p-5 overflow-y-auto flex-1">
+                    <!-- Busca -->
+                    <div class="relative mb-4">
+                        <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-xs pointer-events-none" style="color:var(--ink-soft)"></i>
+                        <input v-model="moodboardSearch" placeholder="Filtrar serviços..." class="input-light w-full h-11 pl-9 pr-3 rounded-xl text-sm">
+                    </div>
+                    <div v-if="services.length === 0" class="text-center py-10" style="color:var(--ink-soft)">
+                        <i class="fa-solid fa-tags text-3xl mb-2 block opacity-30"></i>
+                        <p class="text-xs">Nenhum serviço cadastrado ainda.</p>
+                    </div>
+                    <div v-else class="moodboard-grid">
+                        <div v-for="s in moodboardFiltered" :key="s.id" @click="toggleMoodboardService(s)" class="moodboard-card relative" :class="isServiceSelected(s) ? 'selected' : ''">
+                            <button @click.stop="openServiceInfo(s)" class="absolute top-1.5 right-1.5 w-5 h-5 rounded-full flex items-center justify-center transition z-10" style="background:var(--surface-3);color:var(--ink-soft)" title="Ver detalhes"><i class="fa-solid fa-info text-[9px]"></i></button>
+                            <div class="text-xl mb-2">{{ getMoodboardIcon(s.description) }}</div>
+                            <p class="text-xs font-bold leading-snug mb-1" style="color:var(--ink)">{{ s.description }}</p>
+                            <p class="text-xs font-black" style="color:var(--brand-mid)">{{ formatCurrency(s.price) }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-4 sticky bottom-0" style="background:white;border-top:1px solid var(--border)">
+                    <button @click="showServicePickerModal=false" class="btn-primary w-full h-13 rounded-2xl flex items-center justify-center gap-2" style="height:52px">
+                        <i class="fa-solid fa-check"></i> Concluir ({{ tempApp.selectedServices.length }} · {{ formatCurrency(servicesSubtotal) }})
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL CORES DOS BALÕES + CHECKLIST -->
+        <div v-if="showBalloonModal" @click.self="showBalloonModal=false" class="fixed inset-0 z-[75] flex items-end sm:items-center justify-center p-0 sm:p-4" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px)">
+            <div class="w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl max-h-[90vh] flex flex-col animate-slide-up shadow-modal" style="background:white;border:1px solid var(--border)">
+                <div class="p-5 flex justify-between items-center sticky top-0 z-10" style="background:white;border-bottom:1px solid var(--border)">
+                    <h2 class="text-lg font-bold flex items-center gap-2" style="color:var(--ink)"><i class="fa-solid fa-palette" style="color:var(--brand-mid)"></i> Cores & Checklist</h2>
+                    <button @click="showBalloonModal=false" class="w-8 h-8 rounded-full flex items-center justify-center text-sm" style="background:var(--surface-3);color:var(--ink-soft)"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="p-5 overflow-y-auto flex-1 space-y-4">
+                    <!-- Cores dos balões -->
+                    <div>
+                        <label class="text-[11px] font-bold uppercase tracking-wider mb-1.5 block ml-1" style="color:var(--ink-soft)">Cores dos Balões</label>
+                        <div class="relative w-full">
+                            <i class="fa-solid fa-palette absolute left-4 top-1/2 -translate-y-1/2 z-10 pointer-events-none" style="color:var(--ink-soft)"></i>
+                            <input v-model="tempApp.details.balloonColors" @input="syncBalloonChecklist" placeholder="Ex: Azul Royal, Prata, Dourado" class="input-light w-full h-14 pl-12 pr-4 rounded-2xl text-sm font-medium">
+                        </div>
+                        <p class="text-[10px] mt-1.5 ml-1" style="color:var(--ink-soft)">Separe por vírgula, "e", "/" ou ";" — cada cor vira um item no checklist automaticamente.</p>
+                    </div>
+
+                    <!-- Checklist -->
+                    <div class="rounded-2xl p-4 space-y-3" style="background:var(--surface-2);border:1px dashed var(--border-mid)">
+                        <div class="flex items-center justify-between">
+                            <label class="text-xs font-bold uppercase" style="color:var(--ink-soft)">Checklist do Evento</label>
+                            <span v-if="tempApp.checklist?.length" class="text-xs font-bold" style="color:var(--brand-mid)">{{ checklistProgress }}% concluído</span>
+                        </div>
+                        <div v-if="tempApp.checklist?.length" class="w-full rounded-full h-1.5 overflow-hidden" style="background:var(--surface-3)">
+                            <div class="h-1.5 bg-brand-500 rounded-full transition-all duration-500" :style="{ width: checklistProgress + '%' }"></div>
+                        </div>
+                        <div v-if="!tempApp.checklist?.length" class="text-center py-3 text-xs" style="color:var(--ink-soft)">Adicione cores acima ou tarefas abaixo.</div>
+                        <div class="space-y-2">
+                            <div v-for="(item, i) in tempApp.checklist" :key="i" class="flex items-center gap-2 rounded-xl px-3 py-2" style="background:white;border:1px solid var(--border)">
+                                <button @click="toggleChecklistItem(i)" class="w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all" :class="item.done ? 'bg-brand-500 border-brand-500 text-white' : 'border-slate-300'">
+                                    <i v-if="item.done" class="fa-solid fa-check text-[9px]"></i>
+                                </button>
+                                <span class="flex-1 text-sm font-medium transition-all" :class="item.done ? 'line-through opacity-50' : ''" style="color:var(--ink-mid)">
+                                    <i v-if="item.autoBalloon" class="fa-solid fa-circle text-[7px] mr-1" style="color:var(--brand-light)"></i>{{ item.text }}
+                                </span>
+                                <button @click="removeChecklistItem(i)" class="text-slate-300 hover:text-red-500 transition flex-shrink-0"><i class="fa-solid fa-xmark text-xs"></i></button>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <input v-model="newChecklistItem" @keyup.enter="addChecklistItem" placeholder="Nova tarefa..." class="flex-1 h-10 px-3 rounded-xl text-sm outline-none focus:ring-2 focus:ring-amber-400" style="background:white;border:1px solid var(--border);color:var(--ink)">
+                            <button @click="addChecklistItem" class="w-10 h-10 bg-brand-600 hover:bg-brand-500 text-white rounded-xl flex items-center justify-center transition"><i class="fa-solid fa-plus text-sm"></i></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-4 sticky bottom-0" style="background:white;border-top:1px solid var(--border)">
+                    <button @click="showBalloonModal=false" class="btn-primary w-full rounded-2xl flex items-center justify-center gap-2" style="height:52px"><i class="fa-solid fa-check"></i> Concluir</button>
+                </div>
+            </div>
+        </div>
+
         <!-- MODAL INFO DO SERVIÇO -->
         <div v-if="showServiceInfoModal && serviceInfo" @click.self="showServiceInfoModal=false" class="fixed inset-0 z-[70] flex items-center justify-center p-4" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px)">
             <div class="rounded-3xl w-full max-w-sm animate-scale-in shadow-modal" style="background:white;border:1px solid var(--border)">
@@ -1720,37 +1806,21 @@
                     <div class="relative group"><label class="text-[11px] font-bold text-[#94a3b8] uppercase tracking-wider mb-1.5 block ml-1">Cliente</label><div class="relative w-full"><i class="fa-solid fa-user absolute left-4 top-1/2 -translate-y-1/2 text-[#94a3b8] z-10 pointer-events-none"></i><input v-model="clientSearchTerm" placeholder="Buscar cliente..." class="w-full h-14 pl-12 pr-4 bg-[#eef2f6] dark:bg-[#334155] border border-[#e2e8f0] rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-amber-400 transition-all text-[#0f172a] placeholder-slate-400"></div><div v-if="filteredClientsSearch.length" style="background:white;border:1px solid #e2e8f0" class="absolute w-full shadow-xl max-h-40 overflow-y-auto z-20 mt-2 rounded-xl p-1"><div v-for="c in filteredClientsSearch" @click="selectClient(c)" class="p-3 hover:bg-[#eef2f6] dark:hover:bg-slate-700 cursor-pointer rounded-lg text-sm font-medium transition text-[#334155] dark:text-[#334155]">{{ c.name }}</div></div><button v-if="!tempApp.clientId" @click="showClientModal=true" class="text-xs text-brand-600 font-bold mt-2 hover:underline inline-flex items-center gap-1 ml-1"><i class="fa-solid fa-user-plus"></i> Cadastrar Novo</button></div>
                     <div class="grid grid-cols-2 gap-4"><div><label class="text-[11px] font-bold text-[#94a3b8] uppercase tracking-wider mb-1.5 block ml-1">Data</label><div class="relative w-full"><i class="fa-solid fa-calendar absolute left-4 top-1/2 -translate-y-1/2 text-[#94a3b8] z-10 pointer-events-none"></i><input v-model="tempApp.date" type="date" class="input-light w-full h-14 pl-12 pr-4 rounded-2xl text-sm font-medium"></div></div><div><label class="text-[11px] font-bold text-[#94a3b8] uppercase tracking-wider mb-1.5 block ml-1">Hora</label><div class="relative w-full"><i class="fa-solid fa-clock absolute left-4 top-1/2 -translate-y-1/2 text-[#94a3b8] z-10 pointer-events-none"></i><input v-model="tempApp.time" type="time" class="input-light w-full h-14 pl-12 pr-4 rounded-2xl text-sm font-medium"></div></div></div>
                     <div><label class="text-[11px] font-bold text-[#94a3b8] uppercase tracking-wider mb-1.5 block ml-1">Local</label><div class="relative w-full"><i class="fa-solid fa-map-pin absolute left-4 top-1/2 -translate-y-1/2 text-[#94a3b8] z-10 pointer-events-none"></i><input v-model="tempApp.location.bairro" placeholder="Endereço / Bairro" class="w-full h-14 pl-12 pr-4 bg-[#eef2f6] dark:bg-[#334155] border border-[#e2e8f0] rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-amber-400 transition-all text-[#0f172a] placeholder-slate-400"></div></div>
-                    <div class="rounded-2xl p-5" style="background:var(--surface-2);border:1px solid var(--border)">
-                                    <div class="flex justify-between items-center mb-4">
-                                        <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ink-soft)">🎨 Moodboard de Serviços</label>
-                                        <button @click="showServiceModal=true" class="text-xs font-bold transition flex items-center gap-1" style="color:var(--brand)"><i class="fa-solid fa-plus"></i> Novo serviço</button>
-                                    </div>
+                    <!-- SERVIÇOS: botão que abre o modal (tela clean) -->
+                    <div>
+                        <label class="text-[11px] font-bold text-[#94a3b8] uppercase tracking-wider mb-1.5 block ml-1">Serviços</label>
+                        <button @click="showServicePickerModal=true" class="w-full h-14 px-4 rounded-2xl flex items-center justify-between transition" style="background:var(--surface-2);border:1px solid var(--border)">
+                            <span class="flex items-center gap-2.5 text-sm font-medium" style="color:var(--ink)">
+                                <i class="fa-solid fa-wand-magic-sparkles" style="color:var(--brand-mid)"></i>
+                                <span v-if="tempApp.selectedServices.length">{{ tempApp.selectedServices.length }} serviço(s) · {{ formatCurrency(servicesSubtotal) }}</span>
+                                <span v-else style="color:var(--ink-soft)">Toque para escolher os serviços</span>
+                            </span>
+                            <i class="fa-solid fa-chevron-right text-xs" style="color:var(--ink-soft)"></i>
+                        </button>
+                    </div>
 
-                                    <!-- Busca rápida de serviços no modal -->
-                                    <div class="relative mb-4">
-                                        <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-xs pointer-events-none" style="color:var(--ink-soft)"></i>
-                                        <input v-model="moodboardSearch" placeholder="Filtrar serviços..." class="input-light w-full h-10 pl-9 pr-3 rounded-xl text-sm">
-                                    </div>
-
-                                    <!-- Moodboard grid -->
-                                    <div v-if="services.length === 0" class="text-center py-6" style="color:var(--ink-soft)">
-                                        <i class="fa-solid fa-tags text-3xl mb-2 block opacity-30"></i>
-                                        <p class="text-xs">Nenhum serviço cadastrado ainda.</p>
-                                    </div>
-                                    <div v-else class="moodboard-grid mb-4">
-                                        <div v-for="s in moodboardFiltered" :key="s.id"
-                                            @click="toggleMoodboardService(s)"
-                                            class="moodboard-card relative"
-                                            :class="isServiceSelected(s) ? 'selected' : ''">
-                                            <button @click.stop="openServiceInfo(s)" class="absolute top-1.5 right-1.5 w-5 h-5 rounded-full flex items-center justify-center transition z-10" style="background:var(--surface-3);color:var(--ink-soft)" title="Ver detalhes"><i class="fa-solid fa-info text-[9px]"></i></button>
-                                            <div class="text-xl mb-2">{{ getMoodboardIcon(s.description) }}</div>
-                                            <p class="text-xs font-bold leading-snug mb-1" style="color:var(--ink)">{{ s.description }}</p>
-                                            <p class="text-xs font-black" style="color:var(--brand-mid)">{{ formatCurrency(s.price) }}</p>
-                                        </div>
-                                    </div>
-
-                                    <!-- Selecionados -->
-                                    <div v-if="tempApp.selectedServices.length" class="space-y-1.5">
+                    <!-- Selecionados (resumo visível na tela) -->
+                    <div v-if="tempApp.selectedServices.length" class="rounded-2xl p-4 space-y-1.5" style="background:var(--surface-2);border:1px solid var(--border)">
                                         <p class="text-[10px] font-bold uppercase tracking-wider mb-2" style="color:var(--ink-soft)">Selecionados ({{ tempApp.selectedServices.length }})</p>
                                         <div v-for="(s,i) in tempApp.selectedServices" :key="i" class="flex justify-between items-center text-sm p-3 rounded-xl animate-fade-in gap-2" style="background:var(--surface);border:1px solid var(--border)">
                                             <span class="truncate font-medium flex-1" style="color:var(--ink)">{{ s.description }}</span>
@@ -1763,36 +1833,21 @@
                                             <span class="font-black text-sm w-20 text-right flex-shrink-0" style="color:var(--brand-mid)">{{ formatCurrency(serviceLineTotal(s)) }}</span>
                                             <button @click="removeServiceFromApp(i)" class="w-6 h-6 rounded-lg flex items-center justify-center transition flex-shrink-0" style="background:rgba(176,64,47,0.10);color:#b91c1c"><i class="fa-solid fa-xmark text-xs"></i></button>
                                         </div>
-                                    </div>
-                                    <div v-else class="text-center py-3 text-xs" style="color:var(--ink-soft)">Clique nos cards acima para selecionar serviços</div>
-                                </div>
-                    <div><label class="text-[11px] font-bold text-[#94a3b8] uppercase tracking-wider mb-1.5 block ml-1">Cores dos Balões</label><div class="relative w-full"><i class="fa-solid fa-palette absolute left-4 top-1/2 -translate-y-1/2 text-[#94a3b8] z-10 pointer-events-none"></i><input v-model="tempApp.details.balloonColors" @change="syncBalloonChecklist" placeholder="Ex: Azul Royal, Prata, Dourado" class="w-full h-14 pl-12 pr-4 bg-[#eef2f6] dark:bg-[#334155] border border-[#e2e8f0] rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-amber-400 transition-all text-[#0f172a] placeholder-slate-400"></div></div>
-
-                    <!-- CHECKLIST DO EVENTO -->
-                    <div class="bg-[#eef2f6] p-4 rounded-2xl border border-dashed border-slate-300 dark:border-[#e2e8f0] space-y-3">
-                        <div class="flex items-center justify-between">
-                            <label class="text-xs font-bold text-[#94a3b8] uppercase">Checklist do Evento</label>
-                            <span v-if="tempApp.checklist?.length" class="text-xs font-bold text-brand-600">{{ checklistProgress }}% concluído</span>
-                        </div>
-                        <!-- Barra de progresso -->
-                        <div v-if="tempApp.checklist?.length" class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
-                            <div class="h-1.5 bg-brand-500 rounded-full transition-all duration-500" :style="{ width: checklistProgress + '%' }"></div>
-                        </div>
-                        <!-- Itens -->
-                        <div class="space-y-2">
-                            <div v-for="(item, i) in tempApp.checklist" :key="i" class="flex items-center gap-2 bg-white rounded-xl px-3 py-2 border border-[#e2e8f0]">
-                                <button @click="toggleChecklistItem(i)" class="w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all" :class="item.done ? 'bg-[#fef3c7]0 border-green-500 text-white' : 'border-slate-300 dark:border-[#d8d4c5]'">
-                                    <i v-if="item.done" class="fa-solid fa-check text-[9px]"></i>
-                                </button>
-                                <span class="flex-1 text-sm font-medium text-[#334155] dark:text-slate-300 transition-all" :class="item.done ? 'line-through opacity-50' : ''">{{ item.text }}</span>
-                                <button @click="removeChecklistItem(i)" class="text-slate-300 hover:text-[#b0402f] transition flex-shrink-0"><i class="fa-solid fa-xmark text-xs"></i></button>
-                            </div>
-                        </div>
-                        <!-- Adicionar item -->
-                        <div class="flex gap-2">
-                            <input v-model="newChecklistItem" @keyup.enter="addChecklistItem" placeholder="Nova tarefa..." class="flex-1 h-10 px-3 bg-white border border-[#e2e8f0] rounded-xl text-sm outline-none focus:ring-2 focus:ring-amber-400 text-[#0f172a] placeholder-slate-400">
-                            <button @click="addChecklistItem" class="w-10 h-10 bg-brand-600 hover:bg-brand-500 text-white rounded-xl flex items-center justify-center transition"><i class="fa-solid fa-plus text-sm"></i></button>
-                        </div>
+                    </div>
+                    <!-- CORES DOS BALÕES + CHECKLIST: botão que abre o modal (tela clean) -->
+                    <div>
+                        <label class="text-[11px] font-bold text-[#94a3b8] uppercase tracking-wider mb-1.5 block ml-1">Cores dos Balões & Checklist</label>
+                        <button @click="showBalloonModal=true" class="w-full h-14 px-4 rounded-2xl flex items-center justify-between transition" style="background:var(--surface-2);border:1px solid var(--border)">
+                            <span class="flex items-center gap-2.5 text-sm font-medium truncate" style="color:var(--ink)">
+                                <i class="fa-solid fa-palette" style="color:var(--brand-mid)"></i>
+                                <span v-if="tempApp.details.balloonColors" class="truncate">{{ tempApp.details.balloonColors }}</span>
+                                <span v-else style="color:var(--ink-soft)">Adicionar cores e checklist</span>
+                            </span>
+                            <span class="flex items-center gap-2 flex-shrink-0">
+                                <span v-if="tempApp.checklist?.length" class="text-[10px] font-bold px-2 py-0.5 rounded-full" style="background:var(--brand-pale);color:var(--brand-mid)">{{ checklistProgress }}%</span>
+                                <i class="fa-solid fa-chevron-right text-xs" style="color:var(--ink-soft)"></i>
+                            </span>
+                        </button>
                     </div>
                     <div><label class="text-[11px] font-bold text-[#94a3b8] uppercase tracking-wider mb-1.5 block ml-1">Observações para o Cliente</label><textarea v-model="tempApp.notes" placeholder="Detalhes visíveis no recibo..." class="w-full bg-[#eef2f6] dark:bg-[#334155] border border-[#e2e8f0] rounded-2xl p-4 text-sm font-medium outline-none focus:ring-2 focus:ring-amber-400 transition-all text-[#0f172a] placeholder-slate-400 resize-none h-24"></textarea></div>
                     <div><label class="text-[11px] font-bold text-orange-500 uppercase tracking-wider mb-1.5 block ml-1 flex items-center gap-1.5"><i class="fa-solid fa-lock text-[10px]"></i> Notas Internas (visível só para você)</label><textarea v-model="tempApp.internalNotes" placeholder="Anotações privadas sobre o evento..." class="w-full bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-800 rounded-2xl p-4 text-sm font-medium outline-none focus:ring-2 focus:ring-orange-400 transition-all text-[#0f172a] placeholder-slate-400 resize-none h-20"></textarea></div>
