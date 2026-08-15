@@ -55,6 +55,9 @@ createApp({
         const showServiceInfoModal = ref(false);
         const serviceInfo = ref(null);
         const openServiceInfo = (s) => { serviceInfo.value = s; showServiceInfoModal.value = true; };
+        // Modais de picker (serviços) e balões/checklist — mantêm a tela de agendamento clean
+        const showServicePickerModal = ref(false);
+        const showBalloonModal = ref(false);
         const pendingAppointments = ref([]);
         const budgetList = ref([]); 
         const historyList = ref([]); 
@@ -1237,7 +1240,7 @@ createApp({
         // ─── ATALHOS DE TECLADO ───────────────────────────────
         const showShortcutsModal = ref(false);
         const closeTopModal = () => {
-            const modals = [showShortcutsModal, showGalleryModal, showInventoryModal, showExpenseModal, showClientHistoryModal, showClientModal, showServiceModal, showGoalModal, showAppointmentModal, showReceiptModal, showSignatureModal];
+            const modals = [showShortcutsModal, showServiceInfoModal, showServicePickerModal, showBalloonModal, showBlockModal, showGalleryModal, showInventoryModal, showExpenseModal, showClientHistoryModal, showClientModal, showServiceModal, showGoalModal, showAppointmentModal, showReceiptModal, showSignatureModal];
             for (const m of modals) {
                 if (m.value) { m.value = false; return true; }
             }
@@ -1440,7 +1443,7 @@ createApp({
             catalogClientsDisplayList, catalogSearched, clientFilter, clearClientFilter,
             serviceSearch, serviceMaxPrice, servicesDisplayList, servicesSearched, searchServices, clearServiceFilter,
             company, handleLogoUpload, saveCompany, sendWeeklyReportNow, sendingReport, weeklyReportOptOut, toggleWeeklyReport, downloadReceiptImage, generateContractPDF, openWhatsApp, formatCurrency, formatDate, getDay, getMonth, statusText, getClientName,
-            toggleDarkMode, expenseCategories, expensesByCategoryStats, agendaTab, agendaFilter, searchHistory, changeStatus, registrationTab, kpiPendingReceivables, totalAppointmentsCount, topExpenseCategory, getCategoryIcon, maskPhone, maskCPF, normalizePhoneDigits, servicesSubtotal, incServiceQty, decServiceQty, serviceLineTotal, syncBalloonChecklist, showServiceInfoModal, serviceInfo, openServiceInfo,
+            toggleDarkMode, expenseCategories, expensesByCategoryStats, agendaTab, agendaFilter, searchHistory, changeStatus, registrationTab, kpiPendingReceivables, totalAppointmentsCount, topExpenseCategory, getCategoryIcon, maskPhone, maskCPF, normalizePhoneDigits, servicesSubtotal, incServiceQty, decServiceQty, serviceLineTotal, syncBalloonChecklist, showServiceInfoModal, serviceInfo, openServiceInfo, showServicePickerModal, showBalloonModal,
             copyClientLink, budgetList, saveAsBudget, approveBudget, pendingAppointments,
             openSignatureModal, clearSignature, saveSignature, showSignatureModal,
             downloadClientReceipt,
