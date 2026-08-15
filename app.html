@@ -1194,6 +1194,25 @@
                                 </button>
                             </div>
 
+                            <!-- ═══ NOTIFICAÇÕES NO CELULAR (PUSH) ═══ -->
+                            <div class="border-t border-[#eeebe0] pt-5 space-y-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style="background:var(--brand-pale)">
+                                        <i class="fa-solid fa-bell" style="color:var(--brand-mid)"></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <p class="font-bold text-[#0f172a] text-sm">Notificações no celular</p>
+                                        <p class="text-xs mt-0.5" style="color:var(--ink-soft)">Receba um alerta "Tem evento hoje!" na manhã dos seus eventos. Toque para abrir o app.</p>
+                                    </div>
+                                </div>
+                                <button @click="togglePush" :disabled="pushLoading" class="w-full h-12 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition" :style="pushEnabled ? 'background:var(--brand);color:white' : 'background:var(--surface-3);color:var(--brand);border:1.5px solid var(--brand)'">
+                                    <i v-if="pushLoading" class="fa-solid fa-circle-notch fa-spin"></i>
+                                    <i v-else :class="pushEnabled ? 'fa-solid fa-bell' : 'fa-regular fa-bell'"></i>
+                                    {{ pushLoading ? 'Configurando...' : (pushEnabled ? 'Notificações ativadas ✓ (toque para desativar)' : 'Ativar notificações neste dispositivo') }}
+                                </button>
+                                <p class="text-[10px] text-center" style="color:var(--ink-soft)">Instale o app na tela inicial para receber notificações mesmo com o navegador fechado.</p>
+                            </div>
+
                             <!-- EmailJS Config -->
                             <div class="border-t border-[#e8eef4] pt-5 space-y-3">
                                 <div class="flex items-center justify-between">
